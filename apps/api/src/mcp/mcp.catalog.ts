@@ -45,6 +45,20 @@ const weekdayEnum = {
   enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'],
 } as const;
 
+const workContext = {
+  type: 'string',
+  enum: ['all', 'work', 'personal'],
+  description:
+    'Default all. The MCP never hides work outside hours; pass work or personal to filter.',
+};
+
+const uuidList = {
+  type: 'array',
+  items: id,
+  maxItems: 100,
+  description: 'Replaces the whole set. Read current settings first.',
+};
+
 /** RF-2007. Structured recurrence; the server builds an RRULE via buildRepeatRule. */
 const recurrenceSchema = {
   type: 'object',
@@ -204,6 +218,27 @@ const CATALOG: readonly McpTool[] = [
     ),
   },
   {
+    name: 'get_work_context',
+    description:
+      'Read work hours, which folders, lists and tags count as work, and whether work is hidden right now.',
+    scopes: ['profile:read'],
+    inputSchema: objectSchema({}, []),
+  },
+  {
+    name: 'update_work_context',
+    description:
+      'Read current settings first; arrays replace the whole set. show_work true keeps work visible until the next work start on every device.',
+    scopes: ['workday:write'],
+    inputSchema: objectSchema({
+      work_days: { type: 'array', items: weekdayEnum, maxItems: 7 },
+      work_folder_ids: uuidList,
+      work_project_ids: uuidList,
+      work_tag_ids: uuidList,
+      hide_work_outside_hours: { type: 'boolean' },
+      show_work: { type: 'boolean' },
+    }),
+  },
+  {
     name: 'api_catalog',
     description:
       'Discover every public API operation and its request schema. Filter by path or summary. Use api_request for operations without a dedicated tool.',
@@ -266,6 +301,7 @@ const CATALOG: readonly McpTool[] = [
       },
       priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
       someday: { type: 'boolean' },
+      context: workContext,
       status: {
         type: 'string',
         enum: ['active', 'completed', 'archived', 'cancelled', 'all'],
@@ -683,6 +719,7 @@ const CATALOG: readonly McpTool[] = [
       date: { type: 'string' },
       days: { type: 'integer', minimum: 1, maximum: 14 },
       time_zone: { type: 'string' },
+      context: workContext,
     }),
   },
   {
@@ -796,7 +833,10 @@ const CATALOG: readonly McpTool[] = [
     name: 'list_smart_list_tasks',
     description: 'List tasks in one smart list.',
     scopes: ['filters:read'],
-    inputSchema: objectSchema({ key: { type: 'string', minLength: 1 }, limit, cursor }, ['key']),
+    inputSchema: objectSchema(
+      { key: { type: 'string', minLength: 1 }, limit, cursor, context: workContext },
+      ['key'],
+    ),
   },
   {
     name: 'list_habits',
@@ -1005,6 +1045,7 @@ const CATALOG: readonly McpTool[] = [
         to: { type: 'string', format: 'date-time' },
         include_external: { type: 'boolean' },
         subscription_id: id,
+        context: workContext,
       },
       ['from', 'to'],
     ),

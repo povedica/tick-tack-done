@@ -39,6 +39,7 @@ export const API_SCOPES = [
   'automations:manage',
   'profile:read',
   'profile:write',
+  'workday:write',
   'backup:read',
   'stats:read',
 ] as const;
@@ -92,6 +93,7 @@ export const OAUTH_DEFAULT_SCOPES = [
   'reminders:write',
   'profile:read',
   'stats:read',
+  'workday:write',
 ] as const satisfies readonly ApiScope[];
 
 /** Scopes the route requires and the caller was not granted (RF-2002). */

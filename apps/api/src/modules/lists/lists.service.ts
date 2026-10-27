@@ -1,6 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { Column, Folder, Project } from '@prisma/client';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { detachWorkReference } from '../../work/work-context.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { asJson, iso } from '../../http/json.js';
@@ -143,6 +144,7 @@ export class ListsService {
         data: { folderId: null },
       });
       const row = await tx.folder.update({ where: { id }, data: { deletedAt: new Date() } });
+      await detachWorkReference(tx, user.id, 'workFolderIds', id);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.folderDeleted,
         entityType: 'folder',
@@ -305,6 +307,7 @@ export class ListsService {
         data: { deletedAt: now },
       });
       const row = await tx.project.update({ where: { id }, data: { deletedAt: now } });
+      await detachWorkReference(tx, user.id, 'workProjectIds', id);
       for (const task of tasks) {
         await this.events.record(tx, actorOf(user), {
           type: DomainEvent.taskDeleted,

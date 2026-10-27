@@ -5,6 +5,8 @@ import {
   civilDateKey,
   effectOf,
   freeSlots,
+  isWorkTask,
+  workHiddenNow,
   dayLoad,
   featureEnabled,
   formatDayLoadLine,
@@ -17,6 +19,12 @@ import {
   type ReplanCandidate,
 } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import {
+  loadWorkRow,
+  resolvedWorkMode,
+  workSchedule,
+  type WorkContextMode,
+} from '../../work/work-context.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { DomainException } from '../../http/domain.exception.js';
@@ -63,8 +71,13 @@ export class DayClosingService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
   ) {}
 
-  async load(user: AuthUser, date: string, _timeZone: string): Promise<Record<string, unknown>> {
-    const range = await this.range(user, date, 1);
+  async load(
+    user: AuthUser,
+    date: string,
+    _timeZone: string,
+    context: WorkContextMode = 'all',
+  ): Promise<Record<string, unknown>> {
+    const range = await this.range(user, date, 1, context);
     const days = range.days as Record<string, unknown>[];
     return days[0] ?? {};
   }
@@ -90,7 +103,12 @@ export class DayClosingService {
     return { work_days: workDays };
   }
 
-  async range(user: AuthUser, from: string, days: number): Promise<Record<string, unknown>> {
+  async range(
+    user: AuthUser,
+    from: string,
+    days: number,
+    context: WorkContextMode = 'all',
+  ): Promise<Record<string, unknown>> {
     this.assertDate(from);
     if (!Number.isInteger(days) || days < 1 || days > 14)
       throw new DomainException(
@@ -103,8 +121,12 @@ export class DayClosingService {
     const result = [];
     for (let i = 0; i < days; i += 1) {
       const date = shiftCivilDate(from, i);
-      const tasks = (await this.queue(user.id, date, timeZone)).filter(
-        (t) => user.listIds === null || user.listIds.includes(t.projectId),
+      const tasks = await this.keepWorkContext(
+        user.id,
+        (await this.queue(user.id, date, timeZone)).filter(
+          (t) => user.listIds === null || user.listIds.includes(t.projectId),
+        ),
+        context,
       );
       const habits = await habitCards(this.prisma, user, date);
       for (const habit of habits)
@@ -680,6 +702,62 @@ export class DayClosingService {
       return decision.decision === 'plan_day' ? 'planned' : 'later';
     }
     return 'skipped';
+  }
+
+  private async keepWorkContext(
+    ownerId: string,
+    tasks: ClosingTask[],
+    context: WorkContextMode,
+  ): Promise<ClosingTask[]> {
+    if (context === 'all' || tasks.length === 0) {
+      return tasks;
+    }
+    const row = await loadWorkRow(this.prisma, ownerId);
+    const mode = resolvedWorkMode(
+      context,
+      workHiddenNow(
+        {
+          ...workSchedule(row),
+          hideWorkOutsideHours: row.hideWorkOutsideHours,
+          showWorkUntil: row.showWorkUntil?.toISOString() ?? null,
+          timeZone: row.timeZone,
+        },
+        new Date().toISOString(),
+      ),
+    );
+    if (mode === 'all') {
+      return tasks;
+    }
+    const ids = tasks.map((task) => task.id);
+    const [links, projects] = await Promise.all([
+      this.prisma.taskTag.findMany({
+        where: { taskId: { in: ids } },
+        select: { taskId: true, tagId: true },
+      }),
+      this.prisma.project.findMany({
+        where: { ownerId, id: { in: tasks.map((task) => task.projectId) } },
+        select: { id: true, folderId: true },
+      }),
+    ]);
+    const tags = new Map<string, string[]>();
+    for (const link of links) {
+      const current = tags.get(link.taskId) ?? [];
+      current.push(link.tagId);
+      tags.set(link.taskId, current);
+    }
+    const folders = new Map(projects.map((project) => [project.id, project.folderId]));
+    return tasks.filter((task) => {
+      const work = isWorkTask(
+        { projectId: task.projectId, tagIds: tags.get(task.id) ?? [] },
+        {
+          workFolderIds: row.workFolderIds,
+          workProjectIds: row.workProjectIds,
+          workTagIds: row.workTagIds,
+          folderOf: (projectId) => folders.get(projectId) ?? null,
+        },
+      );
+      return mode === 'work' ? work : !work;
+    });
   }
 
   private async queue(

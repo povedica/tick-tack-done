@@ -11,6 +11,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -198,6 +199,52 @@ export class UpdateMeDto {
   @MaxLength(5)
   work_day_end?: string | null;
 
+  @ApiProperty({
+    required: false,
+    type: [String],
+    example: ['MO', 'TU', 'WE', 'TH', 'FR'],
+    description: 'Working weekdays. Same codes as recurrence.weekdays. Sunday is SU.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsIn(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'], { each: true })
+  work_days?: string[];
+
+  @ApiProperty({ required: false, type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('all', { each: true })
+  work_folder_ids?: string[];
+
+  @ApiProperty({ required: false, type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('all', { each: true })
+  work_project_ids?: string[];
+
+  @ApiProperty({ required: false, type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('all', { each: true })
+  work_tag_ids?: string[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  hide_work_outside_hours?: boolean;
+
+  @ApiProperty({
+    required: false,
+    description: 'true shows work until the next work start; false clears that override.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  show_work?: boolean;
+
   @ApiProperty({ required: false, example: 30 })
   @IsOptional()
   @IsInt()
@@ -367,6 +414,33 @@ export class MeResponseDto {
   @ApiProperty({ nullable: true, type: String })
   work_day_end!: string | null;
 
+  @ApiProperty({ type: [String], example: ['MO', 'TU', 'WE', 'TH', 'FR'] })
+  work_days!: string[];
+
+  @ApiProperty({ type: [String] })
+  work_folder_ids!: string[];
+
+  @ApiProperty({ type: [String] })
+  work_project_ids!: string[];
+
+  @ApiProperty({ type: [String] })
+  work_tag_ids!: string[];
+
+  @ApiProperty()
+  hide_work_outside_hours!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  show_work_until!: string | null;
+
+  @ApiProperty()
+  is_work_time_now!: boolean;
+
+  @ApiProperty()
+  work_hidden_now!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  next_work_start!: string | null;
+
   @ApiProperty()
   default_task_duration_minutes!: number;
 
@@ -378,4 +452,96 @@ export class MeResponseDto {
 
   @ApiProperty({ type: FeatureFlagsDto })
   features!: FeatureFlagsDto;
+}
+
+export class WorkCountsDto {
+  @ApiProperty()
+  lists!: number;
+
+  @ApiProperty()
+  tags!: number;
+
+  @ApiProperty()
+  active_tasks!: number;
+}
+
+export class UpdateWorkContextDto {
+  @ApiProperty({ required: false, type: [String], example: ['MO', 'TU', 'WE', 'TH', 'FR'] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsIn(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'], { each: true })
+  work_days?: string[];
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('all', { each: true })
+  work_folder_ids?: string[];
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('all', { each: true })
+  work_project_ids?: string[];
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('all', { each: true })
+  work_tag_ids?: string[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  hide_work_outside_hours?: boolean;
+
+  @ApiProperty({
+    required: false,
+    description: 'true keeps work visible until the next work start. false clears it.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  show_work?: boolean;
+}
+
+export class WorkContextResponseDto {
+  @ApiProperty({ nullable: true, type: String })
+  work_day_start!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  work_day_end!: string | null;
+
+  @ApiProperty({ type: [String] })
+  work_days!: string[];
+
+  @ApiProperty({ type: [String] })
+  work_folder_ids!: string[];
+
+  @ApiProperty({ type: [String] })
+  work_project_ids!: string[];
+
+  @ApiProperty({ type: [String] })
+  work_tag_ids!: string[];
+
+  @ApiProperty()
+  hide_work_outside_hours!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  show_work_until!: string | null;
+
+  @ApiProperty()
+  is_work_time_now!: boolean;
+
+  @ApiProperty()
+  work_hidden_now!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  next_work_start!: string | null;
+
+  @ApiProperty({ type: WorkCountsDto })
+  counts!: WorkCountsDto;
 }

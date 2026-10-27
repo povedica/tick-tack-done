@@ -14,6 +14,7 @@ import { googleConfigured } from '../../integrations/config.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 import { GoogleSyncService, type SubscriptionJson } from './google-sync.service.js';
+import { workFilterFor, type WorkContextMode } from '../../work/work-context.js';
 
 @Injectable()
 export class CalendarService {
@@ -23,14 +24,22 @@ export class CalendarService {
     @Inject(GoogleSyncService) private readonly googleSync: GoogleSyncService,
   ) {}
 
-  async range(user: AuthUser, fromIso: string, toIso: string, subscriptionId?: string) {
+  async range(
+    user: AuthUser,
+    fromIso: string,
+    toIso: string,
+    subscriptionId?: string,
+    context: WorkContextMode = 'all',
+  ) {
     const from = this.instant(fromIso, 'from');
     const to = this.instant(toIso, 'to');
+    const work = await workFilterFor(this.prisma, user.id, context);
     const tasks = await this.prisma.task.findMany({
       where: {
         ownerId: user.id,
         deletedAt: null,
         status: 'active',
+        ...(work === null ? {} : { AND: [work] }),
         OR: [{ dueDate: { gte: from, lt: to } }, { startDate: { gte: from, lt: to } }],
       },
       orderBy: { dueDate: 'asc' },

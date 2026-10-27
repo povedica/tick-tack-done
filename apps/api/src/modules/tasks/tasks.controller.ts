@@ -32,6 +32,7 @@ import { pageLimit } from '../../http/cursor.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { optionalUuid } from '../../http/uuid-query.js';
 import { respondJson } from '../../http/respond.js';
+import { parseWorkContext } from '../../work/work-context.js';
 import { parseTaskSort, type TaskSort } from './task-cursor.js';
 import type { TaskListQuery } from './tasks.service.js';
 import { TasksService } from './tasks.service.js';
@@ -172,6 +173,12 @@ export class TasksController {
     enum: ['due', 'start', 'any'],
     description: 'Default any includes intervals overlapping the range.',
   })
+  @ApiQuery({
+    name: 'context',
+    required: false,
+    enum: ['all', 'work', 'personal', 'auto'],
+    description: 'Default all. auto hides work outside the configured hours.',
+  })
   async list(
     @CurrentUser() user: AuthUser,
     @Query('limit') limit: string | undefined,
@@ -192,6 +199,7 @@ export class TasksController {
     @Query('sort') sort: string | undefined,
     @Query('overdue') overdue: string | undefined,
     @Query('someday') someday: string | undefined,
+    @Query('context') context: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
@@ -220,6 +228,7 @@ export class TasksController {
         sort: parseTaskSort(sort),
         overdue: overdue === 'true',
         ...(someday === 'true' ? { someday: true } : someday === 'false' ? { someday: false } : {}),
+        context: parseWorkContext(context),
       }),
     );
     respondJson(req, res, 200, page, true);

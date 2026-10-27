@@ -39,6 +39,7 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
 import { respondJson } from '../../http/respond.js';
 import { DayClosingService } from './day-closing.service.js';
+import { parseWorkContext } from '../../work/work-context.js';
 
 const DECISIONS = ['done', 'plan_day', 'later', 'someday', 'cancel', 'trash', 'skip'] as const;
 
@@ -120,22 +121,30 @@ export class DayClosingController {
     required: false,
     description: 'Compatibility parameter; the profile time zone is authoritative.',
   })
+  @ApiQuery({
+    name: 'context',
+    required: false,
+    enum: ['all', 'work', 'personal', 'auto'],
+    description: 'Default all. auto hides work outside the configured hours.',
+  })
   async load(
     @CurrentUser() user: AuthUser,
     @Query('date') date: string,
     @Query('time_zone') timeZone: string,
     @Query('from') from: string | undefined,
     @Query('days') days: string | undefined,
+    @Query('context') context: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    const mode = parseWorkContext(context);
     respondJson(
       req,
       res,
       200,
       from !== undefined || days !== undefined
-        ? await this.closing.range(user, from ?? date, Number(days ?? 1))
-        : await this.closing.load(user, date, timeZone),
+        ? await this.closing.range(user, from ?? date, Number(days ?? 1), mode)
+        : await this.closing.load(user, date, timeZone, mode),
       false,
     );
   }

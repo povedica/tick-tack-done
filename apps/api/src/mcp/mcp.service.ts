@@ -7,6 +7,7 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   buildRepeatRule,
   civilDateKey,
+  isWorkTask,
   describeRepeatRule,
   nextOccurrence,
   listNameKey,
@@ -38,6 +39,7 @@ import { TagsService } from '../modules/tags/tags.service.js';
 import { DayClosingService } from '../modules/planning/day-closing.service.js';
 import { TasksService } from '../modules/tasks/tasks.service.js';
 import { CalendarService } from '../modules/calendar/calendar.service.js';
+import { loadWorkRow } from '../work/work-context.js';
 import { validateMcpArgs } from './mcp-args.js';
 import { findTool, visibleTools } from './mcp.catalog.js';
 
@@ -204,7 +206,17 @@ export class McpService {
         next_cursor: start + limit < matches.length ? offsetCursor(start + limit) : null,
       };
     } else if (tool.name === 'api_request') data = await requestPublicApi(args, authorization);
-    else if (tool.name === 'get_capture_settings' || tool.name === 'update_capture_settings') {
+    else if (tool.name === 'get_work_context' || tool.name === 'update_work_context') {
+      const response = await requestPublicApi(
+        {
+          method: tool.name === 'get_work_context' ? 'GET' : 'PATCH',
+          path: '/api/v1/me/work-context',
+          ...(tool.name === 'update_work_context' ? { body: args } : {}),
+        },
+        authorization,
+      );
+      data = (response as { data: unknown }).data;
+    } else if (tool.name === 'get_capture_settings' || tool.name === 'update_capture_settings') {
       const response = await requestPublicApi(
         {
           method: tool.name === 'get_capture_settings' ? 'GET' : 'PATCH',
@@ -223,6 +235,62 @@ export class McpService {
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
 
+  private async filterDayPlan(user: AuthUser, data: unknown, context: unknown): Promise<unknown> {
+    if (context !== 'work' && context !== 'personal') {
+      return data;
+    }
+    if (typeof data !== 'object' || data === null || !('members' in data)) {
+      return data;
+    }
+    const members = data.members;
+    if (!Array.isArray(members)) {
+      return data;
+    }
+    const ids = members.flatMap((member) =>
+      typeof member === 'object' &&
+      member !== null &&
+      typeof (member as { task_id?: unknown }).task_id === 'string'
+        ? [(member as { task_id: string }).task_id]
+        : [],
+    );
+    const [row, tasks] = await Promise.all([
+      loadWorkRow(this.prisma, user.id),
+      this.prisma.task.findMany({
+        where: { ownerId: user.id, id: { in: ids } },
+        select: {
+          id: true,
+          projectId: true,
+          project: { select: { folderId: true } },
+          tags: { select: { tagId: true } },
+        },
+      }),
+    ]);
+    const byId = new Map(tasks.map((task) => [task.id, task]));
+    return {
+      ...data,
+      members: members.filter((member) => {
+        const taskId =
+          typeof member === 'object' && member !== null
+            ? (member as { task_id?: unknown }).task_id
+            : undefined;
+        const task = typeof taskId === 'string' ? byId.get(taskId) : undefined;
+        if (task === undefined) {
+          return context === 'personal';
+        }
+        const work = isWorkTask(
+          { projectId: task.projectId, tagIds: task.tags.map((link) => link.tagId) },
+          {
+            workFolderIds: row.workFolderIds,
+            workProjectIds: row.workProjectIds,
+            workTagIds: row.workTagIds,
+            folderOf: () => task.project.folderId,
+          },
+        );
+        return context === 'work' ? work : !work;
+      }),
+    };
+  }
+
   private async run(
     user: AuthUser,
     name: string,
@@ -230,8 +298,10 @@ export class McpService {
     authorization?: string,
   ): Promise<unknown> {
     const limit = limitOf(args);
-    if (isPlanningTool(name) && (name !== 'replan_day' || authorization !== undefined))
-      return callPlanningTool(name, args, user, authorization);
+    if (isPlanningTool(name) && (name !== 'replan_day' || authorization !== undefined)) {
+      const planned = await callPlanningTool(name, args, user, authorization);
+      return name === 'get_day_plan' ? this.filterDayPlan(user, planned, args.context) : planned;
+    }
     switch (name) {
       case 'list_tasks': {
         const projectId = uuidOrEmpty(args.project_id);
@@ -270,6 +340,9 @@ export class McpService {
           deleted: false,
           overdue: false,
           someday: args.someday === true,
+          ...(args.context === 'work' || args.context === 'personal'
+            ? { context: args.context }
+            : {}),
         });
         return {
           ...page,
@@ -683,6 +756,7 @@ export class McpService {
           user,
           typeof args.date === 'string' ? args.date : (civilToday(user.timeZone) ?? ''),
           typeof args.time_zone === 'string' ? args.time_zone : user.timeZone,
+          args.context === 'work' || args.context === 'personal' ? args.context : 'all',
         );
       case 'start_day_shutdown':
         return this.closing.startShutdown(
@@ -766,6 +840,7 @@ export class McpService {
           undefined,
           limit,
           cursorOf(args),
+          args.context === 'work' || args.context === 'personal' ? args.context : 'all',
         );
       case 'list_habits':
         return this.habits.list(user, limit, cursorOf(args));
@@ -1004,6 +1079,7 @@ export class McpService {
           requiredString(args, 'from', 40),
           requiredString(args, 'to', 40),
           typeof args.subscription_id === 'string' ? args.subscription_id : undefined,
+          args.context === 'work' || args.context === 'personal' ? args.context : 'all',
         );
         if (args.include_external === false) {
           return { ...page, external: [] };

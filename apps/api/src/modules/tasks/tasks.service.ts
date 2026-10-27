@@ -7,6 +7,7 @@ import type { AddTaskLinkDto } from './task-links.dto.js';
 import { reconcileTaskLinks, taskLinkJson } from './task-links.js';
 import { DriveAttachmentsService } from '../../drive/attachments.service.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
+import { annotateWork, workFilterFor } from '../../work/work-context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
@@ -138,6 +139,7 @@ export interface TaskListQuery {
   deleted: boolean;
   overdue: boolean;
   someday?: boolean;
+  context?: 'all' | 'work' | 'personal' | 'auto';
 }
 
 /** A subtask in another list stays visible in its own list. Same-list children stay nested. */
@@ -225,10 +227,12 @@ export class TasksService {
                   },
                 ],
               };
+    const work = await workFilterFor(this.prisma, user.id, query.context ?? 'all');
+    const filters = [work, range].filter((item): item is Prisma.TaskWhereInput => item !== null);
     const rows = await this.prisma.task.findMany({
       where: {
         ownerId: user.id,
-        ...(range === null ? {} : { AND: [range] }),
+        ...(filters.length === 0 ? {} : { AND: filters }),
         ...(query.deleted ? { deletedAt: { not: null } } : { deletedAt: null }),
         ...visibleParents(query),
         ...(listFilter.projectId === undefined ? {} : { projectId: listFilter.projectId }),
@@ -261,11 +265,13 @@ export class TasksService {
     const hasMore = rows.length > query.limit;
     const page = rows.slice(0, query.limit);
     const progress = await this.progressMap(page.map((row) => row.id));
+    const summaries = page.map((row) =>
+      toTaskSummary(row, progress.get(row.id) ?? { completed: 0, total: 0 }),
+    );
+    const flags = await annotateWork(this.prisma, user.id, summaries);
     const last = page.at(-1);
     return {
-      items: page.map((row) =>
-        toTaskSummary(row, progress.get(row.id) ?? { completed: 0, total: 0 }),
-      ),
+      items: summaries.map((item, index) => ({ ...item, is_work: flags[index] ?? false })),
       next_cursor: hasMore && last !== undefined ? encodeTaskCursor(query.sort, last) : null,
     };
   }

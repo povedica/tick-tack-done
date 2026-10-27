@@ -666,6 +666,12 @@ export class TaskResponseDto {
   @ApiProperty()
   is_someday!: boolean;
 
+  @ApiProperty({
+    required: false,
+    description: 'True when the task list, its folder, or any tag is marked as work.',
+  })
+  is_work?: boolean;
+
   @ApiProperty()
   evening_only!: boolean;
 
