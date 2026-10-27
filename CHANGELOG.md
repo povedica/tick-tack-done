@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## Algún día más visible en la planificación
+
+- La hoja «¿Cuándo?» muestra «Algún día» como píldora neutra, pareja de la X,
+  en escritorio y en móvil. El calendario de la hoja no cambia.
+- En la tarjeta de escritorio, duración y hora comparten fila y «Algún día»
+  queda visible junto a Hecha y No lo haré. El menú «⋯» de esa tarjeta solo
+  elimina. La tarjeta móvil sigue con sus controles de siempre.
+
 ## Carpetas, listas y lista-proyecto
 
 - Una lista puede marcarse como proyecto (`is_project`) con resultado, estado

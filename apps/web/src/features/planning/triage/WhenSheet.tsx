@@ -60,7 +60,7 @@ export function WhenSheet({
       className="popover plan-when-popover"
       headingAction={
         <button type="button" className="plan-when-someday" disabled={busy} onClick={onSomeday}>
-          <CloudSun size={16} aria-hidden="true" />
+          <CloudSun size={18} aria-hidden="true" />
           {m.someday}
         </button>
       }
