@@ -1233,8 +1233,26 @@ function FolderBlock({
 }) {
   const messages = useMessages();
   const rowRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(() => readFolderOpen(folder.id));
   const [draft, setDraft] = useState(folder.name);
+  useEffect(() => {
+    if (!renaming) {
+      return;
+    }
+    const field = nameRef.current;
+    if (field === null) {
+      return;
+    }
+    // The folder menu restores focus to its button after this paint.
+    const frame = requestAnimationFrame(() => {
+      field.focus();
+      field.select();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [renaming]);
   const press = useLongPress(() => {
     if (rowRef.current !== null) {
       onOpenMenu(rowRef.current);
@@ -1268,9 +1286,10 @@ function FolderBlock({
               <FolderIcon size={16} aria-hidden="true" />
             )}
             <input
+              ref={nameRef}
+              className="nav-folder-name-input"
               value={draft}
               aria-label={messages.rename}
-              autoFocus
               maxLength={200}
               onChange={(event) => {
                 setDraft(event.target.value);

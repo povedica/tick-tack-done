@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Folder as FolderIcon,
   FolderInput,
+  Info,
   List,
   ListPlus,
   Pencil,
@@ -471,7 +472,12 @@ export function FolderMenu({
         <Trash2 size={16} aria-hidden="true" />
         {text.deleteFolder}
       </button>
-      {hint !== null ? <p className="menu-note">{hint}</p> : null}
+      {hint !== null ? (
+        <p className="menu-hint">
+          <Info size={16} aria-hidden="true" />
+          <span>{hint}</span>
+        </p>
+      ) : null}
     </>
   );
   return (
