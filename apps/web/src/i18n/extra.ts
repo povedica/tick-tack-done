@@ -103,7 +103,10 @@ export const extraEs = {
   googleConnectionTitle: 'Permisos de Google',
   googleSharedNotice:
     'Calendar y Drive comparten una conexión Google. Puedes activar cada servicio por separado. Revocar el acceso en Google afecta a ambos.',
-  googleManagePermissions: 'Gestionar permisos en Google',
+  googleManagePermissions: 'Gestionar en Google',
+  googleManageDetail: 'Abre tu cuenta de Google',
+  googleSharedFoot: 'Una sola conexión para ambos: revocarla en Google desactiva los dos.',
+  dataTreatment: 'Tratamiento de datos de {service}',
   googleChangePermissions: 'Cambiar permisos',
   googleRevokeAll: 'Revocar acceso a Google',
   googleRevokeWarning:
@@ -557,12 +560,17 @@ export const extraEs = {
   smartPinned: 'Queda fija al pie de la barra.',
   matrixRules: 'Urgente: vence en 24 h o ya venció. Importante: prioridad alta o media.',
   integrationsEmpty: 'Ninguna integración está conectada.',
-  integrationsHint: 'Cada servicio muestra si está listo y cómo se usa.',
+  integrationsHint: 'Servicios conectados a ttd y qué pueden hacer.',
   integrationReady: 'Disponible',
   integrationOff: 'No disponible',
   integrationConnected: 'Conectada',
   integrationIdle: 'Sin conectar',
   telegramOwnBotHint: 'Conecta tu propio bot con el token que te entrega BotFather.',
+  telegramBotFoot: 'Bot propio con el token de BotFather.',
+  telegramBotMeta: 'Bot @{bot} · vinculado {date}',
+  telegramBotMetaPlain: 'Bot @{bot}',
+  telegramAlertsTo: 'Avisos · a {who}',
+  telegramTestDetail: 'Envía un mensaje de prueba a {who}',
   telegramLocalOnly:
     'Bot guardado. Sin recepción de mensajes en este entorno local: hace falta una URL pública HTTPS para activar el webhook.',
   telegramWebhookRegistered: 'Webhook registrado. El bot puede recibir mensajes.',
@@ -582,8 +590,9 @@ export const extraEs = {
   googleErrorNote: 'Google no ha completado la conexión.',
   googleDeniedNote:
     'Google ha rechazado la conexión. Si ves «Acceso bloqueado», la app aún está en revisión: pide al administrador que te añada como tester.',
-  inboundHint:
-    'Un correo a esta dirección se convierte en una tarea. La dirección nueva se muestra una sola vez.',
+  inboundHint: 'Cada correo enviado a tu dirección se convierte en tarea.',
+  inboundOnce: 'Se crea en in.todo.reflexionia.com y se muestra una sola vez.',
+  inboundGenerate: 'Generar dirección',
   inboundMissing:
     'Todavía no hay dirección. Regenerar crea una en in.todo.reflexionia.com y la enseña una sola vez.',
   inboundMasked: 'La dirección completa se enseñó al generarla.',
@@ -1395,7 +1404,10 @@ export const extraEn = {
   googleConnectionTitle: 'Google permissions',
   googleSharedNotice:
     'Calendar and Drive share one Google connection. You can activate each service separately. Revoking Google access affects both.',
-  googleManagePermissions: 'Manage permissions in Google',
+  googleManagePermissions: 'Manage in Google',
+  googleManageDetail: 'Opens your Google account',
+  googleSharedFoot: 'One connection covers both: revoking it in Google turns both off.',
+  dataTreatment: 'Data handling for {service}',
   googleChangePermissions: 'Change permissions',
   googleRevokeAll: 'Revoke Google access',
   googleRevokeWarning:
@@ -1841,12 +1853,17 @@ export const extraEn = {
   smartPinned: 'Stays pinned at the bottom of the sidebar.',
   matrixRules: 'Urgent: due within 24 h or overdue. Important: high or medium priority.',
   integrationsEmpty: 'No integration is connected.',
-  integrationsHint: 'Each service shows whether it is ready and how it is used.',
+  integrationsHint: 'Services connected to ttd and what they can do.',
   integrationReady: 'Available',
   integrationOff: 'Unavailable',
   integrationConnected: 'Connected',
   integrationIdle: 'Not connected',
   telegramOwnBotHint: 'Connect your own bot with the token from BotFather.',
+  telegramBotFoot: 'Your own bot, using the BotFather token.',
+  telegramBotMeta: 'Bot @{bot} · linked {date}',
+  telegramBotMetaPlain: 'Bot @{bot}',
+  telegramAlertsTo: 'Alerts · to {who}',
+  telegramTestDetail: 'Sends a test message to {who}',
   telegramLocalOnly:
     'Bot saved. This local environment cannot receive messages: a public HTTPS URL is needed to activate the webhook.',
   telegramWebhookRegistered: 'Webhook registered. The bot can receive messages.',
@@ -1866,7 +1883,9 @@ export const extraEn = {
   googleErrorNote: 'Google did not finish connecting.',
   googleDeniedNote:
     'Google rejected the connection. If you see “Access blocked”, the app is still under review: ask the admin to add you as a tester.',
-  inboundHint: 'Mail to this address becomes a task. A new address is shown once.',
+  inboundHint: 'Each email sent to your address becomes a task.',
+  inboundOnce: 'It is created at in.todo.reflexionia.com and shown only once.',
+  inboundGenerate: 'Generate address',
   inboundMissing:
     'There is no address yet. Regenerate creates one at in.todo.reflexionia.com and shows it once.',
   inboundMasked: 'The full address was shown when it was created.',

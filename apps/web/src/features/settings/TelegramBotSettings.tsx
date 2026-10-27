@@ -1,17 +1,32 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@reflexionia/sdk';
 import { api } from '../../api';
 import { useMessages } from '../../i18n';
 import { Button } from '../../components/ui';
-import { telegramUiState, useWtCMessages } from './i18n-wt-c';
+import { telegramUiState, useWtCMessages, type TelegramUiState } from './i18n-wt-c';
+
+export interface TelegramBotParts {
+  readonly state: TelegramUiState;
+  readonly busy: boolean;
+  readonly username: string | null;
+  readonly replacing: boolean;
+  readonly toggleReplace: () => void;
+  readonly retry: () => void;
+  readonly remove: () => void;
+  readonly localOnly: ReactNode;
+  readonly form: ReactNode;
+  readonly alerts: ReactNode;
+}
 
 export function TelegramBotSettings({
   status,
   onSaved,
+  children,
 }: {
   status: Record<string, unknown> | undefined;
   onSaved: () => void;
+  children?: (parts: TelegramBotParts) => ReactNode;
 }) {
   const messages = useMessages();
   const m = useWtCMessages();
@@ -52,84 +67,49 @@ export function TelegramBotSettings({
     managementCode && managementCode in m
       ? m[managementCode as keyof typeof m]
       : m.telegram_configuration_failed;
-  return (
-    <div>
-      <p>{messages.telegramOwnBotHint}</p>
-      {username ? (
-        <p>
-          Bot:{' '}
-          <a href={`https://t.me/${encodeURIComponent(username)}`} target="_blank" rel="noreferrer">
-            @{username}
-          </a>
-        </p>
-      ) : null}
-      {state === 'token_saved' ? <p role="status">{messages.telegramLocalOnly}</p> : null}
-      {state !== 'none' ? (
-        <div className="telegram-actions">
-          {state === 'token_saved' || state === 'error' ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => {
-                retry.mutate();
-              }}
-            >
-              {m.retry}
-            </Button>
-          ) : null}
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => {
-              setReplacing(!replacing);
-            }}
-          >
-            {m.replace}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => {
-              remove.mutate();
-            }}
-          >
-            {m.remove}
-          </Button>
-        </div>
-      ) : null}
-      {state === 'none' || replacing ? (
-        <form
-          className="telegram-bot-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            save.mutate(false);
+  const localOnly =
+    state === 'token_saved' ? <p role="status">{messages.telegramLocalOnly}</p> : null;
+  const identity = username ? (
+    <p>
+      Bot:{' '}
+      <a href={`https://t.me/${encodeURIComponent(username)}`} target="_blank" rel="noreferrer">
+        @{username}
+      </a>
+    </p>
+  ) : null;
+  const form =
+    state === 'none' || replacing ? (
+      <form
+        className="telegram-bot-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save.mutate(false);
+        }}
+      >
+        <label className="token-label" htmlFor="telegram-bot-token">
+          {messages.telegramBotToken}
+        </label>
+        <input
+          id="telegram-bot-token"
+          className="token-name"
+          type="password"
+          value={token}
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={200}
+          onChange={(event) => {
+            setToken(event.target.value);
+            save.reset();
           }}
-        >
-          <label className="token-label" htmlFor="telegram-bot-token">
-            {messages.telegramBotToken}
-          </label>
-          <input
-            id="telegram-bot-token"
-            className="token-name"
-            type="password"
-            value={token}
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={200}
-            onChange={(event) => {
-              setToken(event.target.value);
-              save.reset();
-            }}
-            required
-          />
-          <Button type="submit" size="sm" loading={save.isPending} disabled={!token.trim() || busy}>
-            {state === 'none' ? m.connect : m.replace}
-          </Button>
-        </form>
-      ) : null}
+          required
+        />
+        <Button type="submit" size="sm" loading={save.isPending} disabled={!token.trim() || busy}>
+          {state === 'none' ? m.connect : m.replace}
+        </Button>
+      </form>
+    ) : null;
+  const alerts = (
+    <>
       {save.isError ? (
         <p role="alert">
           {code ? `${code}: ` : ''}
@@ -154,6 +134,34 @@ export function TelegramBotSettings({
         </p>
       ) : null}
       {save.isSuccess ? <p role="status">{messages.telegramBotSaved}</p> : null}
+    </>
+  );
+  const parts: TelegramBotParts = {
+    state,
+    busy,
+    username,
+    replacing,
+    toggleReplace: () => {
+      setReplacing((value) => !value);
+    },
+    retry: () => {
+      retry.mutate();
+    },
+    remove: () => {
+      remove.mutate();
+    },
+    localOnly,
+    form,
+    alerts,
+  };
+  if (children) return children(parts);
+  return (
+    <div>
+      <p>{messages.telegramOwnBotHint}</p>
+      {identity}
+      {localOnly}
+      {form}
+      {alerts}
     </div>
   );
 }

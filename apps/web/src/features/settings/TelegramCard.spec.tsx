@@ -20,13 +20,28 @@ vi.mock('../../api', () => ({
     ),
   },
 }));
-beforeEach(() =>
-  vi.stubGlobal('matchMedia', () => ({
-    matches: false,
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('768'),
+    media: query,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
-  })),
-);
+  }));
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {
+        return undefined;
+      }
+      unobserve() {
+        return undefined;
+      }
+      disconnect() {
+        return undefined;
+      }
+    },
+  );
+});
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -53,11 +68,13 @@ describe('RF-2003: bot actions follow the canonical state', () => {
       if (state === 'token_saved' || state === 'error') {
         expect(screen.queryByText('Sin configurar')).toBeNull();
       }
-      if (state === 'none')
+      if (state === 'none') {
         expect(screen.getByRole('button', { name: 'Conectar bot' })).toBeTruthy();
-      else {
-        expect(screen.getByRole('button', { name: 'Quitar bot' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Más acciones' })).toBeNull();
+      } else {
         expect(screen.getByRole('button', { name: 'Reemplazar token' })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Más acciones' }));
+        expect(screen.getByRole('button', { name: 'Quitar bot' })).toBeTruthy();
       }
       expect(screen.queryByRole('button', { name: 'Reintentar webhook' }) !== null).toBe(
         state === 'token_saved' || state === 'error',

@@ -1,14 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ExternalLink, ShieldCheck, Unlink } from 'lucide-react';
 import { api } from '../../api';
 import { Button } from '../../components/ui';
 import { useMessages } from '../../i18n';
 import { googleAuthorizationUrl } from '../product/GoogleAccessActions';
 import { runAction } from '../../components/run-action';
 import { useWtEMessages } from './i18n-wt-e';
+import {
+  InfoTip,
+  ServiceActions,
+  ServiceMark,
+  StatusChip,
+  type ServiceAction,
+} from './integration-ui';
 import './settings-wt-e.css';
+
+const MANAGE_HREF = 'https://myaccount.google.com/permissions';
 type Service = 'calendar' | 'drive';
+
+function permissionParts(value: string) {
+  const index = value.indexOf(' · ');
+  if (index === -1) return { title: value, detail: '' };
+  return { title: value.slice(0, index), detail: value.slice(index + 3) };
+}
+
+function labeledAction(template: string, service: string) {
+  const full = template.replace('{service}', service);
+  return { full, word: full.split(' ')[0] ?? full };
+}
+
 export function GoogleIntegrationCards() {
   const m = useMessages();
   const copy = useWtEMessages();
@@ -66,66 +88,88 @@ export function GoogleIntegrationCards() {
     setRemoveEvents(false);
     setMode(next);
   };
+  const connected = google.data?.has_connection === true;
+  const reauth = google.data?.status === 'reauth_required';
+  const chip = reauth ? copy.reconnect : connected ? copy.connected : m.googleDisconnectedStatus;
+  const actions: ServiceAction[] = [
+    ...(connected
+      ? [
+          {
+            id: 'change',
+            label: m.googleChangePermissions,
+            icon: ShieldCheck,
+            link: true,
+            onSelect: () => {
+              open('change');
+            },
+          } satisfies ServiceAction,
+        ]
+      : []),
+    {
+      id: 'manage',
+      label: m.googleManagePermissions,
+      detail: m.googleManageDetail,
+      icon: ExternalLink,
+      href: MANAGE_HREF,
+      menu: false,
+    },
+    ...(connected
+      ? [
+          {
+            id: 'disconnect',
+            label: copy.disconnectGoogle,
+            icon: Unlink,
+            tone: 'danger' as const,
+            onSelect: () => {
+              open('revoke');
+            },
+          } satisfies ServiceAction,
+        ]
+      : []),
+  ];
+  const sheetHeader = (
+    <div className="integration-sheet-intro">
+      <ServiceMark name="google" />
+      <div>
+        <strong>{copy.googleTitle}</strong>
+        <p>{m.googleSharedFoot}</p>
+      </div>
+    </div>
+  );
   return (
     <>
-      <section className="token-panel" aria-label={copy.googleTitle}>
-        <div className="token-panel-head">
-          <h2>{copy.googleTitle}</h2>
-          <span role="status">
-            {google.data?.status === 'reauth_required'
-              ? copy.reconnect
-              : google.data?.has_connection === true
-                ? copy.connected
-                : m.googleDisconnectedStatus}
-          </span>
+      <article className="integration-row" aria-labelledby="google-integration-title">
+        <div className="integration-head">
+          <div className="integration-id">
+            <ServiceMark name="google" />
+            <div className="integration-copy">
+              <div className="integration-name">
+                <h2 id="google-integration-title">{copy.googleTitle}</h2>
+                <StatusChip on={connected && !reauth}>{chip}</StatusChip>
+              </div>
+              {typeof google.data?.account === 'string' ? (
+                <p className="integration-meta">{google.data.account}</p>
+              ) : null}
+            </div>
+          </div>
+          <ServiceActions actions={actions} label={copy.googleTitle} sheetHeader={sheetHeader} />
         </div>
-        {typeof google.data?.account === 'string' ? (
-          <p className="token-meta">{google.data.account}</p>
-        ) : null}
-        <div className="wt-e-google-services">
+        <div className="integration-services">
           <GoogleServiceCard service="calendar" />
           <GoogleServiceCard service="drive" />
         </div>
-        <p className="token-meta">{m.googleSharedNotice}</p>
-        <a
-          href="https://myaccount.google.com/permissions"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {m.googleManagePermissions}
-        </a>
-        {google.data?.has_connection === true ? (
-          <div className="token-actions">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                open('change');
-              }}
-            >
-              {m.googleChangePermissions}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                open('revoke');
-              }}
-            >
-              {copy.disconnect}
-            </Button>
-          </div>
-        ) : null}
+        <p className="integration-foot integration-follow">
+          {m.googleSharedFoot}{' '}
+          <a href={MANAGE_HREF} target="_blank" rel="noopener noreferrer">
+            {m.googleManagePermissions} ↗
+          </a>
+        </p>
         {notice ? (
-          <p role="status">
+          <p className="integration-follow" role="status">
             {notice === m.googleDisconnectedNotice ? (
               <>
                 {copy.disconnected}{' '}
-                <a
-                  href="https://myaccount.google.com/permissions"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href={MANAGE_HREF} target="_blank" rel="noopener noreferrer">
                   myaccount.google.com/permissions
                 </a>
               </>
@@ -134,7 +178,7 @@ export function GoogleIntegrationCards() {
             )}
           </p>
         ) : null}
-      </section>
+      </article>
       {mode ? (
         <dialog
           ref={dialog}
@@ -188,12 +232,14 @@ export function GoogleIntegrationCards() {
     </>
   );
 }
+
 function GoogleServiceCard({ service }: { readonly service: Service }) {
   const m = useMessages();
   const copy = useWtEMessages();
   const cache = useQueryClient();
   const calendar = service === 'calendar';
   const name = calendar ? 'Google Calendar' : 'Google Drive';
+  const parts = permissionParts(calendar ? copy.calendarPermission : copy.drivePermission);
   const query = useQuery({
     queryKey: [calendar ? 'google' : 'drive'],
     queryFn: () => api.integrationStatus(calendar ? 'google' : 'drive'),
@@ -224,49 +270,64 @@ function GoogleServiceCard({ service }: { readonly service: Service }) {
     reauth_required: m.googleAuthorizationExpired,
     disconnected: m.googleDisconnectedStatus,
   };
+  const active = authorized && (status === 'connected' || status === 'disabled');
+  const action = labeledAction(
+    status === 'reauth_required' ? m.googleReconnectService : m.googleAuthorizeService,
+    name,
+  );
+  let note: string | null = null;
+  if (!query.isPending && !active) note = labels[status] ?? m.googlePermissionsUnknown;
+  else if (status === 'disabled') note = m.googleDisabledHelp;
+  let control: ReactNode = null;
+  if (active) {
+    control = (
+      <button
+        type="button"
+        className="notification-switch"
+        role="switch"
+        aria-label={`${name} · ${parts.detail}`}
+        aria-checked={enabled}
+        disabled={toggle.isPending}
+        onClick={() => {
+          toggle.mutate();
+        }}
+      >
+        <span />
+      </button>
+    );
+  } else if (!query.isPending) {
+    control = (
+      <Button
+        size="sm"
+        aria-label={action.full}
+        disabled={query.data?.configured !== true || connect.isPending}
+        onClick={() => {
+          connect.mutate();
+        }}
+      >
+        {action.word}
+      </Button>
+    );
+  }
   return (
-    <div className="wt-e-google-service" role="group" aria-label={name}>
-      <div className="token-panel-head">
-        <strong>{name}</strong>
-        <span className="token-meta" role="status">
-          {query.isPending
-            ? m.googlePermissionsUnknown
-            : (labels[status] ?? m.googlePermissionsUnknown)}
-        </span>
-      </div>
-      <p className="token-meta">{calendar ? copy.calendarPermission : copy.drivePermission}</p>
-      <p className="token-meta">{calendar ? m.googleDataNotice : m.driveDataNotice}</p>
-      <div className="token-actions">
-        {authorized && (status === 'connected' || status === 'disabled') ? (
-          <input
-            type="checkbox"
-            role="switch"
-            aria-label={name}
-            checked={enabled}
-            disabled={toggle.isPending}
-            onChange={() => {
-              toggle.mutate();
-            }}
+    <>
+      <div className="integration-switch" role="group" aria-label={name}>
+        <span className="integration-switch-label">
+          <strong>{parts.title}</strong>
+          {parts.detail ? <span className="integration-detail">{parts.detail}</span> : null}
+          <InfoTip
+            label={m.dataTreatment.replace('{service}', name)}
+            text={calendar ? m.googleDataNotice : m.driveDataNotice}
           />
-        ) : (
-          <Button
-            size="sm"
-            disabled={query.data?.configured !== true || connect.isPending}
-            onClick={() => {
-              connect.mutate();
-            }}
-          >
-            {(status === 'reauth_required'
-              ? m.googleReconnectService
-              : m.googleAuthorizeService
-            ).replace('{service}', name)}
-          </Button>
-        )}
+          {note ? <small className="integration-note">{note}</small> : null}
+        </span>
+        {control}
       </div>
-      {status === 'disabled' ? <p className="token-meta">{m.googleDisabledHelp}</p> : null}
       {query.isError || connect.isError || toggle.isError ? (
-        <p role="alert">{m.settingsFailed}</p>
+        <p className="integration-follow" role="alert">
+          {m.settingsFailed}
+        </p>
       ) : null}
-    </div>
+    </>
   );
 }

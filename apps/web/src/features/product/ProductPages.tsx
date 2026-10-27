@@ -285,16 +285,18 @@ export function CalendarSettings() {
 export function IntegrationSettings() {
   const messages = useMessages();
   return (
-    <section className="token-settings">
+    <section className="token-settings integrations-page">
       <header className="page-header">
         <div>
           <h1>{messages.settingsIntegrations}</h1>
           <p className="lede">{messages.integrationsHint}</p>
         </div>
       </header>
-      <GoogleIntegrationCards />
-      <TelegramCard />
-      <InboundEmailCard />
+      <div className="integration-list">
+        <GoogleIntegrationCards />
+        <TelegramCard />
+        <InboundEmailCard />
+      </div>
     </section>
   );
 }

@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## Integraciones más compactas
+
+- Ajustes → Integraciones pasa a una sola lista: una fila por servicio, interruptores
+  etiquetados y las acciones destructivas dentro de «⋯». En el móvil esas acciones
+  salen en una hoja inferior. La conexión, los permisos y los textos de tratamiento
+  de datos no cambian.
+
 ## Corrección del modo de sesión en producción
 
 - Las compilaciones de producción activan siempre sesiones por cookie y CSRF,
