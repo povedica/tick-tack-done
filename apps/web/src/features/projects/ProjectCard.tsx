@@ -8,9 +8,10 @@ import {
   GripVertical,
   List,
 } from 'lucide-react';
-import type { DragEvent } from 'react';
+import { useRef, type DragEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { runAction } from '../../components/run-action';
+import { useLongPress } from '../../components/useLongPress';
 import type { ProjectsCopy } from './projects-text';
 
 export function projectActivity(
@@ -63,11 +64,15 @@ export function ProjectCard({
   readonly dragging: boolean;
   readonly draggable: boolean;
   readonly onMenu: (anchor: HTMLButtonElement) => void;
-  readonly onContextMenu: () => void;
+  readonly onContextMenu: (anchor?: HTMLElement) => void;
   readonly onDragStart: (event: DragEvent<HTMLElement>) => void;
   readonly onDragEnd: () => void;
 }) {
   const navigate = useNavigate();
+  const cardRef = useRef<HTMLElement>(null);
+  const press = useLongPress(() => {
+    onContextMenu(cardRef.current ?? undefined);
+  });
   const archived = item.state === 'archived';
   const activity = projectActivity(item, now, timeZone, copy.locale);
   const created = projectDayLabel(item.created_at, timeZone, copy.locale);
@@ -87,6 +92,7 @@ export function ProjectCard({
   const ratio = item.total_count === 0 ? 0 : Math.round((item.done_count / item.total_count) * 100);
   return (
     <article
+      ref={cardRef}
       className={`project-card${archived ? ' is-archived' : ''}${dragging ? ' is-dragging' : ''}`}
       data-project-id={item.id}
       data-project-state={item.state}
@@ -94,10 +100,7 @@ export function ProjectCard({
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        onContextMenu();
-      }}
+      {...press}
       onClick={(event) => {
         if (event.target instanceof Element && event.target.closest('button')) {
           return;

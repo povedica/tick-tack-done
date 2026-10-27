@@ -185,8 +185,8 @@ export function ProjectBoard({
         onMenu={(node) => {
           openMenu(item, narrow, node);
         }}
-        onContextMenu={() => {
-          openMenu(item, narrow);
+        onContextMenu={(node) => {
+          openMenu(item, narrow, node);
         }}
         onDragStart={(event) => {
           beginDrag(event, item);

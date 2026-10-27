@@ -221,6 +221,36 @@ it('paints the list color, a grey icon and the created date', () => {
   expect(screen.getByText('0 de 0')).toBeTruthy();
 });
 
+it('opens the project menu on a touch-and-hold', () => {
+  vi.useFakeTimers();
+  const onContextMenu = vi.fn();
+  function CardProbe() {
+    const copy = useProjectsCopy();
+    return createElement(ProjectCard, {
+      item: item({ id: 'hold', name: 'tu-rugby', state: 'active' }),
+      copy,
+      now: '2026-10-27T12:00:00.000Z',
+      timeZone: 'UTC',
+      dragging: false,
+      draggable: false,
+      onMenu: () => undefined,
+      onContextMenu,
+      onDragStart: () => undefined,
+      onDragEnd: () => undefined,
+    });
+  }
+  render(createElement(MemoryRouter, null, createElement(CardProbe)));
+  const card = document.querySelector('[data-project-id="hold"]');
+  if (!(card instanceof HTMLElement)) {
+    throw new Error('missing card');
+  }
+  fireEvent.pointerDown(card, { pointerType: 'touch', clientX: 4, clientY: 4 });
+  expect(onContextMenu).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(500);
+  expect(onContextMenu).toHaveBeenCalledWith(card);
+  vi.useRealTimers();
+});
+
 it('offers pause, resume and delete according to the column', () => {
   function MenuProbe({ state }: { readonly state: ProjectOverviewItem['state'] }) {
     const copy = useProjectsCopy();
