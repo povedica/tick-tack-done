@@ -412,6 +412,25 @@ export {
 } from './navigation';
 export { humanDate } from './dates/presentation';
 export { gardenProjectContext, type GardenProjectInput } from './dashboard/projects';
+export {
+  PROJECT_STALE_DAYS,
+  actionDateChip,
+  activityLabel,
+  nextAction,
+  orderBoardItems,
+  projectAttention,
+  projectDayLabel,
+  projectProgress,
+} from './projects/overview';
+export type {
+  ActionChip,
+  BoardOrderItem,
+  NextAction,
+  ProjectAttention,
+  ProjectBoardState,
+  ProjectProgress,
+  ProjectTask,
+} from './projects/overview';
 export { overdueAgeGroups } from './dashboard/kpis';
 
 export { gardenHabits, uniqueGardenEvents, gardenTagActivity } from './dashboard/executive';
