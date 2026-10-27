@@ -195,6 +195,20 @@ describe('MCP tool catalog', () => {
     expect(MCP_TOOLS.find((tool) => tool.name === 'set_project_state')?.description).toContain(
       'Archiving archives the list.',
     );
+    const overview = MCP_TOOLS.find((tool) => tool.name === 'list_project_overview');
+    expect(overview?.scopes).toEqual(['lists:read', 'tasks:read']);
+    expect(overview?.description).toContain('Proyectos kanban');
+    expect(overview?.inputSchema.properties).toHaveProperty('state');
+    expect(overview?.inputSchema.properties).toHaveProperty('limit');
+    expect(visibleTools(['lists:read', 'tasks:read']).map((tool) => tool.name)).toContain(
+      'list_project_overview',
+    );
+    const reviewed = MCP_TOOLS.find((tool) => tool.name === 'mark_project_reviewed');
+    expect(reviewed?.scopes).toEqual(['lists:write']);
+    expect(reviewed?.inputSchema.required).toEqual(['ids']);
+    expect(visibleTools(['lists:read']).map((tool) => tool.name)).not.toContain(
+      'mark_project_reviewed',
+    );
   });
 });
 

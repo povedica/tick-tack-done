@@ -67,6 +67,43 @@ export interface DeletionImpact {
   readonly subtask_count: number;
 }
 
+export interface ProjectNextAction {
+  readonly task_id: string;
+  readonly title: string;
+  readonly due_date: string | null;
+  readonly start_date: string | null;
+  readonly is_all_day: boolean;
+}
+
+export interface ProjectOverviewItem {
+  readonly id: string;
+  readonly name: string;
+  readonly color: string | null;
+  readonly folder_id: string | null;
+  readonly outcome: string | null;
+  readonly state: 'active' | 'paused' | 'archived';
+  readonly project_status_changed_at: string | null;
+  readonly closed_at: string | null;
+  readonly created_at: string;
+  readonly project_reviewed_at: string | null;
+  readonly done_count: number;
+  readonly total_count: number;
+  readonly open_count: number;
+  readonly next_action: ProjectNextAction | null;
+  readonly last_activity_at: string | null;
+  readonly attention: 'no_next_action' | 'stale' | null;
+}
+
+export interface ProjectOverview {
+  readonly items: readonly ProjectOverviewItem[];
+  readonly counts: { readonly active: number; readonly paused: number; readonly archived: number };
+  readonly next_cursor: null;
+}
+
+export interface ProjectReviewResult {
+  readonly reviewed: number;
+}
+
 export interface ProjectDataTask {
   readonly id: string;
   readonly title: string;
@@ -245,6 +282,9 @@ export interface ResourceClient {
     state: 'active' | 'paused' | 'archived',
     idempotencyKey?: string,
   ): Promise<Project>;
+  projectOverview(state?: 'active' | 'paused' | 'archived'): Promise<ProjectOverview>;
+  reviewProject(id: string): Promise<ProjectReviewResult>;
+  reviewProjects(ids: readonly string[]): Promise<ProjectReviewResult>;
   getProjectDeletionImpact(id: string): Promise<DeletionImpact>;
   archiveProject(id: string, idempotencyKey: string): Promise<Project>;
   unarchiveProject(id: string, idempotencyKey: string): Promise<Project>;
@@ -469,6 +509,18 @@ export function resourceMethods(http: Http): ResourceClient {
     },
     setProjectState: (id, state, key) =>
       ask('POST', `/api/v1/projects/${id}/state`, { state }, key, isProject),
+    projectOverview: (state) =>
+      ask(
+        'GET',
+        `/api/v1/projects/overview${state === undefined ? '' : `?state=${state}`}`,
+        undefined,
+        undefined,
+        isProjectOverview,
+      ),
+    reviewProject: (id) =>
+      ask('POST', `/api/v1/projects/${id}/review`, undefined, undefined, isProjectReview),
+    reviewProjects: (ids) =>
+      ask('POST', '/api/v1/projects/review', { ids }, undefined, isProjectReview),
     getProjectDeletionImpact: (id) =>
       ask('GET', `/api/v1/projects/${id}/deletion-impact`, undefined, undefined, isDeletionImpact),
     archiveProject: (id, key) =>
@@ -923,6 +975,14 @@ function isProject(value: unknown): value is Project {
     typeof value.name === 'string' &&
     typeof value.is_inbox === 'boolean'
   );
+}
+
+function isProjectOverview(value: unknown): value is ProjectOverview {
+  return isRecord(value) && Array.isArray(value.items) && isRecord(value.counts);
+}
+
+function isProjectReview(value: unknown): value is ProjectReviewResult {
+  return isRecord(value) && typeof value.reviewed === 'number';
 }
 
 function isDeletionImpact(value: unknown): value is DeletionImpact {

@@ -80,6 +80,7 @@ describe('McpService recurrence mapping', () => {
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
   };
 
+  const projectOverview = { overview: vi.fn(), markReviewed: vi.fn() };
   const search = { search: vi.fn() };
   const closing = { replanTool: vi.fn(), discardReplan: vi.fn() };
   let service: McpService;
@@ -100,6 +101,7 @@ describe('McpService recurrence mapping', () => {
       search as never,
       prisma as never,
       {} as never,
+      projectOverview as never,
     );
   });
 
@@ -1069,6 +1071,33 @@ describe('McpService recurrence mapping', () => {
     );
     expect(removed.deleted).toBe(true);
     expect(lists.deleteProject).toHaveBeenCalledWith(listsUser, id, 2);
+  });
+
+  it('returns the project overview and marks the same ids reviewed', async () => {
+    const id = '22222222-2222-4222-8222-222222222222';
+    const boardUser = { ...user, scopes: ['lists:read', 'lists:write', 'tasks:read'] };
+    const board = {
+      items: [{ id, name: 'reforma', state: 'active' }],
+      counts: { active: 1, paused: 0, archived: 0 },
+      next_cursor: null,
+    };
+    projectOverview.overview.mockResolvedValue(board);
+    projectOverview.markReviewed.mockResolvedValue({ reviewed: 1 });
+    const call = (name: string, args: Record<string, unknown> = {}) =>
+      service.handle(boardUser, {
+        jsonrpc: '2.0',
+        id: 4,
+        method: 'tools/call',
+        params: { name, arguments: args },
+      });
+    expect(JSON.parse(toolText(await call('list_project_overview', { state: 'active' })))).toEqual(
+      board,
+    );
+    expect(projectOverview.overview).toHaveBeenCalledWith(boardUser, 'active');
+    expect(JSON.parse(toolText(await call('mark_project_reviewed', { ids: [id] })))).toEqual({
+      reviewed: 1,
+    });
+    expect(projectOverview.markReviewed).toHaveBeenCalledWith(boardUser, [id]);
   });
 });
 

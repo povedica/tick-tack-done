@@ -36,6 +36,7 @@ import { SmartListsService } from '../modules/filters/smart-lists.service.js';
 import { CountdownsService } from '../modules/countdowns/countdowns.service.js';
 import { HabitsService } from '../modules/habits/habits.service.js';
 import { ListsService } from '../modules/lists/lists.service.js';
+import { ProjectsOverviewService } from '../modules/lists/projects-overview.service.js';
 import { SearchService } from '../modules/search/search.service.js';
 import { TagsService } from '../modules/tags/tags.service.js';
 import { DayClosingService } from '../modules/planning/day-closing.service.js';
@@ -85,6 +86,7 @@ export class McpService {
     @Inject(SearchService) private readonly search: SearchService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(ProjectsOverviewService) private readonly projectOverview: ProjectsOverviewService,
   ) {}
 
   async handle(user: AuthUser, body: unknown, authorization?: string): Promise<RpcResponse | null> {
@@ -800,6 +802,10 @@ export class McpService {
         await this.lists.deleteProject(user, id, confirm);
         return { ...impact, deleted: true };
       }
+      case 'list_project_overview':
+        return this.projectOverview.overview(user, stateOf(args));
+      case 'mark_project_reviewed':
+        return this.projectOverview.markReviewed(user, requiredUuidList(args, 'ids'));
       case 'list_tags':
         return this.tags.list(user, limit, cursorOf(args));
       case 'create_tag':
@@ -1842,6 +1848,27 @@ function decisionList(args: Record<string, unknown>): {
 
 function civilToday(timeZone: string): string | null {
   return civilDateKey(new Date().toISOString(), timeZone);
+}
+
+function requiredUuidList(args: Record<string, unknown>, key: string): string[] {
+  const value = args[key];
+  if (!Array.isArray(value) || value.length < 1 || value.length > 50) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      `${key} must contain 1 to 50 uuids`,
+    );
+  }
+  return value.map((item) => {
+    if (typeof item !== 'string' || !UUID.test(item)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        `${key} must contain uuids`,
+      );
+    }
+    return item;
+  });
 }
 
 function requiredUuid(args: Record<string, unknown>, key: string): string {

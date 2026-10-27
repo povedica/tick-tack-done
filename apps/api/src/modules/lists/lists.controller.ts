@@ -41,12 +41,22 @@ import {
   UpdateProjectDto,
 } from './lists.dto.js';
 import { ListsService, type ProjectListFilters } from './lists.service.js';
+import {
+  ProjectOverviewDto,
+  ProjectReviewResultDto,
+  ReviewProjectsDto,
+} from './projects-overview.dto.js';
+import { ProjectsOverviewService } from './projects-overview.service.js';
+import type { ProjectStateName } from './lists.mapper.js';
 
 @ApiTags('lists')
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })
 @Controller()
 export class ListsController {
-  constructor(@Inject(ListsService) private readonly lists: ListsService) {}
+  constructor(
+    @Inject(ListsService) private readonly lists: ListsService,
+    @Inject(ProjectsOverviewService) private readonly overview: ProjectsOverviewService,
+  ) {}
 
   @Get('folders')
   @Scopes('lists:read')
@@ -163,8 +173,36 @@ export class ListsController {
     respondJson(req, res, result.replayed ? result.statusCode : 201, result.body, false);
   }
 
-  // Literal paths such as GET projects/overview (W4) must be registered before projects/:id.
-  // ParseUUIDPipe would reject "overview" with 400.
+  // Literal paths must be registered before projects/:id. ParseUUIDPipe would reject them with 400.
+  @Get('projects/overview')
+  @Scopes('lists:read', 'tasks:read')
+  @ApiOperation({
+    summary: 'Projects kanban: next action, progress and state for every project list',
+  })
+  @ApiQuery({ name: 'state', required: false, enum: ['active', 'paused', 'archived'] })
+  @ApiOkResponse({ type: ProjectOverviewDto })
+  async projectOverview(
+    @CurrentUser() user: AuthUser,
+    @Query('state') state: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.overview.overview(user, overviewState(state)), false);
+  }
+
+  @Post('projects/review')
+  @Scopes('lists:write')
+  @ApiOperation({ summary: 'Mark up to 50 projects as reviewed' })
+  @ApiOkResponse({ type: ProjectReviewResultDto })
+  async reviewProjects(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ReviewProjectsDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.overview.markReviewed(user, dto.ids), false);
+  }
+
   @Get('projects/:id')
   @Scopes('lists:read')
   @ApiOperation({ summary: 'Get a list' })
@@ -233,6 +271,19 @@ export class ListsController {
   ): Promise<void> {
     const result = await this.lists.setProjectState(user, id, dto.state, key);
     respondJson(req, res, result.statusCode, result.body, false);
+  }
+
+  @Post('projects/:id/review')
+  @Scopes('lists:write')
+  @ApiOperation({ summary: 'Mark one project as reviewed' })
+  @ApiOkResponse({ type: ProjectReviewResultDto })
+  async reviewProject(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.overview.markReviewed(user, [id]), false);
   }
 
   @Delete('projects/:id')
@@ -354,6 +405,20 @@ export class ListsController {
     await this.lists.deleteColumn(user, id, columnId);
     res.status(204).end();
   }
+}
+
+function overviewState(state: string | undefined): ProjectStateName | undefined {
+  if (state === undefined || state.length === 0) {
+    return undefined;
+  }
+  if (state !== 'active' && state !== 'paused' && state !== 'archived') {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'state must be active, paused or archived',
+    );
+  }
+  return state;
 }
 
 function projectListFilters(

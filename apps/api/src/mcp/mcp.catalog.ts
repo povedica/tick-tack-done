@@ -881,6 +881,31 @@ const CATALOG: readonly McpTool[] = [
     ),
   },
   {
+    name: 'list_project_overview',
+    description:
+      'Projects (lists marked as project) with next action, progress and state for the Proyectos kanban.',
+    scopes: ['lists:read', 'tasks:read'],
+    inputSchema: objectSchema({
+      state: { type: 'string', enum: ['active', 'paused', 'archived'] },
+    }),
+  },
+  {
+    name: 'mark_project_reviewed',
+    description: 'Mark 1 to 50 projects as reviewed. Same effect as POST /projects/review.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        ids: {
+          type: 'array',
+          items: id,
+          minItems: 1,
+          maxItems: 50,
+        },
+      },
+      ['ids'],
+    ),
+  },
+  {
     name: 'list_tags',
     description: 'List tags.',
     scopes: ['tags:read'],
