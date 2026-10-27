@@ -157,6 +157,87 @@
         ]
       }
     },
+    "/api/v1/me/work-context": {
+      "get": {
+        "operationId": "MeController_workContext",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkContextResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Work hours, work membership and whether work is hidden right now",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "description": "Arrays replace the whole set. Unknown ids or ids owned by someone else return 422. show_work true lasts until the next work start on every device.",
+        "operationId": "MeController_updateWorkContext",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWorkContextDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkContextResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Replace work membership or toggle outside-hours hiding",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/me/inbound-email": {
       "get": {
         "operationId": "MeController_inboundEmail",
@@ -3276,6 +3357,21 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "context",
+            "required": false,
+            "in": "query",
+            "description": "Default all. auto hides work outside the configured hours.",
+            "schema": {
+              "enum": [
+                "all",
+                "work",
+                "personal",
+                "auto"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3363,6 +3459,20 @@
             "required": true,
             "in": "path",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "context",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "all",
+                "work",
+                "personal",
+                "auto"
+              ],
               "type": "string"
             }
           }
@@ -3911,6 +4021,21 @@
             "in": "header",
             "required": false,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "context",
+            "required": false,
+            "in": "query",
+            "description": "Default all. auto hides work outside the configured hours.",
+            "schema": {
+              "enum": [
+                "all",
+                "work",
+                "personal",
+                "auto"
+              ],
               "type": "string"
             }
           },
@@ -7001,6 +7126,21 @@
             }
           },
           {
+            "name": "context",
+            "required": false,
+            "in": "query",
+            "description": "Default all. auto hides work outside the configured hours.",
+            "schema": {
+              "enum": [
+                "all",
+                "work",
+                "personal",
+                "auto"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "name": "days",
             "required": false,
             "in": "query",
@@ -7344,6 +7484,21 @@
             "required": true,
             "in": "query",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "context",
+            "required": false,
+            "in": "query",
+            "description": "Filters tasks only. External events stay visible. Default all.",
+            "schema": {
+              "enum": [
+                "all",
+                "work",
+                "personal",
+                "auto"
+              ],
               "type": "string"
             }
           }
@@ -14250,6 +14405,54 @@
             "type": "string",
             "nullable": true
           },
+          "work_days": {
+            "example": [
+              "MO",
+              "TU",
+              "WE",
+              "TH",
+              "FR"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_folder_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_project_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hide_work_outside_hours": {
+            "type": "boolean"
+          },
+          "show_work_until": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_work_time_now": {
+            "type": "boolean"
+          },
+          "work_hidden_now": {
+            "type": "boolean"
+          },
+          "next_work_start": {
+            "type": "string",
+            "nullable": true
+          },
           "default_task_duration_minutes": {
             "type": "number"
           },
@@ -14285,6 +14488,15 @@
           "shutdown_reminder_time",
           "work_day_start",
           "work_day_end",
+          "work_days",
+          "work_folder_ids",
+          "work_project_ids",
+          "work_tag_ids",
+          "hide_work_outside_hours",
+          "show_work_until",
+          "is_work_time_now",
+          "work_hidden_now",
+          "next_work_start",
           "default_task_duration_minutes",
           "deadline_soon_days",
           "evening_start",
@@ -14308,6 +14520,139 @@
           "current_password",
           "new_password"
         ]
+      },
+      "WorkCountsDto": {
+        "type": "object",
+        "properties": {
+          "lists": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "number"
+          },
+          "active_tasks": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "lists",
+          "tags",
+          "active_tasks"
+        ]
+      },
+      "WorkContextResponseDto": {
+        "type": "object",
+        "properties": {
+          "work_day_start": {
+            "type": "string",
+            "nullable": true
+          },
+          "work_day_end": {
+            "type": "string",
+            "nullable": true
+          },
+          "work_days": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_folder_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_project_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hide_work_outside_hours": {
+            "type": "boolean"
+          },
+          "show_work_until": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_work_time_now": {
+            "type": "boolean"
+          },
+          "work_hidden_now": {
+            "type": "boolean"
+          },
+          "next_work_start": {
+            "type": "string",
+            "nullable": true
+          },
+          "counts": {
+            "$ref": "#/components/schemas/WorkCountsDto"
+          }
+        },
+        "required": [
+          "work_day_start",
+          "work_day_end",
+          "work_days",
+          "work_folder_ids",
+          "work_project_ids",
+          "work_tag_ids",
+          "hide_work_outside_hours",
+          "show_work_until",
+          "is_work_time_now",
+          "work_hidden_now",
+          "next_work_start",
+          "counts"
+        ]
+      },
+      "UpdateWorkContextDto": {
+        "type": "object",
+        "properties": {
+          "work_days": {
+            "example": [
+              "MO",
+              "TU",
+              "WE",
+              "TH",
+              "FR"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_folder_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_project_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hide_work_outside_hours": {
+            "type": "boolean"
+          },
+          "show_work": {
+            "type": "boolean",
+            "description": "true keeps work visible until the next work start. false clears it."
+          }
+        }
       },
       "UpdateMeDto": {
         "type": "object",
@@ -14426,6 +14771,48 @@
             "type": "object",
             "nullable": true,
             "example": "18:00"
+          },
+          "work_days": {
+            "example": [
+              "MO",
+              "TU",
+              "WE",
+              "TH",
+              "FR"
+            ],
+            "description": "Working weekdays. Same codes as recurrence.weekdays. Sunday is SU.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "work_folder_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "work_project_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "work_tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "hide_work_outside_hours": {
+            "type": "boolean"
+          },
+          "show_work": {
+            "type": "boolean",
+            "description": "true shows work until the next work start; false clears that override."
           },
           "default_task_duration_minutes": {
             "type": "number",
@@ -14970,6 +15357,7 @@
                 "automations:manage",
                 "profile:read",
                 "profile:write",
+                "workday:write",
                 "backup:read",
                 "stats:read"
               ]
@@ -17763,6 +18151,10 @@
           "is_someday": {
             "type": "boolean"
           },
+          "is_work": {
+            "type": "boolean",
+            "description": "True when the task list, its folder, or any tag is marked as work."
+          },
           "evening_only": {
             "type": "boolean"
           },
@@ -17998,6 +18390,10 @@
           },
           "is_someday": {
             "type": "boolean"
+          },
+          "is_work": {
+            "type": "boolean",
+            "description": "True when the task list, its folder, or any tag is marked as work."
           },
           "evening_only": {
             "type": "boolean"
@@ -18361,6 +18757,10 @@
           },
           "is_someday": {
             "type": "boolean"
+          },
+          "is_work": {
+            "type": "boolean",
+            "description": "True when the task list, its folder, or any tag is marked as work."
           },
           "evening_only": {
             "type": "boolean"

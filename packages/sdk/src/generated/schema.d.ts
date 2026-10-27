@@ -40,6 +40,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/work-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Work hours, work membership and whether work is hidden right now */
+        get: operations["MeController_workContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Replace work membership or toggle outside-hours hiding
+         * @description Arrays replace the whole set. Unknown ids or ids owned by someone else return 422. show_work true lasts until the next work start on every device.
+         */
+        patch: operations["MeController_updateWorkContext"];
+        trace?: never;
+    };
     "/api/v1/me/inbound-email": {
         parameters: {
             query?: never;
@@ -3940,6 +3961,24 @@ export interface components {
             shutdown_reminder_time: string | null;
             work_day_start: string | null;
             work_day_end: string | null;
+            /**
+             * @example [
+             *       "MO",
+             *       "TU",
+             *       "WE",
+             *       "TH",
+             *       "FR"
+             *     ]
+             */
+            work_days: string[];
+            work_folder_ids: string[];
+            work_project_ids: string[];
+            work_tag_ids: string[];
+            hide_work_outside_hours: boolean;
+            show_work_until: string | null;
+            is_work_time_now: boolean;
+            work_hidden_now: boolean;
+            next_work_start: string | null;
             default_task_duration_minutes: number;
             deadline_soon_days: number;
             evening_start: string;
@@ -3949,6 +3988,43 @@ export interface components {
             /** @description Current password */
             current_password: string;
             new_password: string;
+        };
+        WorkCountsDto: {
+            lists: number;
+            tags: number;
+            active_tasks: number;
+        };
+        WorkContextResponseDto: {
+            work_day_start: string | null;
+            work_day_end: string | null;
+            work_days: string[];
+            work_folder_ids: string[];
+            work_project_ids: string[];
+            work_tag_ids: string[];
+            hide_work_outside_hours: boolean;
+            show_work_until: string | null;
+            is_work_time_now: boolean;
+            work_hidden_now: boolean;
+            next_work_start: string | null;
+            counts: components["schemas"]["WorkCountsDto"];
+        };
+        UpdateWorkContextDto: {
+            /**
+             * @example [
+             *       "MO",
+             *       "TU",
+             *       "WE",
+             *       "TH",
+             *       "FR"
+             *     ]
+             */
+            work_days?: string[];
+            work_folder_ids?: string[];
+            work_project_ids?: string[];
+            work_tag_ids?: string[];
+            hide_work_outside_hours?: boolean;
+            /** @description true keeps work visible until the next work start. false clears it. */
+            show_work?: boolean;
         };
         UpdateMeDto: {
             capture_settings?: components["schemas"]["CaptureSettingsDto"];
@@ -3984,6 +4060,23 @@ export interface components {
             work_day_start?: Record<string, never> | null;
             /** @example 18:00 */
             work_day_end?: Record<string, never> | null;
+            /**
+             * @description Working weekdays. Same codes as recurrence.weekdays. Sunday is SU.
+             * @example [
+             *       "MO",
+             *       "TU",
+             *       "WE",
+             *       "TH",
+             *       "FR"
+             *     ]
+             */
+            work_days?: string[];
+            work_folder_ids?: string[];
+            work_project_ids?: string[];
+            work_tag_ids?: string[];
+            hide_work_outside_hours?: boolean;
+            /** @description true shows work until the next work start; false clears that override. */
+            show_work?: boolean;
             /** @example 30 */
             default_task_duration_minutes?: number;
             /** @example 2 */
@@ -4107,7 +4200,7 @@ export interface components {
             expires_in_days?: 30 | 90 | 365 | null;
             /** @description Agent or script this token belongs to */
             name: string;
-            scopes: ("tasks:read" | "tasks:write" | "tasks:create" | "tasks:update" | "tasks:complete" | "tasks:trash" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "focus:start" | "focus:stop" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "notifications:self:write" | "ticky:proposals:read" | "ticky:proposals:write" | "ticky:routines:read" | "ticky:routines:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read" | "stats:read")[];
+            scopes: ("tasks:read" | "tasks:write" | "tasks:create" | "tasks:update" | "tasks:complete" | "tasks:trash" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "focus:start" | "focus:stop" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "notifications:self:write" | "ticky:proposals:read" | "ticky:proposals:write" | "ticky:routines:read" | "ticky:routines:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "workday:write" | "backup:read" | "stats:read")[];
         };
         TokenCreatedDto: {
             /** @enum {string|null} */
@@ -4772,6 +4865,8 @@ export interface components {
             /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
             version: number;
             is_someday: boolean;
+            /** @description True when the task list, its folder, or any tag is marked as work. */
+            is_work?: boolean;
             evening_only: boolean;
             repeat_rule: string | null;
             /** @enum {string} */
@@ -4835,6 +4930,8 @@ export interface components {
             /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
             version: number;
             is_someday: boolean;
+            /** @description True when the task list, its folder, or any tag is marked as work. */
+            is_work?: boolean;
             evening_only: boolean;
             repeat_rule: string | null;
             /** @enum {string} */
@@ -4927,6 +5024,8 @@ export interface components {
             /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
             version: number;
             is_someday: boolean;
+            /** @description True when the task list, its folder, or any tag is marked as work. */
+            is_work?: boolean;
             evening_only: boolean;
             repeat_rule: string | null;
             /** @enum {string} */
@@ -5511,6 +5610,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    MeController_workContext: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkContextResponseDto"];
+                };
+            };
+        };
+    };
+    MeController_updateWorkContext: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWorkContextDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkContextResponseDto"];
+                };
             };
         };
     };
@@ -7367,7 +7512,10 @@ export interface operations {
     };
     SmartListsController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Default all. auto hides work outside the configured hours. */
+                context?: "all" | "work" | "personal" | "auto";
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
@@ -7413,7 +7561,9 @@ export interface operations {
     };
     SmartListsController_tasks: {
         parameters: {
-            query?: never;
+            query?: {
+                context?: "all" | "work" | "personal" | "auto";
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
@@ -7728,6 +7878,8 @@ export interface operations {
     TasksController_list: {
         parameters: {
             query?: {
+                /** @description Default all. auto hides work outside the configured hours. */
+                context?: "all" | "work" | "personal" | "auto";
                 /** @description Default any includes intervals overlapping the range. */
                 range_field?: "due" | "start" | "any";
                 /** @description Exclusive bound. YYYY-MM-DD uses the user time zone. */
@@ -9481,6 +9633,8 @@ export interface operations {
                 date?: string;
                 /** @description Compatibility parameter; the profile time zone is authoritative. */
                 time_zone?: string;
+                /** @description Default all. auto hides work outside the configured hours. */
+                context?: "all" | "work" | "personal" | "auto";
                 days?: number;
                 from?: unknown;
             };
@@ -9678,6 +9832,8 @@ export interface operations {
             query: {
                 from: string;
                 to: string;
+                /** @description Filters tasks only. External events stay visible. Default all. */
+                context?: "all" | "work" | "personal" | "auto";
             };
             header?: never;
             path?: never;
