@@ -13,6 +13,13 @@ export interface PageQuery {
   readonly cursor?: string;
 }
 
+export interface ProjectListQuery extends PageQuery {
+  readonly folderId?: string | null;
+  readonly isProject?: boolean;
+  readonly state?: 'active' | 'paused' | 'archived';
+  readonly includeClosed?: boolean;
+}
+
 export interface ListTasksQuery {
   readonly limit?: number;
   readonly cursor?: string;
@@ -114,7 +121,7 @@ export interface ApiClient extends ResourceClient {
   deleteHabit(id: string): Promise<void>;
   checkInHabit(id: string, body: CheckInBody, idempotencyKey: string): Promise<CheckInResult>;
   habitStats(id: string, year?: number): Promise<HabitStats>;
-  listProjects(query?: PageQuery): Promise<ProjectPage>;
+  listProjects(query?: ProjectListQuery): Promise<ProjectPage>;
   listSmartLists(): Promise<SmartListPage>;
   updateSmartLists(body: UpdateSmartListsBody): Promise<SmartListPage>;
   smartListTasks(key: string, options?: ViewOptions): Promise<ViewPage>;
@@ -264,7 +271,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         call,
         options,
         'GET',
-        `/api/v1/projects${pageQuery(query)}`,
+        `/api/v1/projects${projectQuery(query)}`,
         undefined,
         undefined,
         isProjectPage,
@@ -768,6 +775,35 @@ function hasItems(value: unknown): boolean {
     return false;
   }
   return Array.isArray((value as { items?: unknown }).items);
+}
+
+function projectQuery(query: ProjectListQuery | undefined): string {
+  if (query === undefined) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  if (query.limit !== undefined) {
+    params.set('limit', String(query.limit));
+  }
+  if (query.cursor !== undefined && query.cursor.length > 0) {
+    params.set('cursor', query.cursor);
+  }
+  if (query.folderId === null) {
+    params.set('folder_id', 'none');
+  } else if (query.folderId !== undefined) {
+    params.set('folder_id', query.folderId);
+  }
+  if (query.isProject !== undefined) {
+    params.set('is_project', String(query.isProject));
+  }
+  if (query.state !== undefined) {
+    params.set('state', query.state);
+  }
+  if (query.includeClosed === true) {
+    params.set('include_closed', 'true');
+  }
+  const text = params.toString();
+  return text.length === 0 ? '' : `?${text}`;
 }
 
 function pageQuery(query: PageQuery | undefined): string {

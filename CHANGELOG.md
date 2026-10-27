@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## Carpetas, listas y lista-proyecto
+
+- Una lista puede marcarse como proyecto (`is_project`) con resultado, estado
+  En marcha o Pausado, y fecha de archivo (`closed_at`). Archivado es el mismo
+  `closed` de la lista: no hay un estado «Hecho». Desarchivar vuelve a En marcha,
+  salvo que se pida otro estado. Borrar un proyecto exige que esté archivado.
+- Carpetas con totales, mover listas entre carpetas, y herramientas MCP de
+  carpetas y de estado. El borrado de listas sigue siendo lógico.
+
 ## Algún día en la hoja «¿Cuándo?»
 
 - Al planificar, la hoja «¿Cuándo?» ofrece «Algún día» en la cabecera, a la

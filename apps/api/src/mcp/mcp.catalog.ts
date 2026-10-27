@@ -751,13 +751,134 @@ const CATALOG: readonly McpTool[] = [
     name: 'list_projects',
     description: 'List task lists.',
     scopes: ['lists:read'],
-    inputSchema: objectSchema({ limit, cursor }),
+    inputSchema: objectSchema({
+      limit,
+      cursor,
+      folder_id: {
+        type: 'string',
+        description: 'Folder UUID, or "none" for lists without a folder.',
+      },
+      is_project: { type: 'boolean' },
+      state: { type: 'string', enum: ['active', 'paused', 'archived'] },
+      include_closed: { type: 'boolean' },
+    }),
   },
   {
     name: 'create_project',
     description: 'Create a task list.',
     scopes: ['lists:write'],
-    inputSchema: objectSchema({ name }, ['name']),
+    inputSchema: objectSchema(
+      {
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        folder_id: { type: ['string', 'null'], format: 'uuid' },
+        color: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$' },
+        view_mode: { type: 'string', enum: ['list', 'kanban', 'timeline'] },
+        is_project: { type: 'boolean' },
+        outcome: { type: ['string', 'null'], maxLength: 200 },
+        before_id: { type: ['string', 'null'], format: 'uuid' },
+        move_to_end: { type: 'boolean' },
+      },
+      ['name'],
+    ),
+  },
+  {
+    name: 'list_folders',
+    description: 'List folders.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ limit, cursor }),
+  },
+  {
+    name: 'create_folder',
+    description: 'Create a folder.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        before_id: { type: ['string', 'null'], format: 'uuid' },
+        move_to_end: { type: 'boolean' },
+      },
+      ['name'],
+    ),
+  },
+  {
+    name: 'update_folder',
+    description: 'Rename or reorder a folder.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        before_id: { type: ['string', 'null'], format: 'uuid' },
+        move_to_end: { type: 'boolean' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'delete_folder',
+    description: 'Delete a folder. Its lists move to no folder; no list or task is deleted.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'update_project',
+    description: 'Update a list. Move it into a folder with folder_id, or pass null to detach it.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        color: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$' },
+        folder_id: { type: ['string', 'null'], format: 'uuid' },
+        view_mode: { type: 'string', enum: ['list', 'kanban', 'timeline'] },
+        before_id: { type: ['string', 'null'], format: 'uuid' },
+        move_to_end: { type: 'boolean' },
+        is_project: { type: 'boolean' },
+        project_status: { type: 'string', enum: ['active', 'paused'] },
+        outcome: { type: ['string', 'null'], maxLength: 200 },
+        default_reminder_trigger: { type: ['string', 'null'] },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'set_project_state',
+    description:
+      'Move a project between En marcha (active), Pausados (paused) and Archivados (archived). Archiving archives the list.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        state: { type: 'string', enum: ['active', 'paused', 'archived'] },
+      },
+      ['id', 'state'],
+    ),
+  },
+  {
+    name: 'archive_project',
+    description: 'Archive a list.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'unarchive_project',
+    description: 'Unarchive a list. A project returns to En marcha.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'delete_project',
+    description:
+      'Delete a list and ALL its tasks (moved to trash, the list cannot be restored). Projects must be archived first. Two steps: call with dry_run, then with confirm_task_count.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        dry_run: { type: 'boolean' },
+        confirm_task_count: { type: 'integer', minimum: 0 },
+      },
+      ['id'],
+    ),
   },
   {
     name: 'list_tags',

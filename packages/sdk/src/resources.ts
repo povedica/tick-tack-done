@@ -51,6 +51,20 @@ export interface NamedWrite {
   readonly folder_id?: string | null;
   readonly view_mode?: 'list' | 'kanban' | 'timeline';
   readonly kind?: 'TASK' | 'NOTE';
+  readonly is_project?: boolean;
+  readonly project_status?: 'active' | 'paused';
+  readonly outcome?: string | null;
+}
+
+export interface DeletionImpact {
+  readonly project_id: string;
+  readonly name: string;
+  readonly is_project: boolean;
+  readonly closed: boolean;
+  readonly task_count: number;
+  readonly completed_count: number;
+  readonly open_count: number;
+  readonly subtask_count: number;
 }
 
 export interface ProjectDataTask {
@@ -225,7 +239,13 @@ export interface ResourceClient {
     id: string,
     body: Partial<NamedWrite> & { default_reminder_trigger?: string | null },
   ): Promise<Project>;
-  deleteProject(id: string): Promise<void>;
+  deleteProject(id: string, options?: { readonly expectedTaskCount?: number }): Promise<void>;
+  setProjectState(
+    id: string,
+    state: 'active' | 'paused' | 'archived',
+    idempotencyKey?: string,
+  ): Promise<Project>;
+  getProjectDeletionImpact(id: string): Promise<DeletionImpact>;
   archiveProject(id: string, idempotencyKey: string): Promise<Project>;
   unarchiveProject(id: string, idempotencyKey: string): Promise<Project>;
   archiveCompleted(id: string, idempotencyKey: string): Promise<CountResult>;
@@ -433,9 +453,24 @@ export function resourceMethods(http: Http): ResourceClient {
     getProject: (id) => ask('GET', `/api/v1/projects/${id}`, undefined, undefined, isProject),
     createProject: (body, key) => ask('POST', '/api/v1/projects', body, key, isProject),
     updateProject: (id, body) => ask('PATCH', `/api/v1/projects/${id}`, body, undefined, isProject),
-    async deleteProject(id) {
-      await ask('DELETE', `/api/v1/projects/${id}`, undefined, undefined, isEmpty);
+    async deleteProject(id, options) {
+      const params = new URLSearchParams();
+      if (options?.expectedTaskCount !== undefined) {
+        params.set('expected_task_count', String(options.expectedTaskCount));
+      }
+      const query = params.toString();
+      await ask(
+        'DELETE',
+        `/api/v1/projects/${id}${query.length === 0 ? '' : `?${query}`}`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
     },
+    setProjectState: (id, state, key) =>
+      ask('POST', `/api/v1/projects/${id}/state`, { state }, key, isProject),
+    getProjectDeletionImpact: (id) =>
+      ask('GET', `/api/v1/projects/${id}/deletion-impact`, undefined, undefined, isDeletionImpact),
     archiveProject: (id, key) =>
       ask('POST', `/api/v1/projects/${id}/archive`, undefined, key, isProject),
     unarchiveProject: (id, key) =>
@@ -887,6 +922,15 @@ function isProject(value: unknown): value is Project {
     typeof value.id === 'string' &&
     typeof value.name === 'string' &&
     typeof value.is_inbox === 'boolean'
+  );
+}
+
+function isDeletionImpact(value: unknown): value is DeletionImpact {
+  return (
+    isRecord(value) &&
+    typeof value.project_id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.task_count === 'number'
   );
 }
 

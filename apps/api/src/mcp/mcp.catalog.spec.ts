@@ -142,6 +142,60 @@ describe('MCP tool catalog', () => {
     expect(MCP_TOOLS.some((tool) => tool.name === 'quick_add')).toBe(true);
     expect(visibleTools(['tasks:write']).map((tool) => tool.name)).toContain('quick_add');
   });
+
+  it('lists folders and project state on lists scopes', () => {
+    const read = visibleTools(['lists:read']).map((tool) => tool.name);
+    const write = visibleTools(['lists:write']).map((tool) => tool.name);
+    expect(read).toEqual(expect.arrayContaining(['list_folders', 'list_projects']));
+    const writing = [
+      'create_folder',
+      'update_folder',
+      'delete_folder',
+      'update_project',
+      'set_project_state',
+      'archive_project',
+      'unarchive_project',
+      'delete_project',
+      'create_project',
+    ];
+    for (const name of writing) {
+      expect(read, name).not.toContain(name);
+      expect(write, name).toContain(name);
+    }
+    const listed = MCP_TOOLS.find((tool) => tool.name === 'list_projects');
+    expect(listed?.scopes).toEqual(['lists:read']);
+    expect(listed?.inputSchema.properties).toHaveProperty('folder_id');
+    expect(listed?.inputSchema.properties).toHaveProperty('is_project');
+    expect(listed?.inputSchema.properties).toHaveProperty('state');
+    expect(listed?.inputSchema.properties).toHaveProperty('include_closed');
+    expect(listed?.inputSchema.additionalProperties).toBe(false);
+    const created = MCP_TOOLS.find((tool) => tool.name === 'create_project');
+    expect(created?.inputSchema.required).toEqual(['name']);
+    expect(created?.inputSchema.properties).toHaveProperty('folder_id');
+    expect(created?.inputSchema.properties).toHaveProperty('is_project');
+    expect(created?.inputSchema.properties).toHaveProperty('outcome');
+    expect(created?.inputSchema.additionalProperties).toBe(false);
+    for (const name of [
+      'list_folders',
+      'create_folder',
+      'update_folder',
+      'delete_folder',
+      'update_project',
+      'set_project_state',
+      'archive_project',
+      'unarchive_project',
+      'delete_project',
+    ]) {
+      const tool = MCP_TOOLS.find((item) => item.name === name);
+      expect(tool?.inputSchema.additionalProperties, name).toBe(false);
+    }
+    expect(MCP_TOOLS.find((tool) => tool.name === 'delete_folder')?.description).toBe(
+      'Delete a folder. Its lists move to no folder; no list or task is deleted.',
+    );
+    expect(MCP_TOOLS.find((tool) => tool.name === 'set_project_state')?.description).toContain(
+      'Archiving archives the list.',
+    );
+  });
 });
 
 it('TTD-AUD-82: cancellation explains history, reopening and trash separately', () => {

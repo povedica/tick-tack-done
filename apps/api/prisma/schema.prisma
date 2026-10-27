@@ -87,6 +87,11 @@ enum ProjectKind {
   NOTE
 }
 
+enum ProjectStatus {
+  active
+  paused
+}
+
 enum FilterMode {
   normal
   advanced
@@ -398,8 +403,14 @@ model Project {
   folder    Folder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
   viewMode  ProjectViewMode @default(list) @map("view_mode")
   kind      ProjectKind     @default(TASK)
-  closed    Boolean         @default(false)
+  closed                 Boolean         @default(false)
+  closedAt               DateTime?       @map("closed_at") @db.Timestamptz(6)
   isInbox                Boolean         @default(false) @map("is_inbox")
+  isProject              Boolean         @default(false) @map("is_project")
+  projectStatus          ProjectStatus   @default(active) @map("project_status")
+  outcome                String?         @db.VarChar(200)
+  projectStatusChangedAt DateTime?       @map("project_status_changed_at") @db.Timestamptz(6)
+  projectReviewedAt      DateTime?       @map("project_reviewed_at") @db.Timestamptz(6)
   defaultReminderTrigger String?         @map("default_reminder_trigger")
   sortOrder              BigInt          @default(65536) @map("sort_order")
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -413,6 +424,7 @@ model Project {
 
   @@index([ownerId, sortOrder])
   @@index([ownerId, deletedAt], map: "projects_owner_deleted_idx")
+  @@index([ownerId, isProject, closed], map: "projects_owner_project_idx")
   @@map("projects")
 }
 

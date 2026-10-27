@@ -88,6 +88,22 @@ export class CreateProjectDto {
   @IsOptional()
   @IsBoolean()
   move_to_end?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  is_project?: boolean;
+
+  @ApiProperty({ required: false, enum: ['active', 'paused'] })
+  @IsOptional()
+  @IsIn(['active', 'paused'])
+  project_status?: 'active' | 'paused';
+
+  @ApiProperty({ required: false, nullable: true, maxLength: 200 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  outcome?: string | null;
 }
 
 export class UpdateProjectDto {
@@ -136,6 +152,28 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsIn([...ACCOUNT_REMINDER_TRIGGERS, LIST_REMINDER_OFF])
   default_reminder_trigger?: string | null;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  is_project?: boolean;
+
+  @ApiProperty({ required: false, enum: ['active', 'paused'] })
+  @IsOptional()
+  @IsIn(['active', 'paused'])
+  project_status?: 'active' | 'paused';
+
+  @ApiProperty({ required: false, nullable: true, maxLength: 200 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  outcome?: string | null;
+}
+
+export class SetProjectStateDto {
+  @ApiProperty({ enum: ['active', 'paused', 'archived'] })
+  @IsIn(['active', 'paused', 'archived'])
+  state!: 'active' | 'paused' | 'archived';
 }
 
 export class CreateColumnDto {
@@ -207,6 +245,14 @@ export class FolderResponseDto {
   @ApiProperty()
   sort_order!: string;
 
+  @ApiProperty({ description: 'Lists in the folder that are not deleted, archived, or the inbox.' })
+  project_count!: number;
+
+  @ApiProperty({
+    description: 'Active root tasks in those lists (status active, no parent, not deleted).',
+  })
+  active_task_count!: number;
+
   @ApiProperty()
   created_at!: string;
 
@@ -236,8 +282,32 @@ export class ProjectResponseDto {
   @ApiProperty()
   closed!: boolean;
 
+  @ApiProperty({ nullable: true, type: String })
+  closed_at!: string | null;
+
   @ApiProperty()
   is_inbox!: boolean;
+
+  @ApiProperty()
+  is_project!: boolean;
+
+  @ApiProperty({ enum: ['active', 'paused'] })
+  project_status!: 'active' | 'paused';
+
+  @ApiProperty({
+    enum: ['active', 'paused', 'archived'],
+    description: 'Derived by projectState: archived when closed, otherwise project_status.',
+  })
+  state!: 'active' | 'paused' | 'archived';
+
+  @ApiProperty({ nullable: true, type: String, maxLength: 200 })
+  outcome!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  project_status_changed_at!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  project_reviewed_at!: string | null;
 
   @ApiProperty({ nullable: true, type: String })
   default_reminder_trigger!: string | null;
@@ -295,6 +365,32 @@ export class ProjectPageDto {
 
   @ApiProperty({ nullable: true, type: String })
   next_cursor!: string | null;
+}
+
+export class DeletionImpactDto {
+  @ApiProperty()
+  project_id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  is_project!: boolean;
+
+  @ApiProperty()
+  closed!: boolean;
+
+  @ApiProperty({ description: 'Every non-deleted task, including subtasks and cancelled tasks.' })
+  task_count!: number;
+
+  @ApiProperty({ description: "Tasks with status 'completed'." })
+  completed_count!: number;
+
+  @ApiProperty({ description: "Tasks with status 'active', including active subtasks." })
+  open_count!: number;
+
+  @ApiProperty({ description: 'Non-deleted tasks that have a parent.' })
+  subtask_count!: number;
 }
 
 export class ColumnPageDto {

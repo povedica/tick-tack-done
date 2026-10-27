@@ -16,13 +16,35 @@ import type {
   CreateColumnDto,
   CreateFolderDto,
   CreateProjectDto,
+  DeletionImpactDto,
   FolderResponseDto,
   ProjectResponseDto,
   UpdateColumnDto,
   UpdateFolderDto,
   UpdateProjectDto,
 } from './lists.dto.js';
-import { toColumnJson, toFolderJson, toProjectJson } from './lists.mapper.js';
+import {
+  closureAssignment,
+  EMPTY_FOLDER_TOTALS,
+  normalizeOutcome,
+  projectStatusAssignment,
+  toColumnJson,
+  toFolderJson,
+  toProjectJson,
+  type FolderTotals,
+  type ProjectStatusName,
+} from './lists.mapper.js';
+
+export interface ProjectListFilters {
+  readonly folderId?: string | null;
+  readonly isProject?: boolean;
+  readonly state?: 'active' | 'paused' | 'archived';
+}
+
+interface ListStateRequest {
+  readonly closed: boolean;
+  readonly projectStatus: ProjectStatusName | 'keep';
+}
 
 interface Result<T> {
   statusCode: number;
@@ -60,7 +82,14 @@ export class ListsService {
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
       take: limit + 1,
     });
-    return slicePage(rows.map(toFolderJson), limit);
+    const totals = await this.folderTotals(
+      user.id,
+      rows.map((row) => row.id),
+    );
+    return slicePage(
+      rows.map((row) => toFolderJson(row, totals.get(row.id) ?? EMPTY_FOLDER_TOTALS)),
+      limit,
+    );
   }
 
   createFolder(
@@ -100,7 +129,9 @@ export class ListsService {
   }
 
   async getFolder(user: AuthUser, id: string): Promise<FolderResponseDto> {
-    return toFolderJson(await this.requireFolder(user.id, id));
+    const row = await this.requireFolder(user.id, id);
+    const totals = await this.folderTotals(user.id, [id]);
+    return toFolderJson(row, totals.get(id) ?? EMPTY_FOLDER_TOTALS);
   }
 
   async updateFolder(user: AuthUser, id: string, dto: UpdateFolderDto): Promise<FolderResponseDto> {
@@ -122,35 +153,64 @@ export class ListsService {
           ...(plan !== null ? { sortOrder: plan.movingSortOrder } : {}),
         },
       });
-      const body = toFolderJson(row);
+      const totals = await this.folderTotals(user.id, [id], tx);
+      const counts = totals.get(id) ?? EMPTY_FOLDER_TOTALS;
+      const body = toFolderJson(row, counts);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.folderUpdated,
         entityType: 'folder',
         entityId: id,
         action: 'updated',
         data: { folder: asJson(body) },
-        previous: asJson(toFolderJson(current)),
+        previous: asJson(toFolderJson(current, counts)),
       });
       return body;
     });
   }
 
-  async deleteFolder(user: AuthUser, id: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+  async deleteFolder(user: AuthUser, id: string): Promise<{ movedListIds: string[] }> {
+    return this.prisma.$transaction(async (tx) => {
       const current = await this.requireFolder(user.id, id, tx);
+      const totals = await this.folderTotals(user.id, [id], tx);
+      const linked = await tx.project.findMany({
+        where: { ownerId: user.id, folderId: id, deletedAt: null },
+      });
+      const movedListIds = linked.map((row) => row.id);
       await tx.project.updateMany({
         where: { ownerId: user.id, folderId: id },
         data: { folderId: null },
       });
+      const counts = await this.activeCounts(user.id, movedListIds, tx);
+      const refreshed =
+        movedListIds.length === 0
+          ? []
+          : await tx.project.findMany({ where: { id: { in: movedListIds } } });
+      const previousById = new Map(linked.map((row) => [row.id, row]));
+      for (const row of refreshed) {
+        const previous = previousById.get(row.id);
+        if (previous === undefined) {
+          continue;
+        }
+        const active = counts.get(row.id) ?? 0;
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.projectUpdated,
+          entityType: 'project',
+          entityId: row.id,
+          action: 'updated',
+          data: { project: asJson(toProjectJson(row, active)) },
+          previous: asJson(toProjectJson(previous, active)),
+        });
+      }
       const row = await tx.folder.update({ where: { id }, data: { deletedAt: new Date() } });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.folderDeleted,
         entityType: 'folder',
         entityId: id,
         action: 'deleted',
-        data: { folder: asJson(toFolderJson(row)) },
-        previous: asJson(toFolderJson(current)),
+        data: { folder: asJson(toFolderJson(row, EMPTY_FOLDER_TOTALS)) },
+        previous: asJson(toFolderJson(current, totals.get(id) ?? EMPTY_FOLDER_TOTALS)),
       });
+      return { movedListIds };
     });
   }
 
@@ -159,13 +219,30 @@ export class ListsService {
     limit: number,
     cursorRaw: string | undefined,
     includeClosed: boolean,
+    filters: ProjectListFilters = {},
   ): Promise<Page<ProjectResponseDto>> {
     const cursor = this.cursor(cursorRaw);
+    const state = filters.state;
+    const closedWhere =
+      state === 'archived'
+        ? { closed: true }
+        : state === 'active' || state === 'paused'
+          ? { closed: false }
+          : includeClosed
+            ? {}
+            : { closed: false };
     const rows = await this.prisma.project.findMany({
       where: {
         ownerId: user.id,
         deletedAt: null,
-        ...(includeClosed ? {} : { closed: false }),
+        ...closedWhere,
+        ...(state === 'active' || state === 'paused' ? { projectStatus: state } : {}),
+        ...(filters.isProject === undefined ? {} : { isProject: filters.isProject }),
+        ...(filters.folderId === undefined
+          ? {}
+          : filters.folderId === null
+            ? { folderId: null }
+            : { folderId: filters.folderId }),
         ...(cursor === undefined
           ? {}
           : {
@@ -209,6 +286,7 @@ export class ListsService {
         });
         const plan = placementPlan(rows, null, dto.before_id, dto.move_to_end);
         await this.applySort(tx, 'project', plan.updates);
+        const now = new Date();
         const row = await tx.project.create({
           data: {
             ownerId: user.id,
@@ -217,7 +295,10 @@ export class ListsService {
             folderId: dto.folder_id ?? null,
             viewMode: dto.view_mode ?? 'list',
             kind: dto.kind ?? 'TASK',
+            isProject: dto.is_project ?? false,
+            outcome: this.storedOutcome(dto.outcome) ?? null,
             sortOrder: plan.movingSortOrder,
+            ...projectStatusAssignment('active', dto.project_status, now),
           },
         });
         const body = toProjectJson(row, 0);
@@ -247,7 +328,18 @@ export class ListsService {
   ): Promise<ProjectResponseDto> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.requireProject(user.id, id, tx);
-      if (dto.folder_id !== undefined && dto.folder_id !== null) {
+      if (dto.is_project === true && current.isInbox) {
+        throw new DomainException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          'inbox_not_project',
+          'The inbox cannot be a project',
+        );
+      }
+      if (
+        dto.folder_id !== undefined &&
+        dto.folder_id !== null &&
+        dto.folder_id !== current.folderId
+      ) {
         await this.requireFolder(user.id, dto.folder_id, tx);
       }
       const reorder = dto.before_id !== undefined || dto.move_to_end === true;
@@ -259,21 +351,30 @@ export class ListsService {
       if (plan !== null) {
         await this.applySort(tx, 'project', plan.updates);
       }
-      const row = await tx.project.update({
-        where: { id },
-        data: {
-          ...(dto.name !== undefined ? { name: this.name(dto.name) } : {}),
-          ...(dto.color !== undefined ? { color: dto.color } : {}),
-          ...(dto.folder_id !== undefined ? { folderId: dto.folder_id } : {}),
-          ...(dto.view_mode !== undefined ? { viewMode: dto.view_mode } : {}),
-          ...(dto.kind !== undefined ? { kind: dto.kind } : {}),
-          ...(dto.default_reminder_trigger !== undefined
-            ? { defaultReminderTrigger: dto.default_reminder_trigger }
-            : {}),
-          ...(plan !== null ? { sortOrder: plan.movingSortOrder } : {}),
-        },
-      });
+      const outcome = dto.outcome === undefined ? undefined : this.storedOutcome(dto.outcome);
+      const data = {
+        ...(dto.name !== undefined ? { name: this.name(dto.name) } : {}),
+        ...(dto.color !== undefined ? { color: dto.color } : {}),
+        ...(dto.folder_id !== undefined && dto.folder_id !== current.folderId
+          ? { folderId: dto.folder_id }
+          : {}),
+        ...(dto.view_mode !== undefined ? { viewMode: dto.view_mode } : {}),
+        ...(dto.kind !== undefined ? { kind: dto.kind } : {}),
+        ...(dto.default_reminder_trigger !== undefined
+          ? { defaultReminderTrigger: dto.default_reminder_trigger }
+          : {}),
+        ...(dto.is_project !== undefined && dto.is_project !== current.isProject
+          ? { isProject: dto.is_project }
+          : {}),
+        ...(outcome !== undefined && outcome !== current.outcome ? { outcome } : {}),
+        ...projectStatusAssignment(current.projectStatus, dto.project_status, new Date()),
+        ...(plan !== null ? { sortOrder: plan.movingSortOrder } : {}),
+      };
       const counts = await this.activeCounts(user.id, [id], tx);
+      if (Object.keys(data).length === 0) {
+        return toProjectJson(current, counts.get(id) ?? 0);
+      }
+      const row = await tx.project.update({ where: { id }, data });
       const body = toProjectJson(row, counts.get(id) ?? 0);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.projectUpdated,
@@ -287,15 +388,48 @@ export class ListsService {
     });
   }
 
-  async deleteProject(user: AuthUser, id: string): Promise<void> {
+  async deletionImpact(user: AuthUser, id: string): Promise<DeletionImpactDto> {
+    const row = await this.requireProject(user.id, id);
+    const tasks = await this.prisma.task.findMany({
+      where: { ownerId: user.id, projectId: id, deletedAt: null },
+      select: { status: true, parentId: true },
+    });
+    return {
+      project_id: row.id,
+      name: row.name,
+      is_project: row.isProject,
+      closed: row.closed,
+      task_count: tasks.length,
+      completed_count: tasks.filter((task) => task.status === 'completed').length,
+      open_count: tasks.filter((task) => task.status === 'active').length,
+      subtask_count: tasks.filter((task) => task.parentId !== null).length,
+    };
+  }
+
+  async deleteProject(user: AuthUser, id: string, expectedTaskCount?: number): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const current = await this.requireProject(user.id, id, tx);
       this.assertInbox(current);
+      if (current.isProject && !current.closed) {
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'project_not_archived',
+          'Archive the project before deleting it',
+        );
+      }
       const now = new Date();
       const tasks = await tx.task.findMany({
         where: { ownerId: user.id, projectId: id, deletedAt: null },
         select: { id: true, title: true, status: true },
       });
+      if (expectedTaskCount !== undefined && expectedTaskCount !== tasks.length) {
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'confirmation_mismatch',
+          'expected_task_count does not match',
+          { task_count: tasks.length, expected_task_count: expectedTaskCount },
+        );
+      }
       await tx.task.updateMany({
         where: { ownerId: user.id, projectId: id, deletedAt: null },
         data: { deletedAt: now },
@@ -342,6 +476,27 @@ export class ListsService {
     keyRaw: string | undefined,
   ): Promise<Result<ProjectResponseDto>> {
     return this.setClosed(user, id, false, keyRaw);
+  }
+
+  setProjectState(
+    user: AuthUser,
+    id: string,
+    state: 'active' | 'paused' | 'archived',
+    keyRaw: string | undefined,
+  ): Promise<Result<ProjectResponseDto>> {
+    const requested: ListStateRequest =
+      state === 'archived'
+        ? { closed: true, projectStatus: 'keep' }
+        : { closed: false, projectStatus: state };
+    return this.writeListState(
+      user,
+      id,
+      requested,
+      keyRaw,
+      `/api/v1/projects/${id}/state`,
+      { state },
+      { rejectInbox: true, requireProject: true },
+    );
   }
 
   archiveCompleted(
@@ -546,38 +701,165 @@ export class ListsService {
     });
   }
 
-  private async setClosed(
+  private setClosed(
     user: AuthUser,
     id: string,
     closed: boolean,
     keyRaw: string | undefined,
   ): Promise<Result<ProjectResponseDto>> {
-    const key = normalizeIdempotencyKey(keyRaw);
     const path = closed ? `/api/v1/projects/${id}/archive` : `/api/v1/projects/${id}/unarchive`;
+    const requested: ListStateRequest = closed
+      ? { closed: true, projectStatus: 'keep' }
+      : { closed: false, projectStatus: 'active' };
+    return this.writeListState(
+      user,
+      id,
+      requested,
+      keyRaw,
+      path,
+      {},
+      {
+        rejectInbox: closed,
+        requireProject: false,
+      },
+    );
+  }
+
+  private writeListState(
+    user: AuthUser,
+    id: string,
+    requested: ListStateRequest,
+    keyRaw: string | undefined,
+    path: string,
+    fingerprintBody: unknown,
+    options: { readonly rejectInbox: boolean; readonly requireProject: boolean },
+  ): Promise<Result<ProjectResponseDto>> {
+    const key = normalizeIdempotencyKey(keyRaw);
     return this.idempotency.run({
       ownerId: user.id,
       key,
-      fingerprint: requestFingerprint('POST', path, {}),
+      fingerprint: requestFingerprint('POST', path, fingerprintBody),
       statusCode: 200,
       execute: async (tx) => {
         const current = await this.requireProject(user.id, id, tx);
-        if (closed) {
+        if (options.rejectInbox && current.isInbox) {
           this.assertInbox(current);
         }
-        const row = await tx.project.update({ where: { id }, data: { closed } });
+        if (options.requireProject && !current.isProject) {
+          throw new DomainException(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            'not_a_project',
+            'The list is not a project',
+          );
+        }
+        const targetStatus =
+          requested.projectStatus === 'keep' ? current.projectStatus : requested.projectStatus;
+        const unchanged =
+          current.closed === requested.closed && current.projectStatus === targetStatus;
         const counts = await this.activeCounts(user.id, [id], tx);
-        const body = toProjectJson(row, counts.get(id) ?? 0);
-        await this.events.record(tx, actorOf(user), {
-          type: closed ? DomainEvent.projectArchived : DomainEvent.projectUnarchived,
-          entityType: 'project',
-          entityId: id,
-          action: 'updated',
-          data: { project: asJson(body) },
-          previous: { closed: current.closed },
+        if (unchanged) {
+          return toProjectJson(current, counts.get(id) ?? 0);
+        }
+        const now = new Date();
+        const closure = closureAssignment(requested.closed, now);
+        const row = await tx.project.update({
+          where: { id },
+          data: {
+            closed: closure.closed,
+            closedAt: closure.closedAt,
+            projectStatus: targetStatus,
+            ...(current.projectStatus === targetStatus ? {} : { projectStatusChangedAt: now }),
+          },
         });
+        const body = toProjectJson(row, counts.get(id) ?? 0);
+        if (current.closed !== closure.closed) {
+          await this.events.record(tx, actorOf(user), {
+            type: closure.closed ? DomainEvent.projectArchived : DomainEvent.projectUnarchived,
+            entityType: 'project',
+            entityId: id,
+            action: 'updated',
+            data: { project: asJson(body) },
+            previous: { closed: current.closed },
+          });
+        }
+        if (current.projectStatus !== targetStatus) {
+          await this.events.record(tx, actorOf(user), {
+            type: DomainEvent.projectUpdated,
+            entityType: 'project',
+            entityId: id,
+            action: 'updated',
+            data: { project: asJson(body) },
+            previous: asJson(toProjectJson(current, counts.get(id) ?? 0)),
+          });
+        }
         return body;
       },
     });
+  }
+
+  private async folderTotals(
+    ownerId: string,
+    folderIds: string[],
+    tx: Tx | PrismaService = this.prisma,
+  ): Promise<Map<string, FolderTotals>> {
+    const totals = new Map<string, { project_count: number; active_task_count: number }>();
+    for (const id of folderIds) {
+      totals.set(id, { project_count: 0, active_task_count: 0 });
+    }
+    if (folderIds.length === 0) {
+      return totals;
+    }
+    const listedWhere = {
+      ownerId,
+      folderId: { in: folderIds },
+      deletedAt: null,
+      closed: false,
+      isInbox: false,
+    };
+    const grouped = await tx.project.groupBy({
+      by: ['folderId'],
+      where: listedWhere,
+      _count: { _all: true },
+    });
+    for (const row of grouped) {
+      if (row.folderId === null) {
+        continue;
+      }
+      const slot = totals.get(row.folderId);
+      if (slot !== undefined) {
+        slot.project_count = row._count._all;
+      }
+    }
+    const projects = await tx.project.findMany({
+      where: listedWhere,
+      select: { id: true, folderId: true },
+    });
+    if (projects.length === 0) {
+      return totals;
+    }
+    const taskGroups = await tx.task.groupBy({
+      by: ['projectId'],
+      where: {
+        ownerId,
+        projectId: { in: projects.map((project) => project.id) },
+        status: 'active',
+        parentId: null,
+        deletedAt: null,
+      },
+      _count: { _all: true },
+    });
+    const folderOf = new Map(projects.map((project) => [project.id, project.folderId]));
+    for (const group of taskGroups) {
+      const folderId = folderOf.get(group.projectId);
+      if (folderId === undefined || folderId === null) {
+        continue;
+      }
+      const slot = totals.get(folderId);
+      if (slot !== undefined) {
+        slot.active_task_count += group._count._all;
+      }
+    }
+    return totals;
   }
 
   private async activeCounts(
@@ -666,6 +948,13 @@ export class ListsService {
         'The inbox cannot be deleted or archived',
       );
     }
+  }
+
+  private storedOutcome(value: string | null | undefined): string | null | undefined {
+    if (typeof value === 'string' && value.length > 200) {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'outcome is too long');
+    }
+    return normalizeOutcome(value);
   }
 
   private name(value: string): string {

@@ -49,6 +49,17 @@ describe('McpService recurrence mapping', () => {
     listProjects: vi.fn().mockResolvedValue({
       items: [{ id: '22222222-2222-4222-8222-222222222222', name: 'Bandeja', is_inbox: true }],
     }),
+    listFolders: vi.fn(),
+    createFolder: vi.fn(),
+    updateFolder: vi.fn(),
+    deleteFolder: vi.fn(),
+    createProject: vi.fn(),
+    updateProject: vi.fn(),
+    setProjectState: vi.fn(),
+    archive: vi.fn(),
+    unarchive: vi.fn(),
+    deletionImpact: vi.fn(),
+    deleteProject: vi.fn(),
   };
   const tags = {
     create: vi.fn().mockResolvedValue({
@@ -964,6 +975,100 @@ describe('McpService recurrence mapping', () => {
       expect.anything(),
       'mcp',
     );
+  });
+
+  it('calls each list and project tool, and delete_project confirms in two steps', async () => {
+    const listsUser = { ...user, scopes: ['lists:read', 'lists:write'] };
+    const id = '22222222-2222-4222-8222-222222222222';
+    const call = (name: string, args: Record<string, unknown> = {}) =>
+      service.handle(listsUser, {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name, arguments: args },
+      });
+    lists.listFolders.mockResolvedValue({ items: [], next_cursor: null });
+    lists.createFolder.mockResolvedValue({ body: { id, name: 'Personal' } });
+    lists.updateFolder.mockResolvedValue({ id, name: 'Casa' });
+    lists.deleteFolder.mockResolvedValue({ movedListIds: [id] });
+    lists.createProject.mockResolvedValue({ body: { id, name: 'reforma' } });
+    lists.updateProject.mockResolvedValue({ id, folder_id: id });
+    lists.setProjectState.mockResolvedValue({ body: { id, state: 'paused' } });
+    lists.archive.mockResolvedValue({ body: { id, closed: true } });
+    lists.unarchive.mockResolvedValue({ body: { id, closed: false, project_status: 'active' } });
+    lists.listProjects.mockResolvedValue({ items: [{ id, state: 'archived' }], next_cursor: null });
+    lists.deletionImpact.mockResolvedValue({
+      project_id: id,
+      name: 'reforma',
+      is_project: true,
+      closed: true,
+      task_count: 2,
+      completed_count: 1,
+      open_count: 1,
+      subtask_count: 0,
+    });
+
+    expect(JSON.parse(toolText(await call('list_folders')))).toEqual({
+      items: [],
+      next_cursor: null,
+    });
+    expect(lists.listFolders).toHaveBeenCalledWith(listsUser, 50, undefined);
+
+    await call('create_folder', { name: 'Personal' });
+    expect(lists.createFolder).toHaveBeenCalledWith(
+      listsUser,
+      { name: 'Personal' },
+      expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      ),
+    );
+
+    await call('update_folder', { id, name: 'Casa' });
+    expect(lists.updateFolder).toHaveBeenCalledWith(listsUser, id, { name: 'Casa' });
+
+    expect(JSON.parse(toolText(await call('delete_folder', { id })))).toEqual({
+      deleted: true,
+      moved_list_ids: [id],
+    });
+
+    await call('create_project', { name: 'reforma', is_project: true, outcome: 'Cocina' });
+    expect(lists.createProject).toHaveBeenCalledWith(
+      listsUser,
+      expect.objectContaining({ name: 'reforma', is_project: true, outcome: 'Cocina' }),
+      expect.any(String),
+    );
+
+    await call('list_projects', { state: 'archived', folder_id: 'none', is_project: true });
+    expect(lists.listProjects).toHaveBeenCalledWith(listsUser, 50, undefined, false, {
+      folderId: null,
+      isProject: true,
+      state: 'archived',
+    });
+
+    await call('update_project', { id, folder_id: id });
+    expect(lists.updateProject).toHaveBeenCalledWith(listsUser, id, { folder_id: id });
+
+    await call('set_project_state', { id, state: 'paused' });
+    expect(lists.setProjectState).toHaveBeenCalledWith(listsUser, id, 'paused', undefined);
+
+    await call('archive_project', { id });
+    expect(lists.archive).toHaveBeenCalledWith(listsUser, id, undefined);
+    await call('unarchive_project', { id });
+    expect(lists.unarchive).toHaveBeenCalledWith(listsUser, id, undefined);
+
+    const preview = JSON.parse(toolText(await call('delete_project', { id, dry_run: true })));
+    expect(preview).toMatchObject({
+      deleted: false,
+      task_count: 2,
+      hint: 'Call again with confirm_task_count=<task_count> to delete.',
+    });
+    expect(lists.deleteProject).not.toHaveBeenCalled();
+
+    const removed = JSON.parse(
+      toolText(await call('delete_project', { id, confirm_task_count: 2 })),
+    );
+    expect(removed.deleted).toBe(true);
+    expect(lists.deleteProject).toHaveBeenCalledWith(listsUser, id, 2);
   });
 });
 
