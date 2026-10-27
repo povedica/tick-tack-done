@@ -73,6 +73,7 @@ export async function loadTodayTasks(client: TaskReader, now: Date): Promise<Tod
       overdue: true,
       limit: PAGE_LIMIT,
       sort: 'due',
+      context: 'auto',
     }),
     collectTasks(list, {
       status: 'active',
@@ -80,6 +81,7 @@ export async function loadTodayTasks(client: TaskReader, now: Date): Promise<Tod
       sort: 'due',
       dueAfter: window.dueAfter,
       dueBefore: window.dueBefore,
+      context: 'auto',
     }),
   ]);
   const byId = new Map<string, TodayTask>();

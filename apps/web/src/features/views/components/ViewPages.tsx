@@ -36,6 +36,7 @@ import {
   type ViewSort,
 } from '../view-prefs';
 import { viewsApi } from '../api';
+import { WorkHoursLine } from '../../settings/WorkHoursLine';
 
 type GroupBy = ViewPage['group_by'];
 type Sort = ViewPage['sort'];
@@ -51,7 +52,13 @@ export function SmartListViewPage() {
       messages={messages}
       title={smartLabel(messages, listKey)}
       queryKey={['smart-list-tasks', listKey]}
-      load={(groupBy, sort) => collectSmartList(listKey, { groupBy, sort })}
+      load={(groupBy, sort) =>
+        collectSmartList(listKey, {
+          groupBy,
+          sort,
+          ...(listKey === 'today' || listKey === 'next_7_days' ? { context: 'auto' as const } : {}),
+        })
+      }
       notice={listKey === 'assigned_to_me' ? messages.assignedEmpty : undefined}
       createViewDay={viewDayFor(listKey)}
       viewKey={`smart:${listKey}`}
@@ -307,6 +314,7 @@ export function Board({
           <SidebarFoldButton />
           <h1>{title}</h1>
         </div>
+        {viewKey === 'smart:today' || viewKey === 'smart:next_7_days' ? <WorkHoursLine /> : null}
         <div className="page-actions">
           {headerActions}
           <MatrixViewToggle

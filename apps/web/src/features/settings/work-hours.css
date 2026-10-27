@@ -1,0 +1,32 @@
+.work-hours-line {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+
+.work-hours-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  padding: 4px 0;
+  min-height: 32px;
+}
+
+.work-hours-toggle:hover {
+  text-decoration: underline;
+}
+
+.today-header:has(.work-hours-line),
+.calendar-page > .work-hours-line {
+  margin-top: calc(var(--sp-2) * -1);
+}

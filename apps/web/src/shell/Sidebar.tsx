@@ -85,7 +85,10 @@ export function Sidebar({
   const showCounters = usePreferences((state) => state.showCounters);
   const queryClient = useQueryClient();
   const catalog = { staleTime: 5 * 60_000 };
-  const smart = useQuery({ queryKey: ['smart-lists'], queryFn: () => api.listSmartLists() });
+  const smart = useQuery({
+    queryKey: ['smart-lists', 'auto'],
+    queryFn: () => api.listSmartLists({ context: 'auto' }),
+  });
   const projects = useQuery({ queryKey: ['projects'], queryFn: collectProjects, ...catalog });
   const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters(), ...catalog });
   const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, ...catalog });
