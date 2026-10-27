@@ -4651,6 +4651,8 @@ export interface components {
         };
         ProjectResponseDto: {
             id: string;
+            /** @description Account that owns the list. Shared members use it to hide folder moves. */
+            owner_id: string;
             name: string;
             color: string | null;
             folder_id: string | null;

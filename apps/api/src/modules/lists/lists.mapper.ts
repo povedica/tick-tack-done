@@ -80,6 +80,7 @@ export function toFolderJson(
 export function toProjectJson(row: Project, activeTaskCount: number): ProjectResponseDto {
   return {
     id: row.id,
+    owner_id: row.ownerId,
     name: row.name,
     color: row.color,
     folder_id: row.folderId,

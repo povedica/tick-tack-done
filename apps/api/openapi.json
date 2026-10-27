@@ -17178,6 +17178,10 @@
           "id": {
             "type": "string"
           },
+          "owner_id": {
+            "type": "string",
+            "description": "Account that owns the list. Shared members use it to hide folder moves."
+          },
           "name": {
             "type": "string"
           },
@@ -17265,6 +17269,7 @@
         },
         "required": [
           "id",
+          "owner_id",
           "name",
           "color",
           "folder_id",

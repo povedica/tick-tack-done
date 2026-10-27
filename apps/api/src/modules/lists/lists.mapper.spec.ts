@@ -48,6 +48,7 @@ describe('project state', () => {
   it('exposes closed_at and keeps a paused status visible only through state', () => {
     const closedAt = new Date('2026-10-18T10:00:00.000Z');
     const json = toProjectJson(project({ closed: true, closedAt, projectStatus: 'paused' }), 3);
+    expect(json.owner_id).toBe('22222222-2222-4222-8222-222222222222');
     expect(json.closed_at).toBe('2026-10-18T10:00:00.000Z');
     expect(json.state).toBe('archived');
     expect(json.project_status).toBe('paused');

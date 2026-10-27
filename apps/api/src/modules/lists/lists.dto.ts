@@ -264,6 +264,11 @@ export class ProjectResponseDto {
   @ApiProperty()
   id!: string;
 
+  @ApiProperty({
+    description: 'Account that owns the list. Shared members use it to hide folder moves.',
+  })
+  owner_id!: string;
+
   @ApiProperty()
   name!: string;
 
