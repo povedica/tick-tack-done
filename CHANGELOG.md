@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## Corrección del modo de sesión en producción
+
+- Las compilaciones de producción activan siempre sesiones por cookie y CSRF,
+  también cuando se generan fuera de Docker. Evita 403 al planificar el día,
+  registrar ubicación y realizar otras escrituras con sesión.
+- Regresión en CI sobre el artefacto de producción: apertura de planificación y
+  ubicación exigen el token CSRF y no envían la identidad de desarrollo.
+
 ## Refinamientos de Hábitos, Calendario y Planificación
 
 - RF-1301/1302/1303: editor único de hábitos, pausa y fecha de inicio compatibles
