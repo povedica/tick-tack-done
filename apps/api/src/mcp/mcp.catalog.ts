@@ -248,7 +248,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'list_tasks',
     description:
-      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to ([from,to), inclusive start and exclusive end in the user time zone); range_field=due|start|any (default any, including overlapping intervals). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
+      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to ([from,to), inclusive start and exclusive end in the user time zone); range_field=due|start|any (default any, including overlapping intervals). overdue=true is the canonical overdue set: the deadline has passed and the start is not a later civil day. someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
     scopes: ['tasks:read'],
     inputSchema: objectSchema({
       limit,
@@ -266,6 +266,11 @@ const CATALOG: readonly McpTool[] = [
       },
       priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
       someday: { type: 'boolean' },
+      overdue: {
+        type: 'boolean',
+        description:
+          'Only active tasks whose deadline has passed and whose start is not a later civil day.',
+      },
       status: {
         type: 'string',
         enum: ['active', 'completed', 'archived', 'cancelled', 'all'],

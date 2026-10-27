@@ -1,6 +1,13 @@
 import type { ViewPage } from '@reflexionia/sdk';
 import { describe, expect, it } from 'vitest';
-import { quadrantOf, rowFromView, rowsFromView, smartApiKey, type RowModel } from './model';
+import {
+  isOverdue,
+  quadrantOf,
+  rowFromView,
+  rowsFromView,
+  smartApiKey,
+  type RowModel,
+} from './model';
 
 const row = {
   priority: 'high',
@@ -13,6 +20,17 @@ describe('task view helpers', () => {
     expect(smartApiKey('no-date')).toBe('no_date');
     expect(smartApiKey('recent')).toBe('recently_added');
     expect(smartApiKey('all')).toBe('all');
+  });
+
+  it('a future start is not painted overdue', () => {
+    const now = new Date('2026-10-27T11:00:00.000Z');
+    expect(
+      isOverdue('2026-10-24T22:00:00.000Z', now, '2026-10-28T23:00:00.000Z', 'Europe/Madrid'),
+    ).toBe(false);
+    expect(
+      isOverdue('2026-10-24T22:00:00.000Z', now, '2026-10-26T23:00:00.000Z', 'Europe/Madrid'),
+    ).toBe(true);
+    expect(isOverdue('2026-10-24T22:00:00.000Z', now)).toBe(true);
   });
 
   it('UI-1101: overdue high priority lands in the urgent-important quadrant', () => {

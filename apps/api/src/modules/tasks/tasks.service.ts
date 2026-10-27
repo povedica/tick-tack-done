@@ -17,6 +17,7 @@ import {
   allDayClockConflict,
   canonicalizeRepeatRule,
   decideParentCompletion,
+  alignDueToStart,
   deriveDurationMinutes,
   excludeOccurrence,
   extractMarkdownChecklist,
@@ -569,6 +570,30 @@ export class TasksService {
         start = allDayMidnight(start, timeZone);
         if (!planning) due = allDayMidnight(due, timeZone);
       }
+      const alignedDue = planning
+        ? alignDueToStart(
+            {
+              startDate: current.startDate?.toISOString() ?? null,
+              dueDate: current.dueDate?.toISOString() ?? null,
+              isAllDay: current.isAllDay,
+              timeZone,
+              durationMinutes: current.durationMinutes,
+            },
+            {
+              ...(dto.start_date === undefined ? {} : { start_date: dto.start_date }),
+              is_all_day: isAllDay,
+              time_zone: timeZone,
+              ...(typeof dto.duration_minutes === 'number'
+                ? { duration_minutes: dto.duration_minutes }
+                : {}),
+              ...(dto.someday === undefined ? {} : { someday: dto.someday }),
+              ...(dto.evening_only === undefined ? {} : { evening_only: dto.evening_only }),
+            },
+          )
+        : undefined;
+      if (alignedDue !== undefined) due = new Date(alignedDue);
+      const explicitDuration =
+        dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes;
       if (
         !planning &&
         due === null &&
@@ -576,23 +601,14 @@ export class TasksService {
         !isAllDay &&
         (dto.start_date !== undefined || dto.duration_minutes !== undefined)
       ) {
-        const end = endFromDuration(
-          start?.toISOString() ?? null,
-          dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
-        );
+        const end = endFromDuration(start?.toISOString() ?? null, explicitDuration);
         if (end !== null) due = new Date(end);
       }
       if (!planning) this.assertTimed(due, isAllDay, timeZone);
       this.assertTimed(start, isAllDay, timeZone);
       const duration = planning
-        ? dto.duration_minutes === undefined
-          ? current.durationMinutes
-          : dto.duration_minutes
-        : this.duration(
-            start,
-            due,
-            dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
-          );
+        ? this.plannedDuration(start, due, explicitDuration, alignedDue !== undefined)
+        : this.duration(start, due, explicitDuration);
       let content = dto.content ?? current.content;
       const extracted = dto.extract_checklist === true ? extractMarkdownChecklist(content) : null;
       if (extracted !== null) {
@@ -2904,6 +2920,40 @@ export class TasksService {
       return { date: null, dateOnly: false };
     }
     return this.instant(incoming, field, timeZone);
+  }
+
+  /**
+   * Planning used to skip the deadline check. After aligning a later start,
+   * `due < start` is still 422. A collapsed all-day span cannot keep an effort
+   * estimate that disagrees with the two midnights.
+   */
+  private plannedDuration(
+    start: Date | null,
+    due: Date | null,
+    explicit: number | null,
+    aligned: boolean,
+  ): number | null {
+    const derived = deriveDurationMinutes({
+      startDate: start === null ? null : start.toISOString(),
+      dueDate: due === null ? null : due.toISOString(),
+      explicit,
+    });
+    if (!derived.ok && derived.reason === 'due_before_start') {
+      throw new DomainException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'deadline_before_when',
+        'deadline is before when',
+      );
+    }
+    if (!derived.ok && derived.reason === 'invalid_date') {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'start_date or due_date is not a valid date',
+      );
+    }
+    if (!derived.ok && aligned) return 0;
+    return explicit;
   }
 
   private duration(start: Date | null, due: Date | null, explicit: number | null): number | null {

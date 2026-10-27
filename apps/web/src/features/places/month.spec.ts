@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { calendarTaskLabel, isoWeek, quarterMonths, shiftView, viewDays } from './month';
+import {
+  calendarTaskLabel,
+  isCalendarOverdue,
+  isoWeek,
+  quarterMonths,
+  shiftView,
+  viewDays,
+} from './month';
+
+describe('calendar overdue', () => {
+  it('a later start is not overdue', () => {
+    const now = new Date('2026-10-27T11:00:00.000Z');
+    expect(
+      isCalendarOverdue(
+        '2026-10-24T22:00:00.000Z',
+        'Europe/Madrid',
+        now,
+        '2026-10-28T23:00:00.000Z',
+      ),
+    ).toBe(false);
+    expect(isCalendarOverdue('2026-10-24T22:00:00.000Z', 'Europe/Madrid', now)).toBe(true);
+  });
+});
 
 describe('calendar view windows', () => {
   const monday = new Date(2026, 9, 19);

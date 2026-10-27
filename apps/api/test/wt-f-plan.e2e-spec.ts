@@ -446,7 +446,7 @@ describe('F day planning', () => {
       .expect(200);
     expect(JSON.stringify(activity.body)).toContain('plan');
   });
-  it('F-AC-2: permits planning after an expired deadline without changing it or estimating duration', async () => {
+  it('moves an expired deadline onto the planned day without inventing a duration', async () => {
     const dueDate = new Date('2026-10-23T09:00:00Z');
     const task = await makeTask(dueDate);
     const session = await start();
@@ -463,7 +463,8 @@ describe('F day planning', () => {
       .expect(200);
     const after = await prisma.task.findUniqueOrThrow({ where: { id: task.id } });
     expect(after.startDate?.toISOString()).toBe('2026-10-25T23:00:00.000Z');
-    expect(after.dueDate).toEqual(dueDate);
+    expect(after.dueDate?.toISOString()).toBe('2026-10-25T23:00:00.000Z');
+    expect(after.isAllDay).toBe(true);
     expect(after.durationMinutes).toBeNull();
   });
   it('F-AC-4: a failed task write rolls back the complete plan operation and prior task writes', async () => {

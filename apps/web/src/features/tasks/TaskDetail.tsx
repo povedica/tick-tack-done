@@ -185,10 +185,18 @@ export function TaskDetail({
       });
   }
   const activeChildren = task.subtasks.filter((item) => item.status === 'active');
-  const chip = formatDueChip(task.due_date, task.time_zone, task.is_all_day, new Date(), locale, {
-    empty: messages.noDate,
-    today: messages.dateToday,
-  });
+  const chip = formatDueChip(
+    task.due_date,
+    task.time_zone,
+    task.is_all_day,
+    new Date(),
+    locale,
+    {
+      empty: messages.noDate,
+      today: messages.dateToday,
+    },
+    task.start_date,
+  );
   const reminder = reminders.data?.[0];
   const repeatText =
     task.repeat_rule === null ? null : (describeRepeatRule(task.repeat_rule) ?? task.repeat_rule);

@@ -316,6 +316,7 @@ export function MatrixBoard({
                   new Date(nowMs),
                   locale,
                   { empty: messages.noDate, today: messages.navToday },
+                  task.start_date,
                 );
                 return (
                   <li key={task.id}>

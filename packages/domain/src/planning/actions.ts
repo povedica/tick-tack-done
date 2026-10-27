@@ -1,5 +1,6 @@
 import { instantFromWall } from '../dates/zoned';
-import { shiftCivilDate } from './day-load';
+import { endFromDuration } from '../tasks/duration';
+import { civilDateKey, shiftCivilDate } from './day-load';
 import type { PlanDecisionKind } from './day-plan';
 
 export const PLAN_ACTIONS = [
@@ -86,6 +87,65 @@ export function effectOf(
     duration_minutes: choice.duration ?? defaultDuration,
   };
 }
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export interface DueAlignment {
+  readonly startDate: string | null;
+  readonly dueDate: string | null;
+  readonly isAllDay: boolean;
+  readonly timeZone: string;
+  readonly durationMinutes: number | null;
+}
+
+/**
+ * Planning never writes a deadline itself. When the new start day is after the
+ * current deadline, return the due instant to store: the same civil day at
+ * local midnight, or start plus duration when the plan has a clock time.
+ * An equal or earlier start keeps the real deadline (`undefined`).
+ */
+export function alignDueToStart(current: DueAlignment, patch: PlanningPatch): string | undefined {
+  if (patch.start_date == null || current.dueDate === null) return undefined;
+  const zone = patch.time_zone && patch.time_zone.length > 0 ? patch.time_zone : current.timeZone;
+  const startDay = civilDay(patch.start_date, zone);
+  const dueDay = civilDay(current.dueDate, zone);
+  if (startDay === null || dueDay === null || startDay <= dueDay) return undefined;
+  const allDay =
+    patch.is_all_day === true || (patch.is_all_day !== false && DATE_ONLY.test(patch.start_date));
+  if (allDay) return midnightOf(startDay, zone);
+  const startIso = isoInstant(patch.start_date, zone);
+  if (startIso === null) return undefined;
+  return endFromDuration(startIso, patch.duration_minutes ?? current.durationMinutes) ?? undefined;
+}
+
+function civilDay(value: string, timeZone: string): string | null {
+  if (DATE_ONLY.test(value)) return value;
+  return civilDateKey(value, timeZone);
+}
+
+function midnightOf(day: string, timeZone: string): string | undefined {
+  const parts = DATE_ONLY.exec(day);
+  if (parts === null) return undefined;
+  return (
+    instantFromWall(
+      {
+        year: Number(parts[1]),
+        month: Number(parts[2]),
+        day: Number(parts[3]),
+        hour: 0,
+        minute: 0,
+        second: 0,
+      },
+      timeZone,
+    ) ?? undefined
+  );
+}
+
+function isoInstant(value: string, timeZone: string): string | null {
+  if (DATE_ONLY.test(value)) return midnightOf(value, timeZone) ?? null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
 export function storedDecision(action: PlanAction): PlanDecisionKind {
   return (
     {

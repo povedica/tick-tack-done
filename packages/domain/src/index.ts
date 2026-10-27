@@ -48,7 +48,7 @@ export type { ParsedRule, RepeatDraft, RuleFailure, Weekday } from './recurrence
 export { instantFromWall, startOfZonedDay } from './dates/zoned';
 export { parseTaskInstant } from './dates/parse-instant';
 export type { ParsedTaskInstant } from './dates/parse-instant';
-export { isOverdue, snoozeDue } from './dates/schedule';
+export { isOverdue, plannedForLater, snoozeDue } from './dates/schedule';
 export type { DateSnoozePreset, ScheduleFailure, SnoozedDates } from './dates/schedule';
 
 export {
@@ -449,6 +449,7 @@ export type { CaptureSettings } from './nlp/capture-settings';
 export {
   PLAN_ACTIONS,
   actionDate,
+  alignDueToStart,
   effectOf,
   storedDecision,
   legacyAction,

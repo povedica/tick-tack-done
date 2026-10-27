@@ -1474,6 +1474,7 @@ function DayGrid({
                                   chip.task.due_date,
                                   chip.task.time_zone,
                                   new Date(),
+                                  chip.task.start_date,
                                 )
                                   ? 'cal-pill is-overdue'
                                   : 'cal-pill'
@@ -1773,7 +1774,12 @@ function MobileWeekBoard({
                     <CalendarTaskMark task={task} />
                     <Link
                       className={
-                        isCalendarOverdue(task.due_date, task.time_zone, new Date())
+                        isCalendarOverdue(
+                          task.due_date,
+                          task.time_zone,
+                          new Date(),
+                          task.start_date,
+                        )
                           ? 'is-overdue'
                           : undefined
                       }

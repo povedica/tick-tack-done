@@ -321,6 +321,21 @@ describe('smart lists', () => {
     expect(matchesSmartList('trash', subject(), input)).toBe(false);
   });
 
+  it('RF-901: a future start stays out of today even when the deadline has passed', () => {
+    const later = subject({
+      startDate: '2026-10-20T22:00:00.000Z',
+      dueDate: '2026-10-15T22:00:00.000Z',
+      isAllDay: true,
+    });
+    const startedToday = subject({
+      startDate: '2026-10-16T22:00:00.000Z',
+      dueDate: '2026-10-15T08:00:00.000Z',
+      isAllDay: false,
+    });
+    expect(matchesSmartList('today', later, input)).toBe(false);
+    expect(matchesSmartList('today', startedToday, input)).toBe(true);
+  });
+
   it('RF-901: recently added keeps the last 30 local days and drops older tasks', () => {
     expect(matchesSmartList('recently_added', subject(), input)).toBe(true);
     expect(

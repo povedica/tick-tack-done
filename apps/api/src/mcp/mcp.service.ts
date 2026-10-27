@@ -268,7 +268,7 @@ export class McpService {
           flat: false,
           sort: 'manual',
           deleted: false,
-          overdue: false,
+          overdue: args.overdue === true,
           someday: args.someday === true,
         });
         return {
