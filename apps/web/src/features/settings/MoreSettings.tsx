@@ -1,7 +1,8 @@
 import { runAction } from '../../components/run-action';
 import { ApiError, type Project } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { failureMessage } from '../../failure';
 import { Button, Kbd } from '../../components/ui';
@@ -477,9 +478,16 @@ export function PluginSettings() {
 
 export function SharingSettings() {
   const messages = useMessages();
+  const [params] = useSearchParams();
+  const requested = params.get('list') ?? '';
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const lists = projects.data?.items ?? [];
-  const [picked, setPicked] = useState('');
+  const [picked, setPicked] = useState(requested);
+  useEffect(() => {
+    if (requested.length > 0) {
+      setPicked(requested);
+    }
+  }, [requested]);
   const [email, setEmail] = useState('');
   const [permission, setPermission] = useState<'read' | 'comment' | 'write'>('read');
   const [error, setError] = useState<string | null>(null);

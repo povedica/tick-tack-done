@@ -47,11 +47,11 @@ for (const width of [390, 1280])
             'true',
           );
         const folder = sidebar.locator('.nav-folder').filter({ hasText: 'Vida' });
-        await expect(folder.locator('summary .lucide-folder')).toBeVisible();
+        await expect(folder.locator('.lucide-folder-open')).toBeVisible();
         await expect(folder.getByRole('link', { name: 'Personal', exact: true })).toBeVisible();
-        await folder.locator('summary').click();
+        await folder.getByRole('button', { name: 'Vida', exact: true }).click();
         await expect(folder.getByRole('link', { name: 'Personal', exact: true })).toBeHidden();
-        await folder.locator('summary').click();
+        await folder.getByRole('button', { name: 'Vida', exact: true }).click();
         await expect(folder.getByRole('link', { name: 'Personal', exact: true })).toBeVisible();
         await sidebar.getByRole('button', { name: 'Filtros', exact: true }).click();
         await page.reload();
