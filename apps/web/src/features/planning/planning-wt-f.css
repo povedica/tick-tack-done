@@ -1322,6 +1322,50 @@
   margin: 0 0 var(--sp-4);
   font-size: var(--fs-lg);
 }
+.plan-when-popover .popover-heading {
+  flex-wrap: nowrap;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.plan-when-popover .popover-heading h2 {
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+.plan-when-popover .popover-heading-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: none;
+  gap: var(--sp-2);
+  margin-left: auto;
+}
+.plan-when-someday {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: var(--sp-1);
+  min-height: var(--tap);
+  margin: 0;
+  padding: 0 var(--sp-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.plan-when-someday:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.plan-when-someday:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .plan-when-popover .sp-rail {
   display: flex;
   align-items: center;

@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## Algún día en la hoja «¿Cuándo?»
+
+- Al planificar, la hoja «¿Cuándo?» ofrece «Algún día» en la cabecera, a la
+  izquierda del cierre. Un toque usa la misma decisión que la tecla A: marca la
+  tarea como algún día, cierra la hoja y pasa a la siguiente. La tecla A y el
+  menú «⋯» siguen igual.
+
 ## Integraciones más compactas
 
 - Ajustes → Integraciones pasa a una sola lista: una fila por servicio, interruptores

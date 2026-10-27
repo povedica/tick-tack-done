@@ -61,6 +61,59 @@ test('F-AC-8/9/23: date sheet offers free quarter-hour slots and chosen duration
   });
   expect(fixture.counts.applied).toBe(0);
 });
+test('When sheet: header someday matches key A, closes the sheet and fits at 375px', async ({
+  page,
+}, info) => {
+  const fixture = await wtFFixture(page);
+  if (info.project.name.includes('390-light'))
+    await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/plan/day');
+  await expect(page.locator('#plan-task-title')).toHaveText(fixture.cards[0]!.title);
+  await page.keyboard.press('o');
+  const dialog = page.getByRole('dialog');
+  const heading = dialog.locator('.popover-heading');
+  const someday = heading.getByRole('button', { name: 'Algún día', exact: true });
+  await expect(someday).toBeVisible();
+  await expect(someday).toHaveClass(/plan-when-someday/);
+  await expect(heading.getByRole('heading', { name: '¿Cuándo?' })).toBeVisible();
+  await expect
+    .poll(() =>
+      heading.evaluate((node) => {
+        const parts = [
+          node.querySelector('h2'),
+          node.querySelector('.plan-when-someday'),
+          node.querySelector('.popover-close'),
+        ].filter((el): el is HTMLElement => el instanceof HTMLElement);
+        const boxes = parts.map((el) => el.getBoundingClientRect());
+        const dialogBox = node.closest('[role="dialog"]')?.getBoundingClientRect();
+        const top = Math.min(...boxes.map((box) => box.top));
+        const bottom = Math.max(...boxes.map((box) => box.bottom));
+        return {
+          count: parts.length,
+          oneRow: bottom - top <= 48,
+          noOverflow: node.scrollWidth <= node.clientWidth + 1,
+          inside:
+            dialogBox !== undefined &&
+            boxes.every(
+              (box) => box.left >= dialogBox.left - 1 && box.right <= dialogBox.right + 1,
+            ),
+          order: boxes.every(
+            (box, index) => index === 0 || box.left >= (boxes[index - 1]?.right ?? 0) - 1,
+          ),
+        };
+      }),
+    )
+    .toEqual({ count: 3, oneRow: true, noOverflow: true, inside: true, order: true });
+  await someday.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('#plan-task-title')).toHaveText(fixture.cards[1]!.title);
+  await expect.poll(() => fixture.decisions[0]?.action).toBe('someday');
+  expect(fixture.counts.scheduled).toBe(0);
+  expect(fixture.counts.applied).toBe(0);
+  await page.keyboard.press('a');
+  await expect.poll(() => fixture.decisions[1]?.action).toBe('someday');
+  await expect(page.locator('#plan-task-title')).toHaveText(fixture.cards[2]!.title);
+});
 test('F-AC-26/27: responsive layout, focus and approved visual reference', async ({
   page,
 }, info) => {

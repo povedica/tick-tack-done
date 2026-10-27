@@ -26,6 +26,7 @@ export function Popover({
   sheetHeader,
   sheetFooter,
   closeLabel,
+  headingAction,
   centered = false,
   initialFocus,
 }: {
@@ -45,6 +46,8 @@ export function Popover({
   readonly sheetHeader?: ReactNode;
   readonly sheetFooter?: ReactNode;
   readonly closeLabel?: string | undefined;
+  /** Sits in the heading, to the left of the close control. */
+  readonly headingAction?: ReactNode | undefined;
   readonly centered?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -262,10 +265,11 @@ export function Popover({
   useEffect(() => {
     if (!open || ref.current === null || !focusReady) return;
     const previous = document.activeElement;
+    const preferred = ref.current.querySelector<HTMLElement>('[data-popover-initial]');
     const first = ref.current.querySelector<HTMLElement>(
       'button:not(:disabled), input:not(:disabled), [tabindex="0"]',
     );
-    (initialFocus?.current ?? first ?? ref.current).focus();
+    (initialFocus?.current ?? preferred ?? first ?? ref.current).focus();
     return () => {
       if (anchor?.current?.isConnected) anchor.current.focus();
       else if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
@@ -290,6 +294,17 @@ export function Popover({
   if (!open) {
     return null;
   }
+  const closeControl = closeLabel ? (
+    <button
+      type="button"
+      className="popover-close"
+      data-popover-initial=""
+      aria-label={closeLabel}
+      onClick={onClose}
+    >
+      <X size={18} aria-hidden="true" />
+    </button>
+  ) : null;
   const content = (
     <div
       style={
@@ -334,9 +349,14 @@ export function Popover({
       {closeLabel ? (
         <div className="popover-heading">
           <h2>{label}</h2>
-          <button type="button" className="popover-close" aria-label={closeLabel} onClick={onClose}>
-            <X size={18} aria-hidden="true" />
-          </button>
+          {headingAction ? (
+            <div className="popover-heading-end">
+              {headingAction}
+              {closeControl}
+            </div>
+          ) : (
+            closeControl
+          )}
         </div>
       ) : null}
       {sheet && (sheetHeader || sheetFooter || closeLabel) ? (
