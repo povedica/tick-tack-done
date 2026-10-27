@@ -236,18 +236,19 @@ export function TriageFlow() {
     setDuration(n);
     setTouched(true);
   }
-  function action(action: PlanAction) {
-    if (action === 'move') {
+  function decision(next: PlanAction): Promise<boolean> {
+    if (next === 'move') {
       setWhen(true);
-      return;
+      return Promise.resolve(false);
     }
-    runAction(
-      state.decide({
-        action,
-        ...(time ? { time } : {}),
-        ...(touched || time ? { duration } : {}),
-      }),
-    );
+    return state.decide({
+      action: next,
+      ...(time ? { time } : {}),
+      ...(touched || time ? { duration } : {}),
+    });
+  }
+  function action(next: PlanAction) {
+    runAction(decision(next));
   }
   async function confirm() {
     if (
@@ -664,6 +665,13 @@ export function TriageFlow() {
           onDuration={changeDuration}
           onClose={() => {
             setWhen(false);
+          }}
+          onSomeday={() => {
+            runAction(
+              decision('someday').then((saved) => {
+                if (saved) setWhen(false);
+              }),
+            );
           }}
           onConfirm={() => {
             const choice = {

@@ -1,6 +1,7 @@
 import { Popover } from '../../../components/Popover';
 import { Button } from '../../../components/ui';
 import { DatePopover } from '../../../components/DatePopover';
+import { CloudSun } from 'lucide-react';
 import { useState, type RefObject } from 'react';
 import { useWtFMessages } from '../i18n-wt-f';
 import { useAppLocale } from '../../../i18n/locale';
@@ -17,6 +18,7 @@ export function WhenSheet({
   onDuration,
   onClose,
   onConfirm,
+  onSomeday,
   days,
   anchor,
   busy = false,
@@ -33,6 +35,7 @@ export function WhenSheet({
   readonly onDuration: (n: number) => void;
   readonly onClose: () => void;
   readonly onConfirm: () => void;
+  readonly onSomeday: () => void;
   readonly days: ReactNode;
   readonly anchor?: RefObject<HTMLElement | null>;
 }) {
@@ -55,6 +58,12 @@ export function WhenSheet({
       anchor={anchor}
       width={390}
       className="popover plan-when-popover"
+      headingAction={
+        <button type="button" className="plan-when-someday" disabled={busy} onClick={onSomeday}>
+          <CloudSun size={16} aria-hidden="true" />
+          {m.someday}
+        </button>
+      }
     >
       <div className="plan-when">
         {days}
