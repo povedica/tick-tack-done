@@ -60,9 +60,15 @@ function renderPage() {
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      observe(): void {}
-      unobserve(): void {}
-      disconnect(): void {}
+      observe(): void {
+        return undefined;
+      }
+      unobserve(): void {
+        return undefined;
+      }
+      disconnect(): void {
+        return undefined;
+      }
     },
   );
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
