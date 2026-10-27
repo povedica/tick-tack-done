@@ -10,6 +10,7 @@ export const WIDGETS = {
   focus: { title: 'focus', group: 'activity' },
   next_countdowns: { title: 'countdowns', group: 'activity' },
   calendar: { title: 'calendar', group: 'activity' },
+  in_flight_projects: { title: 'projects', group: 'projects' },
   load: { title: 'lists', group: 'map' },
   tags: { title: 'tags', group: 'map' },
 } as const satisfies Record<string, { title: GardenTextKey; group: string }>;
@@ -20,7 +21,7 @@ export interface GardenWidget {
 }
 export const DEFAULT_WIDGETS: GardenWidget[] = Object.keys(WIDGETS).map((key) => ({
   widget_key: key as WidgetKey,
-  size: WIDGETS[key as WidgetKey].group === 'kpi' ? 's' : 'm',
+  size: key === 'in_flight_projects' ? 'l' : WIDGETS[key as WidgetKey].group === 'kpi' ? 's' : 'm',
 }));
 export function row(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
@@ -70,6 +71,9 @@ export function parseLayout(value: unknown): GardenWidget[] {
       ['score', 'streak', 'tags'].includes(item.widget_key),
     ))
       if (!seen.has(widget.widget_key)) result.push(widget);
+  if (value.length > 0 && !seen.has('in_flight_projects')) {
+    result.push({ widget_key: 'in_flight_projects', size: 'l' });
+  }
   return result;
 }
 export interface GardenList {

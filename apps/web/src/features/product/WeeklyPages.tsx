@@ -15,6 +15,8 @@ import { displayTitle } from '../tasks/displayTitle';
 import { taskQueryHref } from '../../shell/use-open-task';
 import './weekly.css';
 import { useWeeklyCopy } from './weekly-text';
+import { reviewSteps, type ReviewStepId } from './review-steps';
+import { ReviewProjectsStep } from '../projects/ReviewProjectsStep';
 import { useMessages } from '../../i18n';
 import { statsApi } from '../statistics/api';
 import { reportDays } from './report-days';
@@ -272,9 +274,17 @@ export function ReviewPage() {
   const [notice, setNotice] = useState('');
   const [confirmAction, setConfirmAction] = useState<'done' | 'cancel' | null>(null);
   const data = row(query.data);
-  const ids = Array.isArray(data[step === 1 ? 'overdue_ids' : 'undated_ids'])
-    ? (data[step === 1 ? 'overdue_ids' : 'undated_ids'] as unknown[])
-    : [];
+  const steps = reviewSteps(data.projects_scope);
+  const stepId: ReviewStepId = steps[Math.min(step, Math.max(steps.length - 1, 0))] ?? 'inbox';
+  const idKey = stepId === 'overdue' ? 'overdue_ids' : stepId === 'undated' ? 'undated_ids' : null;
+  const ids = idKey !== null && Array.isArray(data[idKey]) ? (data[idKey] as unknown[]) : [];
+  const stepTitle: Record<ReviewStepId, string> = {
+    inbox: copy.inbox,
+    overdue: copy.overdue,
+    undated: copy.undated,
+    projects: copy.projects,
+    prepare: copy.prepareWeek,
+  };
   const tasks = list(data.tasks).filter((t) => ids.includes(t.id));
   const eligible = tasks.filter((t) => t.recurring === false && selected.includes(str(t.id)));
   async function act(action: 'done' | 'today' | 'tomorrow' | 'cancel', force = false) {
@@ -324,16 +334,16 @@ export function ReviewPage() {
         <Link to="/today">{copy.finishReview}</Link>
       </header>
       <nav className="week-steps" aria-label={copy.steps}>
-        {[copy.inbox, copy.overdue, copy.undated, copy.prepareWeek].map((title, index) => (
+        {steps.map((id, index) => (
           <Button
-            key={title}
-            aria-current={step === index ? 'step' : undefined}
+            key={id}
+            aria-current={stepId === id ? 'step' : undefined}
             onClick={() => {
               setStep(index);
               setSelected([]);
             }}
           >
-            {title}
+            {stepTitle[id]}
           </Button>
         ))}
       </nav>
@@ -350,20 +360,20 @@ export function ReviewPage() {
             {copy.retry}
           </Button>
         </p>
-      ) : step === 0 ? (
+      ) : stepId === 'inbox' ? (
         <div className="week-card">
           <h2>{copy.inboxTitle}</h2>
           <p>{copy.inboxLead}</p>
           <Link to="/inbox">{copy.openInbox}</Link>
           <Button
             onClick={() => {
-              setStep(1);
+              setStep(steps.indexOf('overdue'));
             }}
           >
             {copy.continue}
           </Button>
         </div>
-      ) : step === 3 ? (
+      ) : stepId === 'prepare' ? (
         <div className="week-card">
           <h2>{copy.prepareWeek}</h2>
           <Link to="/smart/next7">{copy.nextSeven}</Link>
@@ -380,12 +390,19 @@ export function ReviewPage() {
             </Link>
           ))}
         </div>
+      ) : stepId === 'projects' ? (
+        <ReviewProjectsStep
+          projects={data.projects}
+          onContinue={() => {
+            setStep(steps.indexOf('prepare'));
+          }}
+        />
       ) : (
         <>
-          <h2>{step === 1 ? copy.reviewOverdue : copy.reviewUndated}</h2>
+          <h2>{stepId === 'overdue' ? copy.reviewOverdue : copy.reviewUndated}</h2>
           <p className="ui-muted">{copy.count(tasks.length, eligible.length)}</p>
           {tasks.length === 0 ? (
-            <p>{step === 1 ? copy.noOverdue : copy.noUndated}</p>
+            <p>{stepId === 'overdue' ? copy.noOverdue : copy.noUndated}</p>
           ) : (
             <ul className="weekly-tasks">
               {tasks.map((t) => {
@@ -434,7 +451,7 @@ export function ReviewPage() {
         </>
       )}
       <p role="status">{notice}</p>
-      {eligible.length > 0 ? (
+      {(stepId === 'overdue' || stepId === 'undated') && eligible.length > 0 ? (
         <div className="weekly-actions" aria-label={copy.actions}>
           <span className="weekly-selection-count" aria-live="polite">
             {copy.selected(eligible.length)}

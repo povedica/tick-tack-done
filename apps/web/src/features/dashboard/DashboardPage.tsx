@@ -3,7 +3,9 @@ import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { ApiError } from '@reflexionia/sdk';
-import { Flame, Settings2 } from 'lucide-react';
+import { Flame, Settings2, Target } from 'lucide-react';
+import { InFlightProjects } from '../projects/InFlightProjects';
+import '../projects/projects.css';
 import { api } from '../../api';
 import { Button } from '../../components/ui';
 import { countdownsApi } from '../countdowns/api';
@@ -314,6 +316,8 @@ export function DashboardPage() {
             ) : null}
           </>
         );
+      case 'in_flight_projects':
+        return <InFlightProjects value={widgets.in_flight_projects} />;
       case 'tags':
         return !Array.isArray(row(widgets.tags).items) ? (
           state('unknown')
@@ -338,21 +342,28 @@ export function DashboardPage() {
     focus: '/focus',
     next_countdowns: '/countdowns',
     calendar: '/calendar/agenda',
+    in_flight_projects: '/dashboard/projects',
   };
   return (
     <section className="screen-page is-wide digital-garden" aria-labelledby="garden-title">
       <header className="page-header garden-header">
         <h1 id="garden-title">{t('title')}</h1>
-        <Button
-          disabled={!layout.isSuccess || draft !== null}
-          onClick={() => {
-            setDraft(saved);
-            setSaveError(false);
-          }}
-        >
-          <Settings2 size={16} />
-          {t('customize')}
-        </Button>
+        <div className="garden-header-actions">
+          <Link className="garden-projects-link" to="/dashboard/projects">
+            <Target size={16} aria-hidden="true" />
+            {t('projects')}
+          </Link>
+          <Button
+            disabled={!layout.isSuccess || draft !== null}
+            onClick={() => {
+              setDraft(saved);
+              setSaveError(false);
+            }}
+          >
+            <Settings2 size={16} />
+            {t('customize')}
+          </Button>
+        </div>
       </header>
       {draft !== null ? (
         <section className="garden-customize" aria-label={t('customize')}>
@@ -422,7 +433,7 @@ export function DashboardPage() {
           </Button>
         </div>
       ) : null}
-      {(['kpi', 'activity', 'map'] as const).map((group) => (
+      {(['kpi', 'activity', 'projects', 'map'] as const).map((group) => (
         <div key={group} className={`garden-grid garden-grid-${group}`} data-garden-group={group}>
           {visible
             .filter((item) => WIDGETS[item.widget_key].group === group)
@@ -447,7 +458,11 @@ export function DashboardPage() {
                       t(WIDGETS[item.widget_key].title)
                     )}
                   </h2>
-                  {group === 'map' ? (
+                  {group === 'projects' ? (
+                    <Link to="/dashboard/projects" className="garden-text-button">
+                      {t('projectsAll')}
+                    </Link>
+                  ) : group === 'map' ? (
                     <button
                       type="button"
                       className="garden-text-button"

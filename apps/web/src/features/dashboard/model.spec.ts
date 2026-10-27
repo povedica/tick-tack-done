@@ -18,6 +18,7 @@ describe('garden layout from the public API', () => {
       'score',
       'streak',
       'tags',
+      'in_flight_projects',
     ]);
     expect(parseLayout(layout)).toEqual(layout);
   });
@@ -47,6 +48,15 @@ describe('garden layout from the public API', () => {
     ).toEqual([
       { widget_key: 'load', size: 's' },
       { widget_key: 'habits', size: 'l' },
+      { widget_key: 'in_flight_projects', size: 'l' },
     ]);
+  });
+  it('keeps a saved in-flight card where it was and leaves an empty garden empty', () => {
+    expect(
+      parseLayout([
+        { widget_key: 'in_flight_projects', size: 'l' },
+        { widget_key: 'habits', size: 'm' },
+      ]).map((item) => item.widget_key),
+    ).toEqual(['in_flight_projects', 'habits']);
   });
 });
