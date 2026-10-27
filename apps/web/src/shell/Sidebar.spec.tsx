@@ -173,6 +173,14 @@ describe('sidebar lists and folders', () => {
     expect(screen.getByRole('menuitem', { name: /Mover a carpeta/ })).toBeTruthy();
   });
 
+  it('hides Mover a carpeta when the list belongs to someone else', async () => {
+    projects.splice(0, projects.length, project('ajena', 'Ajena', { owner_id: 'other' }));
+    mount();
+    fireEvent.click(await menuButton('Ajena'));
+    expect(await screen.findByRole('menuitem', { name: 'Editar' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: /Mover a carpeta/ })).toBeNull();
+  });
+
   it('hides Borrar on an open project and shows the task count for an archived one', async () => {
     mount();
     fireEvent.click(await menuButton('Rugby'));
@@ -287,6 +295,7 @@ function project(id: string, name: string, extra: Partial<Project> = {}): Projec
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     ...extra,
+    owner_id: extra.owner_id ?? 'me',
   };
 }
 

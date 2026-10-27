@@ -1,7 +1,6 @@
 import type { NamedWrite, Project } from '@reflexionia/sdk';
 import { api } from '../api';
 
-/** The API accepts reorder fields. The SDK method type does not list them yet. */
 export type ProjectWrite = Partial<NamedWrite> & {
   readonly default_reminder_trigger?: string | null;
   readonly before_id?: string | null;
@@ -16,17 +15,16 @@ export function sameName(left: string, right: string): boolean {
   return left.localeCompare(right, undefined, { sensitivity: 'accent' }) === 0;
 }
 
-/** A shared list owned by someone else cannot move folders: W1 answers 404. */
+/** A shared list owned by someone else cannot move folders: the API answers 404. */
 export function canMoveList(
-  project: { readonly is_inbox: boolean },
+  project: { readonly is_inbox: boolean; readonly owner_id?: string | null },
   viewerId: string | undefined,
 ): boolean {
   if (project.is_inbox) {
     return false;
   }
-  const owner = (project as { readonly owner_id?: unknown }).owner_id;
-  if (typeof owner !== 'string' || viewerId === undefined) {
+  if (typeof project.owner_id !== 'string' || viewerId === undefined) {
     return true;
   }
-  return owner === viewerId;
+  return project.owner_id === viewerId;
 }

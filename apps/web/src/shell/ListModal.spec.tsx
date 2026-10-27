@@ -154,6 +154,7 @@ function project(id: string, name: string, extra: Partial<Project> = {}): Projec
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     ...extra,
+    owner_id: extra.owner_id ?? 'me',
   };
 }
 
