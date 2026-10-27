@@ -1,3 +1,4 @@
+import { plannedForLater } from '@reflexionia/domain';
 import type { Task, ViewPage } from '@reflexionia/sdk';
 
 export interface RowModel {
@@ -123,8 +124,16 @@ export function rowsFromView(page: ViewPage | undefined): RowModel[] {
   return page.groups.flatMap((group) => group.tasks.map(rowFromView));
 }
 
-export function isOverdue(due: string | null, now: Date): boolean {
+export function isOverdue(
+  due: string | null,
+  now: Date,
+  start?: string | null,
+  timeZone?: string,
+): boolean {
   if (due === null) {
+    return false;
+  }
+  if (timeZone !== undefined && plannedForLater({ startDate: start, timeZone }, now)) {
     return false;
   }
   return new Date(due).getTime() < now.getTime();

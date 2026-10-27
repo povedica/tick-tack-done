@@ -5,17 +5,20 @@ export function TimeSelect({
   value,
   slots,
   onChange,
+  compact = false,
 }: {
   readonly value: string;
   readonly slots: readonly string[];
   readonly onChange: (s: string) => void;
+  /** Desktop card: no clock icon and no trailing colon. The When sheet keeps both. */
+  readonly compact?: boolean;
 }) {
   const m = useWtFMessages();
   const [custom, setCustom] = useState(false);
   return (
     <div className="sp-time">
-      <Clock size={15} aria-hidden="true" />
-      <span className="plan-time-label">{m.timeLabel}:</span>
+      {compact ? null : <Clock size={15} aria-hidden="true" />}
+      <span className="plan-time-label">{compact ? m.timeLabel : `${m.timeLabel}:`}</span>
       <select
         aria-label={m.time}
         className="sp-chip"

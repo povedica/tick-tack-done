@@ -45,6 +45,20 @@ const weekdayEnum = {
   enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'],
 } as const;
 
+const workContext = {
+  type: 'string',
+  enum: ['all', 'work', 'personal'],
+  description:
+    'Default all. The MCP never hides work outside hours; pass work or personal to filter.',
+};
+
+const uuidList = {
+  type: 'array',
+  items: id,
+  maxItems: 100,
+  description: 'Replaces the whole set. Read current settings first.',
+};
+
 /** RF-2007. Structured recurrence; the server builds an RRULE via buildRepeatRule. */
 const recurrenceSchema = {
   type: 'object',
@@ -204,6 +218,27 @@ const CATALOG: readonly McpTool[] = [
     ),
   },
   {
+    name: 'get_work_context',
+    description:
+      'Read work hours, which folders, lists and tags count as work, and whether work is hidden right now.',
+    scopes: ['profile:read'],
+    inputSchema: objectSchema({}, []),
+  },
+  {
+    name: 'update_work_context',
+    description:
+      'Read current settings first; arrays replace the whole set. show_work true keeps work visible until the next work start on every device.',
+    scopes: ['workday:write'],
+    inputSchema: objectSchema({
+      work_days: { type: 'array', items: weekdayEnum, maxItems: 7 },
+      work_folder_ids: uuidList,
+      work_project_ids: uuidList,
+      work_tag_ids: uuidList,
+      hide_work_outside_hours: { type: 'boolean' },
+      show_work: { type: 'boolean' },
+    }),
+  },
+  {
     name: 'api_catalog',
     description:
       'Discover every public API operation and its request schema. Filter by path or summary. Use api_request for operations without a dedicated tool.',
@@ -248,7 +283,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'list_tasks',
     description:
-      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to ([from,to), inclusive start and exclusive end in the user time zone); range_field=due|start|any (default any, including overlapping intervals). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
+      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to ([from,to), inclusive start and exclusive end in the user time zone); range_field=due|start|any (default any, including overlapping intervals). overdue=true is the canonical overdue set: the deadline has passed and the start is not a later civil day. someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
     scopes: ['tasks:read'],
     inputSchema: objectSchema({
       limit,
@@ -266,6 +301,12 @@ const CATALOG: readonly McpTool[] = [
       },
       priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
       someday: { type: 'boolean' },
+      context: workContext,
+      overdue: {
+        type: 'boolean',
+        description:
+          'Only active tasks whose deadline has passed and whose start is not a later civil day.',
+      },
       status: {
         type: 'string',
         enum: ['active', 'completed', 'archived', 'cancelled', 'all'],
@@ -683,6 +724,7 @@ const CATALOG: readonly McpTool[] = [
       date: { type: 'string' },
       days: { type: 'integer', minimum: 1, maximum: 14 },
       time_zone: { type: 'string' },
+      context: workContext,
     }),
   },
   {
@@ -751,13 +793,159 @@ const CATALOG: readonly McpTool[] = [
     name: 'list_projects',
     description: 'List task lists.',
     scopes: ['lists:read'],
-    inputSchema: objectSchema({ limit, cursor }),
+    inputSchema: objectSchema({
+      limit,
+      cursor,
+      folder_id: {
+        type: 'string',
+        description: 'Folder UUID, or "none" for lists without a folder.',
+      },
+      is_project: { type: 'boolean' },
+      state: { type: 'string', enum: ['active', 'paused', 'archived'] },
+      include_closed: { type: 'boolean' },
+    }),
   },
   {
     name: 'create_project',
     description: 'Create a task list.',
     scopes: ['lists:write'],
-    inputSchema: objectSchema({ name }, ['name']),
+    inputSchema: objectSchema(
+      {
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        folder_id: { type: ['string', 'null'], format: 'uuid' },
+        color: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$' },
+        view_mode: { type: 'string', enum: ['list', 'kanban', 'timeline'] },
+        is_project: { type: 'boolean' },
+        outcome: { type: ['string', 'null'], maxLength: 200 },
+        before_id: { type: ['string', 'null'], format: 'uuid' },
+        move_to_end: { type: 'boolean' },
+      },
+      ['name'],
+    ),
+  },
+  {
+    name: 'list_folders',
+    description: 'List folders.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ limit, cursor }),
+  },
+  {
+    name: 'create_folder',
+    description: 'Create a folder.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        before_id: { type: ['string', 'null'], format: 'uuid' },
+        move_to_end: { type: 'boolean' },
+      },
+      ['name'],
+    ),
+  },
+  {
+    name: 'update_folder',
+    description: 'Rename or reorder a folder.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        before_id: { type: ['string', 'null'], format: 'uuid' },
+        move_to_end: { type: 'boolean' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'delete_folder',
+    description: 'Delete a folder. Its lists move to no folder; no list or task is deleted.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'update_project',
+    description: 'Update a list. Move it into a folder with folder_id, or pass null to detach it.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        color: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$' },
+        folder_id: { type: ['string', 'null'], format: 'uuid' },
+        view_mode: { type: 'string', enum: ['list', 'kanban', 'timeline'] },
+        before_id: { type: ['string', 'null'], format: 'uuid' },
+        move_to_end: { type: 'boolean' },
+        is_project: { type: 'boolean' },
+        project_status: { type: 'string', enum: ['active', 'paused'] },
+        outcome: { type: ['string', 'null'], maxLength: 200 },
+        default_reminder_trigger: { type: ['string', 'null'] },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'set_project_state',
+    description:
+      'Move a project between En marcha (active), Pausados (paused) and Archivados (archived). Archiving archives the list.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        state: { type: 'string', enum: ['active', 'paused', 'archived'] },
+      },
+      ['id', 'state'],
+    ),
+  },
+  {
+    name: 'archive_project',
+    description: 'Archive a list.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'unarchive_project',
+    description: 'Unarchive a list. A project returns to En marcha.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'delete_project',
+    description:
+      'Delete a list and ALL its tasks (moved to trash, the list cannot be restored). Projects must be archived first. Two steps: call with dry_run, then with confirm_task_count.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        dry_run: { type: 'boolean' },
+        confirm_task_count: { type: 'integer', minimum: 0 },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'list_project_overview',
+    description:
+      'Projects (lists marked as project) with next action, progress and state for the Proyectos kanban.',
+    scopes: ['lists:read', 'tasks:read'],
+    inputSchema: objectSchema({
+      state: { type: 'string', enum: ['active', 'paused', 'archived'] },
+    }),
+  },
+  {
+    name: 'mark_project_reviewed',
+    description: 'Mark 1 to 50 projects as reviewed. Same effect as POST /projects/review.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        ids: {
+          type: 'array',
+          items: id,
+          minItems: 1,
+          maxItems: 50,
+        },
+      },
+      ['ids'],
+    ),
   },
   {
     name: 'list_tags',
@@ -796,7 +984,10 @@ const CATALOG: readonly McpTool[] = [
     name: 'list_smart_list_tasks',
     description: 'List tasks in one smart list.',
     scopes: ['filters:read'],
-    inputSchema: objectSchema({ key: { type: 'string', minLength: 1 }, limit, cursor }, ['key']),
+    inputSchema: objectSchema(
+      { key: { type: 'string', minLength: 1 }, limit, cursor, context: workContext },
+      ['key'],
+    ),
   },
   {
     name: 'list_habits',
@@ -1005,6 +1196,7 @@ const CATALOG: readonly McpTool[] = [
         to: { type: 'string', format: 'date-time' },
         include_external: { type: 'boolean' },
         subscription_id: id,
+        context: workContext,
       },
       ['from', 'to'],
     ),

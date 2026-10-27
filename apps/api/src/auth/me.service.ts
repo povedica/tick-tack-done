@@ -3,6 +3,14 @@ import { DomainEvent } from '../events/domain-events.js';
 import { asJson } from '../http/json.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { isIanaTimeZone, captureSettings } from '@reflexionia/domain';
+import {
+  loadWorkRow,
+  workCounts,
+  workPatchTouched,
+  workUpdateData,
+  workView,
+  WORK_SELECT,
+} from '../work/work-context.js';
 import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/email-address.js';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -15,6 +23,8 @@ import type {
   NotificationHealthDto,
   PushSubscriptionDto,
   UpdateMeDto,
+  UpdateWorkContextDto,
+  WorkContextResponseDto,
 } from './me.dto.js';
 
 @Injectable()
@@ -27,6 +37,41 @@ export class MeService {
   async get(user: AuthUser): Promise<MeResponseDto> {
     const row = await this.require(user.id);
     return this.toJson(row);
+  }
+
+  async workContext(user: AuthUser): Promise<WorkContextResponseDto> {
+    const now = new Date();
+    const row = await loadWorkRow(this.prisma, user.id);
+    return { ...workView(row, now), counts: await workCounts(this.prisma, user.id, row) };
+  }
+
+  async updateWorkContext(
+    user: AuthUser,
+    dto: UpdateWorkContextDto,
+  ): Promise<WorkContextResponseDto> {
+    const now = new Date();
+    const row = await this.prisma.$transaction(async (tx) => {
+      const current = await loadWorkRow(tx, user.id);
+      const data = await workUpdateData(tx, user.id, current.timeZone, current, dto, now);
+      if (Object.keys(data).length === 0) {
+        return current;
+      }
+      const updated = await tx.user.update({
+        where: { id: user.id },
+        data,
+        select: WORK_SELECT,
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.userUpdated,
+        entityType: 'user',
+        entityId: user.id,
+        action: 'updated',
+        data: asJson(workView(updated, now)),
+        previous: asJson(workView(current, now)),
+      });
+      return updated;
+    });
+    return { ...workView(row, now), counts: await workCounts(this.prisma, user.id, row) };
   }
 
   async update(user: AuthUser, dto: UpdateMeDto): Promise<MeResponseDto> {
@@ -69,6 +114,12 @@ export class MeService {
       const previous = dto.capture_settings
         ? await tx.user.findUnique({ where: { id: user.id }, select: { captureSettings: true } })
         : null;
+      const workTouched = workPatchTouched(dto);
+      const currentWork = workTouched ? await loadWorkRow(tx, user.id) : null;
+      const workData =
+        currentWork === null
+          ? {}
+          : await workUpdateData(tx, user.id, currentWork.timeZone, currentWork, dto, new Date());
       const row = await tx.user.update({
         where: { id: user.id },
         data: {
@@ -105,10 +156,7 @@ export class MeService {
           ...(dto.shutdown_reminder_time !== undefined
             ? { shutdownReminderTime: this.clock(dto.shutdown_reminder_time) }
             : {}),
-          ...(dto.work_day_start !== undefined
-            ? { workDayStart: this.clock(dto.work_day_start) }
-            : {}),
-          ...(dto.work_day_end !== undefined ? { workDayEnd: this.clock(dto.work_day_end) } : {}),
+          ...workData,
           ...(dto.default_task_duration_minutes !== undefined
             ? { defaultTaskDuration: dto.default_task_duration_minutes }
             : {}),
@@ -133,6 +181,15 @@ export class MeService {
           action: 'updated',
           data: asJson({ capture_settings: captureSettings(row.captureSettings) }),
           previous: asJson({ capture_settings: captureSettings(previous?.captureSettings) }),
+        });
+      if (workTouched && currentWork !== null)
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.userUpdated,
+          entityType: 'user',
+          entityId: user.id,
+          action: 'updated',
+          data: asJson(workView(row, new Date())),
+          previous: asJson(workView(currentWork, new Date())),
         });
       return this.toJson(row);
     });
@@ -194,6 +251,12 @@ export class MeService {
     shutdownReminderTime: string | null;
     workDayStart: string | null;
     workDayEnd: string | null;
+    workDays: number[];
+    workFolderIds: string[];
+    workProjectIds: string[];
+    workTagIds: string[];
+    hideWorkOutsideHours: boolean;
+    showWorkUntil: Date | null;
     defaultTaskDuration: number;
     deadlineSoonDays: number;
     eveningStart: string;
@@ -223,6 +286,12 @@ export class MeService {
         shutdownReminderTime: true,
         workDayStart: true,
         workDayEnd: true,
+        workDays: true,
+        workFolderIds: true,
+        workProjectIds: true,
+        workTagIds: true,
+        hideWorkOutsideHours: true,
+        showWorkUntil: true,
         defaultTaskDuration: true,
         deadlineSoonDays: true,
         eveningStart: true,
@@ -257,6 +326,12 @@ export class MeService {
     shutdownReminderTime: string | null;
     workDayStart: string | null;
     workDayEnd: string | null;
+    workDays: number[];
+    workFolderIds: string[];
+    workProjectIds: string[];
+    workTagIds: string[];
+    hideWorkOutsideHours: boolean;
+    showWorkUntil: Date | null;
     defaultTaskDuration: number;
     deadlineSoonDays: number;
     eveningStart: string;
@@ -283,8 +358,7 @@ export class MeService {
       telegram_enabled: row.telegramEnabled,
       focus_notifications: row.focusNotifications,
       shutdown_reminder_time: row.shutdownReminderTime,
-      work_day_start: row.workDayStart,
-      work_day_end: row.workDayEnd,
+      ...workView(row, new Date()),
       default_task_duration_minutes: row.defaultTaskDuration,
       deadline_soon_days: row.deadlineSoonDays,
       evening_start: row.eveningStart,

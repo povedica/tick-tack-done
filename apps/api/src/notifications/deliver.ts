@@ -6,8 +6,11 @@ import {
   NOTIFICATION_CHANNELS,
   readStoredHabit,
   calendarDate,
+  isWorkTask,
+  nextWorkStart,
   notificationDefault,
   notificationQuietUntil,
+  workHiddenNow,
   type NotificationChannel,
 } from '@reflexionia/domain';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -72,7 +75,12 @@ export async function deliverNotification(
       ? null
       : await prisma.task.findFirst({
           where: { id: row.taskId, ownerId: row.ownerId },
-          select: { priority: true },
+          select: {
+            priority: true,
+            projectId: true,
+            project: { select: { folderId: true } },
+            tags: { select: { tagId: true } },
+          },
         });
   const resume = notificationQuietUntil(
     now.toISOString(),
@@ -85,6 +93,28 @@ export async function deliverNotification(
     },
     task?.priority === 'high',
   );
+  const workProfile = {
+    start: owner.workDayStart,
+    end: owner.workDayEnd,
+    days: owner.workDays,
+    hideWorkOutsideHours: owner.hideWorkOutsideHours,
+    showWorkUntil: owner.showWorkUntil?.toISOString() ?? null,
+    timeZone: owner.timeZone,
+  };
+  const workResume =
+    task !== null &&
+    workHiddenNow(workProfile, now.toISOString()) &&
+    isWorkTask(
+      { projectId: task.projectId, tagIds: task.tags.map((link) => link.tagId) },
+      {
+        workFolderIds: owner.workFolderIds,
+        workProjectIds: owner.workProjectIds,
+        workTagIds: owner.workTagIds,
+        folderOf: () => task.project.folderId,
+      },
+    )
+      ? nextWorkStart(now.toISOString(), owner.timeZone, workProfile)
+      : null;
   const only = Array.isArray(payload.notification_channels)
     ? payload.notification_channels.filter((value): value is string => typeof value === 'string')
     : null;
@@ -101,18 +131,24 @@ export async function deliverNotification(
       (channel === 'telegram' && !owner.telegramEnabled)
     )
       reasons.set(channel, 'disabled_by_user');
-    else if (channel !== 'email' && resume) {
-      reasons.set(channel, 'quiet_hours');
+    else if (deferral(channel, resume, workResume) !== null) {
+      const deferredUntil = deferral(channel, resume, workResume);
+      if (deferredUntil === null) {
+        allowed.add(channel);
+        continue;
+      }
+      reasons.set(channel, deferredUntil.reason);
+      const dedupeKey = `${deferredUntil.reason === 'work_hours' ? 'work' : 'quiet'}:${row.reminderId ?? row.id}:${channel}:${deferredUntil.at}`;
       const deferred = await prisma.reminderDelivery.upsert({
-        where: { dedupeKey: `quiet:${row.reminderId ?? row.id}:${channel}:${resume}` },
+        where: { dedupeKey },
         create: {
           ownerId: row.ownerId,
           taskId: row.taskId,
           reminderId: row.reminderId ?? null,
           kind: row.kind,
-          fireAt: new Date(resume),
+          fireAt: new Date(deferredUntil.at),
           channel: 'push',
-          dedupeKey: `quiet:${row.reminderId ?? row.id}:${channel}:${resume}`,
+          dedupeKey,
           payload: asJson({ ...payload, notification_channels: [channel] }),
         },
         update: {},
@@ -128,8 +164,8 @@ export async function deliverNotification(
             kind,
             channel,
             status: 'scheduled',
-            reason: 'quiet_hours',
-            scheduledAt: new Date(resume),
+            reason: deferredUntil.reason,
+            scheduledAt: new Date(deferredUntil.at),
           },
         });
     } else allowed.add(channel);
@@ -203,4 +239,23 @@ export async function deliverNotification(
     });
   }
   return result;
+}
+
+/** Quiet hours still let email through. Work hours hold every channel until the later instant. */
+function deferral(
+  channel: NotificationChannel,
+  quiet: string | null,
+  work: string | null,
+): { at: string; reason: 'quiet_hours' | 'work_hours' } | null {
+  const quietHold = channel !== 'email' && quiet !== null ? quiet : null;
+  if (quietHold === null && work === null) {
+    return null;
+  }
+  if (quietHold === null) {
+    return { at: work ?? '', reason: 'work_hours' };
+  }
+  if (work === null || Date.parse(quietHold) >= Date.parse(work)) {
+    return { at: quietHold, reason: 'quiet_hours' };
+  }
+  return { at: work, reason: 'work_hours' };
 }

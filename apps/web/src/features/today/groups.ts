@@ -1,3 +1,4 @@
+import { plannedForLater } from '@reflexionia/domain';
 import { formatDurationMinutes } from '../product/duration';
 
 export type TaskGroupKey = 'priority' | 'due' | 'tag' | 'list' | 'none';
@@ -125,6 +126,9 @@ export function isDueToday(task: TodayTask, now: Date): boolean {
 
 function placement(task: TodayTask, now: Date): 'overdue' | 'today' | 'none' {
   if (task.isSomeday === true || task.status !== 'active') {
+    return 'none';
+  }
+  if (plannedForLater({ startDate: task.startDate, timeZone: task.timeZone }, now)) {
     return 'none';
   }
   const today = calendarDay(now.toISOString(), task.timeZone);
@@ -262,11 +266,14 @@ export function formatDueChip(
   now: Date,
   locale: string,
   labels: { readonly empty: string; readonly today: string },
+  startDate?: string | null,
 ): { readonly text: string; readonly tone: 'empty' | 'overdue' | 'accent' | 'muted' } {
   if (dueDate === null) {
     return { text: labels.empty, tone: 'empty' };
   }
-  const overdue = calendarDay(dueDate, timeZone) < calendarDay(now.toISOString(), timeZone);
+  const overdue =
+    !plannedForLater({ startDate, timeZone }, now) &&
+    calendarDay(dueDate, timeZone) < calendarDay(now.toISOString(), timeZone);
   const today = calendarDay(dueDate, timeZone) === calendarDay(now.toISOString(), timeZone);
   const timed = hasTime(dueDate, timeZone, allDay);
   const time = timed ? formatDueTime(dueDate, timeZone, locale) : null;

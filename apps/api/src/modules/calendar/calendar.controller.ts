@@ -13,7 +13,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -21,6 +21,7 @@ import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { respondJson } from '../../http/respond.js';
 import { FeedDto, SubscribeDto, UpdateSubscriptionDto } from './calendar.dto.js';
 import { CalendarService } from './calendar.service.js';
+import { parseWorkContext } from '../../work/work-context.js';
 
 @ApiTags('calendar')
 @Controller('calendar')
@@ -30,14 +31,27 @@ export class CalendarController {
   @Get('events')
   @Scopes('calendar:read')
   @ApiOperation({ summary: 'Tasks with a date plus external events (RF-1101, RF-2520)' })
+  @ApiQuery({
+    name: 'context',
+    required: false,
+    enum: ['all', 'work', 'personal', 'auto'],
+    description: 'Filters tasks only. External events stay visible. Default all.',
+  })
   async events(
     @CurrentUser() user: AuthUser,
     @Query('from') from: string,
     @Query('to') to: string,
+    @Query('context') context: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.calendar.range(user, from, to), false);
+    respondJson(
+      req,
+      res,
+      200,
+      await this.calendar.range(user, from, to, undefined, parseWorkContext(context)),
+      false,
+    );
   }
 
   @Get('google/calendars')

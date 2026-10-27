@@ -4,9 +4,12 @@ import { useWtFMessages } from '../i18n-wt-f';
 export function DurationChips({
   value,
   onChange,
+  compact = false,
 }: {
   readonly value: number;
   readonly onChange: (n: number) => void;
+  /** Desktop card: label without a trailing colon. The When sheet keeps the colon. */
+  readonly compact?: boolean;
 }) {
   const m = useWtFMessages();
   const [custom, setCustom] = useState(false);
@@ -14,7 +17,7 @@ export function DurationChips({
   return (
     <div className="sp-dur" role="radiogroup" aria-label={m.duration}>
       <Clock size={15} />
-      <span className="plan-duration-label">{m.duration}:</span>
+      <span className="plan-duration-label">{compact ? m.duration : `${m.duration}:`}</span>
       {[15, 30, 60].map((n) => (
         <button
           type="button"

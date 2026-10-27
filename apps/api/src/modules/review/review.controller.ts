@@ -13,11 +13,15 @@ import { Scopes } from '../../auth/scopes.decorator.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
+import { ProjectsOverviewService } from '../lists/projects-overview.service.js';
 
 @ApiTags('review')
 @Controller('review')
 export class ReviewController {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ProjectsOverviewService) private readonly projects: ProjectsOverviewService,
+  ) {}
 
   @Get('daily')
   @Scopes('tasks:read')
@@ -47,7 +51,7 @@ export class ReviewController {
   @ApiOperation({
     summary: 'Guided weekly review (RF-2302, RF-2303)',
     description:
-      'Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks.',
+      'Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks. projects groups project lists into attention, paused and ok when the token has lists:read; otherwise projects is null and projects_scope is missing.',
   })
   async weekly(
     @CurrentUser() user: AuthUser,
@@ -57,6 +61,8 @@ export class ReviewController {
     const now = new Date();
     const tasks = await this.candidates(user);
     const canReadHabits = user.scopes.includes('habits:read');
+    const canReadLists = user.scopes.includes('lists:read');
+    const projectGroups = canReadLists ? await this.projects.reviewGroups(user) : null;
     const habits = canReadHabits
       ? await this.prisma.habit.findMany({
           where: { ownerId: user.id, deletedAt: null, archived: false },
@@ -85,6 +91,8 @@ export class ReviewController {
       {
         ...aligned,
         habits_scope: canReadHabits ? 'granted' : 'missing',
+        projects_scope: canReadLists ? 'granted' : 'missing',
+        projects: projectGroups,
         habits: canReadHabits
           ? habitRows
               .filter((habit) => aligned.habits_at_risk.includes(habit.id))

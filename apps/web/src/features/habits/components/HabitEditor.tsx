@@ -166,8 +166,7 @@ export function HabitEditor({
               <legend>{t.frequency}</legend>
               <div className="segmented habit-segments" role="group" aria-label={t.frequency}>
                 {(['daily', 'specific', 'weekly'] as const).map((key) => (
-                  <Button
-                    variant="ghost"
+                  <button
                     key={key}
                     className={mode === key ? 'is-active' : undefined}
                     type="button"
@@ -177,7 +176,7 @@ export function HabitEditor({
                     }}
                   >
                     {t[key]}
-                  </Button>
+                  </button>
                 ))}
               </div>
               {mode === 'specific' ? (
@@ -216,8 +215,7 @@ export function HabitEditor({
             <fieldset>
               <legend>{t.dailyGoal}</legend>
               <div className="segmented habit-segments" role="group" aria-label={t.dailyGoal}>
-                <Button
-                  variant="ghost"
+                <button
                   type="button"
                   className={!quantity ? 'is-active' : undefined}
                   aria-pressed={!quantity}
@@ -226,9 +224,8 @@ export function HabitEditor({
                   }}
                 >
                   {t.binary}
-                </Button>
-                <Button
-                  variant="ghost"
+                </button>
+                <button
                   type="button"
                   className={quantity ? 'is-active' : undefined}
                   aria-pressed={quantity}
@@ -238,7 +235,7 @@ export function HabitEditor({
                   }}
                 >
                   {t.quantity}
-                </Button>
+                </button>
               </div>
               {quantity ? (
                 <div className="habit-quantity-fields">
@@ -326,8 +323,7 @@ export function HabitEditor({
                 <legend>{t.duration}</legend>
                 <div className="segmented habit-challenge-chips">
                   {[null, 21, 30, 100].map((n) => (
-                    <Button
-                      variant="ghost"
+                    <button
                       type="button"
                       key={String(n)}
                       className={challenge === n ? 'is-active' : undefined}
@@ -337,7 +333,7 @@ export function HabitEditor({
                       }}
                     >
                       {n === null ? t.forever : `${String(n)} ${t.days}`}
-                    </Button>
+                    </button>
                   ))}
                 </div>
               </fieldset>

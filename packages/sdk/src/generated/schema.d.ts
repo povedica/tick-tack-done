@@ -40,6 +40,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/work-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Work hours, work membership and whether work is hidden right now */
+        get: operations["MeController_workContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Replace work membership or toggle outside-hours hiding
+         * @description Arrays replace the whole set. Unknown ids or ids owned by someone else return 422. show_work true lasts until the next work start on every device.
+         */
+        patch: operations["MeController_updateWorkContext"];
+        trace?: never;
+    };
     "/api/v1/me/inbound-email": {
         parameters: {
             query?: never;
@@ -872,6 +893,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Projects kanban: next action, progress and state for every project list */
+        get: operations["ListsController_projectOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark up to 50 projects as reviewed */
+        post: operations["ListsController_reviewProjects"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}": {
         parameters: {
             query?: never;
@@ -902,6 +957,57 @@ export interface paths {
         get: operations["ListsController_projectData"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/deletion-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count tasks that deleting the list would move to the trash */
+        get: operations["ListsController_deletionImpact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move a project between active, paused and archived in one call */
+        post: operations["ListsController_setProjectState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark one project as reviewed */
+        post: operations["ListsController_reviewProject"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2677,7 +2783,7 @@ export interface paths {
         };
         /**
          * KPI for one widget (RF-2102, RF-2104)
-         * @description Without widget, returns widgets, generated_at and period (from, to, time_zone). Task creation/completion totals cover the account calendar week from local Monday through generated_at, excluding cancelled tasks. Trend compares against the previous complete Monday–Sunday week; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.
+         * @description Without widget, returns widgets, generated_at and period (from, to, time_zone). Task creation/completion totals cover the account calendar week from local Monday through generated_at, excluding cancelled tasks. Trend compares against the previous complete Monday–Sunday week; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions. in_flight_projects lists up to four active projects with next action and counts when the token has lists:read; otherwise null.
          */
         get: operations["DashboardController_data"];
         put?: never;
@@ -2896,7 +3002,7 @@ export interface paths {
         };
         /**
          * Guided weekly review (RF-2302, RF-2303)
-         * @description Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks.
+         * @description Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks. projects groups project lists into attention, paused and ok when the token has lists:read; otherwise projects is null and projects_scope is missing.
          */
         get: operations["ReviewController_weekly"];
         put?: never;
@@ -3940,6 +4046,24 @@ export interface components {
             shutdown_reminder_time: string | null;
             work_day_start: string | null;
             work_day_end: string | null;
+            /**
+             * @example [
+             *       "MO",
+             *       "TU",
+             *       "WE",
+             *       "TH",
+             *       "FR"
+             *     ]
+             */
+            work_days: string[];
+            work_folder_ids: string[];
+            work_project_ids: string[];
+            work_tag_ids: string[];
+            hide_work_outside_hours: boolean;
+            show_work_until: string | null;
+            is_work_time_now: boolean;
+            work_hidden_now: boolean;
+            next_work_start: string | null;
             default_task_duration_minutes: number;
             deadline_soon_days: number;
             evening_start: string;
@@ -3949,6 +4073,43 @@ export interface components {
             /** @description Current password */
             current_password: string;
             new_password: string;
+        };
+        WorkCountsDto: {
+            lists: number;
+            tags: number;
+            active_tasks: number;
+        };
+        WorkContextResponseDto: {
+            work_day_start: string | null;
+            work_day_end: string | null;
+            work_days: string[];
+            work_folder_ids: string[];
+            work_project_ids: string[];
+            work_tag_ids: string[];
+            hide_work_outside_hours: boolean;
+            show_work_until: string | null;
+            is_work_time_now: boolean;
+            work_hidden_now: boolean;
+            next_work_start: string | null;
+            counts: components["schemas"]["WorkCountsDto"];
+        };
+        UpdateWorkContextDto: {
+            /**
+             * @example [
+             *       "MO",
+             *       "TU",
+             *       "WE",
+             *       "TH",
+             *       "FR"
+             *     ]
+             */
+            work_days?: string[];
+            work_folder_ids?: string[];
+            work_project_ids?: string[];
+            work_tag_ids?: string[];
+            hide_work_outside_hours?: boolean;
+            /** @description true keeps work visible until the next work start. false clears it. */
+            show_work?: boolean;
         };
         UpdateMeDto: {
             capture_settings?: components["schemas"]["CaptureSettingsDto"];
@@ -3984,6 +4145,23 @@ export interface components {
             work_day_start?: Record<string, never> | null;
             /** @example 18:00 */
             work_day_end?: Record<string, never> | null;
+            /**
+             * @description Working weekdays. Same codes as recurrence.weekdays. Sunday is SU.
+             * @example [
+             *       "MO",
+             *       "TU",
+             *       "WE",
+             *       "TH",
+             *       "FR"
+             *     ]
+             */
+            work_days?: string[];
+            work_folder_ids?: string[];
+            work_project_ids?: string[];
+            work_tag_ids?: string[];
+            hide_work_outside_hours?: boolean;
+            /** @description true shows work until the next work start; false clears that override. */
+            show_work?: boolean;
             /** @example 30 */
             default_task_duration_minutes?: number;
             /** @example 2 */
@@ -4107,7 +4285,7 @@ export interface components {
             expires_in_days?: 30 | 90 | 365 | null;
             /** @description Agent or script this token belongs to */
             name: string;
-            scopes: ("tasks:read" | "tasks:write" | "tasks:create" | "tasks:update" | "tasks:complete" | "tasks:trash" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "focus:start" | "focus:stop" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "notifications:self:write" | "ticky:proposals:read" | "ticky:proposals:write" | "ticky:routines:read" | "ticky:routines:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read" | "stats:read")[];
+            scopes: ("tasks:read" | "tasks:write" | "tasks:create" | "tasks:update" | "tasks:complete" | "tasks:trash" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "focus:start" | "focus:stop" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "notifications:self:write" | "ticky:proposals:read" | "ticky:proposals:write" | "ticky:routines:read" | "ticky:routines:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "workday:write" | "backup:read" | "stats:read")[];
         };
         TokenCreatedDto: {
             /** @enum {string|null} */
@@ -4450,6 +4628,10 @@ export interface components {
             id: string;
             name: string;
             sort_order: string;
+            /** @description Lists in the folder that are not deleted, archived, or the inbox. */
+            project_count: number;
+            /** @description Active root tasks in those lists (status active, no parent, not deleted). */
+            active_task_count: number;
             created_at: string;
             updated_at: string;
         };
@@ -4469,6 +4651,8 @@ export interface components {
         };
         ProjectResponseDto: {
             id: string;
+            /** @description Account that owns the list. Shared members use it to hide folder moves. */
+            owner_id: string;
             name: string;
             color: string | null;
             folder_id: string | null;
@@ -4477,7 +4661,19 @@ export interface components {
             /** @enum {string} */
             kind: "TASK" | "NOTE";
             closed: boolean;
+            closed_at: string | null;
             is_inbox: boolean;
+            is_project: boolean;
+            /** @enum {string} */
+            project_status: "active" | "paused";
+            /**
+             * @description Derived by projectState: archived when closed, otherwise project_status.
+             * @enum {string}
+             */
+            state: "active" | "paused" | "archived";
+            outcome: string | null;
+            project_status_changed_at: string | null;
+            project_reviewed_at: string | null;
             default_reminder_trigger: string | null;
             sort_order: string;
             active_task_count: number;
@@ -4498,6 +4694,54 @@ export interface components {
             kind?: "TASK" | "NOTE";
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
+            is_project?: boolean;
+            /** @enum {string} */
+            project_status?: "active" | "paused";
+            outcome?: Record<string, never> | null;
+        };
+        ProjectNextActionDto: {
+            task_id: string;
+            title: string;
+            due_date: string | null;
+            start_date: string | null;
+            is_all_day: boolean;
+        };
+        ProjectOverviewItemDto: {
+            id: string;
+            name: string;
+            color: string | null;
+            folder_id: string | null;
+            outcome: string | null;
+            /** @enum {string} */
+            state: "active" | "paused" | "archived";
+            project_status_changed_at: string | null;
+            closed_at: string | null;
+            created_at: string;
+            project_reviewed_at: string | null;
+            done_count: number;
+            total_count: number;
+            open_count: number;
+            next_action: components["schemas"]["ProjectNextActionDto"] | null;
+            last_activity_at: string | null;
+            /** @enum {string|null} */
+            attention: "no_next_action" | "stale" | null;
+        };
+        ProjectOverviewCountsDto: {
+            active: number;
+            paused: number;
+            archived: number;
+        };
+        ProjectOverviewDto: {
+            items: components["schemas"]["ProjectOverviewItemDto"][];
+            counts: components["schemas"]["ProjectOverviewCountsDto"];
+            /** @description The board is not paged. Present so MCP list tools do not slice it. */
+            next_cursor: string | null;
+        };
+        ReviewProjectsDto: {
+            ids: string[];
+        };
+        ProjectReviewResultDto: {
+            reviewed: number;
         };
         UpdateProjectDto: {
             name?: string;
@@ -4511,6 +4755,28 @@ export interface components {
             move_to_end?: boolean;
             /** @description Null inherits the account reminder. 'off' stays quiet. */
             default_reminder_trigger?: Record<string, never> | null;
+            is_project?: boolean;
+            /** @enum {string} */
+            project_status?: "active" | "paused";
+            outcome?: Record<string, never> | null;
+        };
+        DeletionImpactDto: {
+            project_id: string;
+            name: string;
+            is_project: boolean;
+            closed: boolean;
+            /** @description Every non-deleted task, including subtasks and cancelled tasks. */
+            task_count: number;
+            /** @description Tasks with status 'completed'. */
+            completed_count: number;
+            /** @description Tasks with status 'active', including active subtasks. */
+            open_count: number;
+            /** @description Non-deleted tasks that have a parent. */
+            subtask_count: number;
+        };
+        SetProjectStateDto: {
+            /** @enum {string} */
+            state: "active" | "paused" | "archived";
         };
         ColumnResponseDto: {
             id: string;
@@ -4772,6 +5038,8 @@ export interface components {
             /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
             version: number;
             is_someday: boolean;
+            /** @description True when the task list, its folder, or any tag is marked as work. */
+            is_work?: boolean;
             evening_only: boolean;
             repeat_rule: string | null;
             /** @enum {string} */
@@ -4835,6 +5103,8 @@ export interface components {
             /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
             version: number;
             is_someday: boolean;
+            /** @description True when the task list, its folder, or any tag is marked as work. */
+            is_work?: boolean;
             evening_only: boolean;
             repeat_rule: string | null;
             /** @enum {string} */
@@ -4927,6 +5197,8 @@ export interface components {
             /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
             version: number;
             is_someday: boolean;
+            /** @description True when the task list, its folder, or any tag is marked as work. */
+            is_work?: boolean;
             evening_only: boolean;
             repeat_rule: string | null;
             /** @enum {string} */
@@ -5511,6 +5783,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    MeController_workContext: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkContextResponseDto"];
+                };
+            };
+        };
+    };
+    MeController_updateWorkContext: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWorkContextDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkContextResponseDto"];
+                };
             };
         };
     };
@@ -6859,7 +7177,13 @@ export interface operations {
     };
     ListsController_listProjects: {
         parameters: {
-            query?: never;
+            query?: {
+                include_closed?: "true" | "false";
+                state?: "active" | "paused" | "archived";
+                is_project?: "true" | "false";
+                /** @description Folder UUID, or none. */
+                folder_id?: unknown;
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
@@ -6903,6 +7227,54 @@ export interface operations {
             };
         };
     };
+    ListsController_projectOverview: {
+        parameters: {
+            query?: {
+                state?: "active" | "paused" | "archived";
+            };
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOverviewDto"];
+                };
+            };
+        };
+    };
+    ListsController_reviewProjects: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewProjectsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectReviewResultDto"];
+                };
+            };
+        };
+    };
     ListsController_getProject: {
         parameters: {
             query?: never;
@@ -6928,7 +7300,10 @@ export interface operations {
     };
     ListsController_deleteProject: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When set, delete only if it matches the current task count. */
+                expected_task_count?: unknown;
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
@@ -6992,6 +7367,79 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ListsController_deletionImpact: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionImpactDto"];
+                };
+            };
+        };
+    };
+    ListsController_setProjectState: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectStateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponseDto"];
+                };
+            };
+        };
+    };
+    ListsController_reviewProject: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectReviewResultDto"];
+                };
             };
         };
     };
@@ -7367,7 +7815,10 @@ export interface operations {
     };
     SmartListsController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Default all. auto hides work outside the configured hours. */
+                context?: "all" | "work" | "personal" | "auto";
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
@@ -7413,7 +7864,9 @@ export interface operations {
     };
     SmartListsController_tasks: {
         parameters: {
-            query?: never;
+            query?: {
+                context?: "all" | "work" | "personal" | "auto";
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
@@ -7728,6 +8181,8 @@ export interface operations {
     TasksController_list: {
         parameters: {
             query?: {
+                /** @description Default all. auto hides work outside the configured hours. */
+                context?: "all" | "work" | "personal" | "auto";
                 /** @description Default any includes intervals overlapping the range. */
                 range_field?: "due" | "start" | "any";
                 /** @description Exclusive bound. YYYY-MM-DD uses the user time zone. */
@@ -9481,6 +9936,8 @@ export interface operations {
                 date?: string;
                 /** @description Compatibility parameter; the profile time zone is authoritative. */
                 time_zone?: string;
+                /** @description Default all. auto hides work outside the configured hours. */
+                context?: "all" | "work" | "personal" | "auto";
                 days?: number;
                 from?: unknown;
             };
@@ -9678,6 +10135,8 @@ export interface operations {
             query: {
                 from: string;
                 to: string;
+                /** @description Filters tasks only. External events stay visible. Default all. */
+                context?: "all" | "work" | "personal" | "auto";
             };
             header?: never;
             path?: never;

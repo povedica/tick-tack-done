@@ -115,6 +115,7 @@ export function matchesClause(
             ? subject.status
             : 'completed',
         dueDate: subject.dueDate,
+        startDate: subject.startDate,
         isAllDay: subject.isAllDay,
         timeZone: subject.timeZone,
         now: clock.now,

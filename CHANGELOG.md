@@ -1,5 +1,41 @@
 # Historial de cambios
 
+## Revisión del paquete de listas
+
+- Planificar un día completo conserva la estimación de esfuerzo. Antes se
+  guardaba como 0 y desaparecía de la carga del día.
+- Un proyecto no marca «vencida» una próxima acción cuyo inicio ya pasó si el
+  vencimiento sigue por delante. Un inicio futuro tampoco cuenta como vencida.
+- `GET /projects` incluye `owner_id`. Una lista de otro dueño no ofrece «Mover
+  a carpeta».
+- El cliente declara `before_id` y `move_to_end` al actualizar una lista.
+- En el tablero de proyectos, una pulsación larga abre el menú de la tarjeta.
+
+## Algún día más visible en la planificación
+
+- La hoja «¿Cuándo?» muestra «Algún día» como píldora neutra, pareja de la X,
+  en escritorio y en móvil. El calendario de la hoja no cambia.
+- En la tarjeta de escritorio, duración y hora comparten fila y «Algún día»
+  queda visible junto a Hecha y No lo haré. El menú «⋯» de esa tarjeta solo
+  elimina. La tarjeta móvil sigue con sus controles de siempre.
+
+## Carpetas, listas y lista-proyecto
+
+- Una lista puede marcarse como proyecto (`is_project`) con resultado, estado
+  En marcha o Pausado, y fecha de archivo (`closed_at`). Archivado es el mismo
+  `closed` de la lista: no hay un estado «Hecho». Desarchivar vuelve a En marcha,
+  salvo que se pida otro estado. Borrar un proyecto exige que esté archivado.
+- Carpetas con totales, mover listas entre carpetas, y herramientas MCP de
+  carpetas y de estado. El borrado de listas sigue siendo lógico.
+
+## Contexto laboral
+
+- Ajustes › Jornada guarda días laborables, carpetas, listas y etiquetas de
+  trabajo, y puede ocultar lo laboral fuera de horario. «Mostrar trabajo» dura
+  hasta el próximo inicio de jornada en todos los dispositivos. Los avisos
+  laborales se retrasan hasta ese inicio (`work_hours`). El scope nuevo
+  `workday:write` obliga a reautorizar los conectores que ya existían.
+
 ## Algún día en la hoja «¿Cuándo?»
 
 - Al planificar, la hoja «¿Cuándo?» ofrece «Algún día» en la cabecera, a la

@@ -19,6 +19,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Tx } from '../../prisma/tx.js';
 import type { ViewPageJson } from '../../reading/view-page.js';
 import { countViewTasks, pageViewTasks } from '../../reading/view-query.js';
+import { workFilterFor, type WorkContextMode } from '../../work/work-context.js';
 import type { SmartListResponseDto, UpdateSmartListsDto } from './filters.dto.js';
 
 const readyOwners = new Set<string>();
@@ -30,8 +31,12 @@ export class SmartListsService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
   ) {}
 
-  async list(user: AuthUser): Promise<{ items: SmartListResponseDto[] }> {
+  async list(
+    user: AuthUser,
+    context: WorkContextMode = 'all',
+  ): Promise<{ items: SmartListResponseDto[] }> {
     await this.ensureOnce(user.id);
+    const work = await workFilterFor(this.prisma, user.id, context);
     const rows = await this.prisma.smartList.findMany({
       where: { ownerId: user.id, deletedAt: null },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
@@ -40,7 +45,13 @@ export class SmartListsService {
     const input = { clock, inboxProjectId: await this.inboxId(user.id), assigneeId: user.id };
     const counts = await Promise.all(
       rows.map((row) =>
-        countViewTasks(this.prisma, user.id, smartListClause(this.key(row.key), input), clock),
+        countViewTasks(
+          this.prisma,
+          user.id,
+          smartListClause(this.key(row.key), input),
+          clock,
+          work ?? undefined,
+        ),
       ),
     );
     return {
@@ -111,6 +122,7 @@ export class SmartListsService {
     sort: string | undefined,
     limit: number,
     cursorRaw: string | undefined,
+    context: WorkContextMode = 'all',
   ): Promise<ViewPageJson> {
     const key = this.key(keyRaw);
     await this.ensureOnce(user.id);
@@ -119,6 +131,7 @@ export class SmartListsService {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', view.reason);
     }
     const clock = this.clock(user);
+    const work = await workFilterFor(this.prisma, user.id, context);
     const input = {
       clock,
       inboxProjectId: await this.inboxId(user.id),
@@ -133,6 +146,7 @@ export class SmartListsService {
       limit,
       cursor: this.cursor(cursorRaw),
       ...(key === 'completed' ? { ranking: 'completed' as const } : {}),
+      ...(work === null ? {} : { extra: work }),
     });
   }
 

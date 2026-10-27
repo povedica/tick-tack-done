@@ -62,6 +62,9 @@ export type {
   OccurrencePage,
   Project,
   ProjectData,
+  ProjectOverview,
+  ProjectOverviewItem,
+  ProjectReviewResult,
   Reminder,
   ReminderWrite,
   Tag,
@@ -69,6 +72,8 @@ export type {
   TaskDetail,
   TaskPatch,
   UpdateMeBody,
+  UpdateWorkContextBody,
+  WorkContext,
 } from './resources';
 
 export type { TaskLink, TaskLinkPage } from './resources';

@@ -7,6 +7,7 @@ import type { AddTaskLinkDto } from './task-links.dto.js';
 import { reconcileTaskLinks, taskLinkJson } from './task-links.js';
 import { DriveAttachmentsService } from '../../drive/attachments.service.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
+import { annotateWork, workFilterFor } from '../../work/work-context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
@@ -17,6 +18,7 @@ import {
   allDayClockConflict,
   canonicalizeRepeatRule,
   decideParentCompletion,
+  alignDueToStart,
   deriveDurationMinutes,
   excludeOccurrence,
   extractMarkdownChecklist,
@@ -138,6 +140,7 @@ export interface TaskListQuery {
   deleted: boolean;
   overdue: boolean;
   someday?: boolean;
+  context?: 'all' | 'work' | 'personal' | 'auto';
 }
 
 /** A subtask in another list stays visible in its own list. Same-list children stay nested. */
@@ -225,10 +228,12 @@ export class TasksService {
                   },
                 ],
               };
+    const work = await workFilterFor(this.prisma, user.id, query.context ?? 'all');
+    const filters = [work, range].filter((item): item is Prisma.TaskWhereInput => item !== null);
     const rows = await this.prisma.task.findMany({
       where: {
         ownerId: user.id,
-        ...(range === null ? {} : { AND: [range] }),
+        ...(filters.length === 0 ? {} : { AND: filters }),
         ...(query.deleted ? { deletedAt: { not: null } } : { deletedAt: null }),
         ...visibleParents(query),
         ...(listFilter.projectId === undefined ? {} : { projectId: listFilter.projectId }),
@@ -261,11 +266,13 @@ export class TasksService {
     const hasMore = rows.length > query.limit;
     const page = rows.slice(0, query.limit);
     const progress = await this.progressMap(page.map((row) => row.id));
+    const summaries = page.map((row) =>
+      toTaskSummary(row, progress.get(row.id) ?? { completed: 0, total: 0 }),
+    );
+    const flags = await annotateWork(this.prisma, user.id, summaries);
     const last = page.at(-1);
     return {
-      items: page.map((row) =>
-        toTaskSummary(row, progress.get(row.id) ?? { completed: 0, total: 0 }),
-      ),
+      items: summaries.map((item, index) => ({ ...item, is_work: flags[index] ?? false })),
       next_cursor: hasMore && last !== undefined ? encodeTaskCursor(query.sort, last) : null,
     };
   }
@@ -569,6 +576,30 @@ export class TasksService {
         start = allDayMidnight(start, timeZone);
         if (!planning) due = allDayMidnight(due, timeZone);
       }
+      const alignedDue = planning
+        ? alignDueToStart(
+            {
+              startDate: current.startDate?.toISOString() ?? null,
+              dueDate: current.dueDate?.toISOString() ?? null,
+              isAllDay: current.isAllDay,
+              timeZone,
+              durationMinutes: current.durationMinutes,
+            },
+            {
+              ...(dto.start_date === undefined ? {} : { start_date: dto.start_date }),
+              is_all_day: isAllDay,
+              time_zone: timeZone,
+              ...(typeof dto.duration_minutes === 'number'
+                ? { duration_minutes: dto.duration_minutes }
+                : {}),
+              ...(dto.someday === undefined ? {} : { someday: dto.someday }),
+              ...(dto.evening_only === undefined ? {} : { evening_only: dto.evening_only }),
+            },
+          )
+        : undefined;
+      if (alignedDue !== undefined) due = new Date(alignedDue);
+      const explicitDuration =
+        dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes;
       if (
         !planning &&
         due === null &&
@@ -576,23 +607,14 @@ export class TasksService {
         !isAllDay &&
         (dto.start_date !== undefined || dto.duration_minutes !== undefined)
       ) {
-        const end = endFromDuration(
-          start?.toISOString() ?? null,
-          dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
-        );
+        const end = endFromDuration(start?.toISOString() ?? null, explicitDuration);
         if (end !== null) due = new Date(end);
       }
       if (!planning) this.assertTimed(due, isAllDay, timeZone);
       this.assertTimed(start, isAllDay, timeZone);
       const duration = planning
-        ? dto.duration_minutes === undefined
-          ? current.durationMinutes
-          : dto.duration_minutes
-        : this.duration(
-            start,
-            due,
-            dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
-          );
+        ? this.plannedDuration(start, due, explicitDuration)
+        : this.duration(start, due, explicitDuration);
       let content = dto.content ?? current.content;
       const extracted = dto.extract_checklist === true ? extractMarkdownChecklist(content) : null;
       if (extracted !== null) {
@@ -2904,6 +2926,39 @@ export class TasksService {
       return { date: null, dateOnly: false };
     }
     return this.instant(incoming, field, timeZone);
+  }
+
+  /**
+   * Planning used to skip the deadline check. After aligning a later start,
+   * `due < start` is still 422. An all-day plan puts start and due on the same
+   * midnight, which does not match an effort estimate: keep that estimate so
+   * the day load still counts it.
+   */
+  private plannedDuration(
+    start: Date | null,
+    due: Date | null,
+    explicit: number | null,
+  ): number | null {
+    const derived = deriveDurationMinutes({
+      startDate: start === null ? null : start.toISOString(),
+      dueDate: due === null ? null : due.toISOString(),
+      explicit,
+    });
+    if (!derived.ok && derived.reason === 'due_before_start') {
+      throw new DomainException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'deadline_before_when',
+        'deadline is before when',
+      );
+    }
+    if (!derived.ok && derived.reason === 'invalid_date') {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'start_date or due_date is not a valid date',
+      );
+    }
+    return explicit;
   }
 
   private duration(start: Date | null, due: Date | null, explicit: number | null): number | null {

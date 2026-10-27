@@ -3,12 +3,18 @@ import { MoreHorizontal } from 'lucide-react';
 import { Popover } from '../../../components/Popover';
 import { useWtFMessages } from '../i18n-wt-f';
 import type { PlanAction } from '@reflexionia/domain';
+
+const DEFAULT_ACTIONS = ['someday', 'delete'] as const;
+
 export function MoreMenu({
   onAction,
   busy,
+  actions = DEFAULT_ACTIONS,
 }: {
   readonly onAction: (a: PlanAction) => void;
   readonly busy: boolean;
+  /** Defaults to someday and delete so the mobile card keeps both. */
+  readonly actions?: readonly ('someday' | 'delete')[];
 }) {
   const m = useWtFMessages();
   const [open, setOpen] = useState(false);
@@ -39,7 +45,7 @@ export function MoreMenu({
         }}
         className="popover popover-menu"
       >
-        {(['someday', 'delete'] as const).map((action) => (
+        {actions.map((action) => (
           <button
             key={action}
             type="button"

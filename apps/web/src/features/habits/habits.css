@@ -586,18 +586,31 @@
 }
 .habit-editor-dialog input:not([type='checkbox']),
 .habit-editor-dialog textarea {
-  min-height: 44px;
+  min-height: 36px;
   box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   background: var(--surface);
   color: var(--ink);
   font: inherit;
-  font-size: var(--fs-md);
-  padding: 8px 10px;
+  font-size: var(--fs-base);
+  padding: 0 10px;
   width: 100%;
+}
+.habit-editor-dialog .number-stepper {
+  height: 36px;
+}
+.habit-editor-dialog .number-stepper input {
+  width: 52px;
+  min-height: 0;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: inherit;
 }
 .habit-editor-dialog textarea {
   min-height: 72px;
@@ -654,8 +667,8 @@
   flex: none;
   display: grid;
   place-items: center;
-  height: 44px;
-  width: 44px;
+  height: 32px;
+  width: 32px;
   border: 0;
   background: transparent;
   color: var(--ink-2);
@@ -667,7 +680,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  min-height: 44px;
+  min-height: 36px;
   border: 0;
   background: transparent;
   padding: 0;
@@ -696,7 +709,6 @@
   gap: var(--sp-2);
 }
 .habit-editor-footer .ui-button {
-  min-height: 44px;
   min-width: 90px;
 }
 .habit-editor-footer small {
@@ -824,7 +836,7 @@ body:has(.habits-redesign) .outlet {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 44px;
+  height: 36px;
   box-sizing: border-box;
   padding: 0 12px;
   background: var(--surface);

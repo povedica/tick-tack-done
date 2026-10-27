@@ -31,5 +31,9 @@ export async function listOverdueTaskRows(prisma: PrismaService, ownerId: string
           AND (t.due_date AT TIME ZONE t.time_zone)::date < (NOW() AT TIME ZONE t.time_zone)::date
         )
       )
+      AND (
+        t.start_date IS NULL
+        OR (t.start_date AT TIME ZONE t.time_zone)::date <= (NOW() AT TIME ZONE t.time_zone)::date
+      )
   `;
 }

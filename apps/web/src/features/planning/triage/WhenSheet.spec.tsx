@@ -68,7 +68,11 @@ it('places Algún día in the When heading and reuses the someday action', () =>
   expect(someday.closest('.popover-heading')).toBe(close.closest('.popover-heading'));
   expect(someday.closest('.popover-heading-end')).toBeTruthy();
   expect(someday.compareDocumentPosition(close) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(someday.querySelector('.lucide-cloud-sun')).toBeTruthy();
+  const icon = someday.querySelector('.lucide-cloud-sun');
+  expect(icon?.getAttribute('width')).toBe('18');
+  expect(icon?.getAttribute('height')).toBe('18');
+  expect(screen.getByText('Duración:')).toBeTruthy();
+  expect(screen.getByText('Hora:')).toBeTruthy();
   expect(someday.className).not.toMatch(/ui-button|is-primary/);
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
   fireEvent.click(someday);

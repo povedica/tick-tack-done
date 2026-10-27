@@ -327,7 +327,7 @@ function TaskRow({
 }) {
   const queryClient = useQueryClient();
   const done = row.status === 'completed';
-  const overdue = !done && isOverdue(row.dueDate, now);
+  const overdue = !done && isOverdue(row.dueDate, now, row.startDate, row.timeZone);
   const today = !done && isSameDay(row.startDate ?? row.dueDate, now, row.timeZone);
   const dateClass = overdue ? 'task-date is-overdue' : today ? 'task-date is-today' : 'task-date';
   const named = row.tags.filter((tag) => tag.name.length > 0 && tag.name !== tag.id);

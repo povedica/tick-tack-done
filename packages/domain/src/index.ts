@@ -48,7 +48,7 @@ export type { ParsedRule, RepeatDraft, RuleFailure, Weekday } from './recurrence
 export { instantFromWall, startOfZonedDay } from './dates/zoned';
 export { parseTaskInstant } from './dates/parse-instant';
 export type { ParsedTaskInstant } from './dates/parse-instant';
-export { isOverdue, snoozeDue } from './dates/schedule';
+export { isOverdue, plannedForLater, snoozeDue } from './dates/schedule';
 export type { DateSnoozePreset, ScheduleFailure, SnoozedDates } from './dates/schedule';
 
 export {
@@ -412,6 +412,25 @@ export {
 } from './navigation';
 export { humanDate } from './dates/presentation';
 export { gardenProjectContext, type GardenProjectInput } from './dashboard/projects';
+export {
+  PROJECT_STALE_DAYS,
+  actionDateChip,
+  activityLabel,
+  nextAction,
+  orderBoardItems,
+  projectAttention,
+  projectDayLabel,
+  projectProgress,
+} from './projects/overview';
+export type {
+  ActionChip,
+  BoardOrderItem,
+  NextAction,
+  ProjectAttention,
+  ProjectBoardState,
+  ProjectProgress,
+  ProjectTask,
+} from './projects/overview';
 export { overdueAgeGroups } from './dashboard/kpis';
 
 export { gardenHabits, uniqueGardenEvents, gardenTagActivity } from './dashboard/executive';
@@ -441,6 +460,11 @@ export {
   notificationDefault,
   notificationQuietUntil,
 } from './reminders/preferences';
+
+export { isWorkTask, isWorkTime, nextWorkStart, workHiddenNow } from './work/context';
+export type { WorkHideProfile, WorkMembership, WorkSchedule, WorkTaskRef } from './work/context';
+export { WEEKDAY_CODES, weekdayCodes, weekdayNumbers } from './work/weekdays';
+export type { WeekdayCode } from './work/weekdays';
 export type { NotificationKind, NotificationChannel } from './reminders/preferences';
 
 export { DEFAULT_CAPTURE_SETTINGS, captureSettings, parseCapture } from './nlp/capture-settings';
@@ -449,6 +473,7 @@ export type { CaptureSettings } from './nlp/capture-settings';
 export {
   PLAN_ACTIONS,
   actionDate,
+  alignDueToStart,
   effectOf,
   storedDecision,
   legacyAction,

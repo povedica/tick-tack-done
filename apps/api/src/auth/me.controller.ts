@@ -25,6 +25,8 @@ import {
   NotificationHealthDto,
   PushSubscriptionDto,
   UpdateMeDto,
+  UpdateWorkContextDto,
+  WorkContextResponseDto,
 } from './me.dto.js';
 import { MeService } from './me.service.js';
 import { ACCOUNT_ADMIN_SCOPE } from './scopes.js';
@@ -71,6 +73,39 @@ export class MeController {
   ): Promise<void> {
     await this.account.changePassword(user, dto);
     res.status(204).end();
+  }
+
+  @Get('work-context')
+  @Scopes('profile:read')
+  @ApiOperation({
+    summary: 'Work hours, work membership and whether work is hidden right now',
+  })
+  @ApiOkResponse({ type: WorkContextResponseDto })
+  workContext(@CurrentUser() user: AuthUser): Promise<WorkContextResponseDto> {
+    return this.me.workContext(user);
+  }
+
+  @Patch('work-context')
+  @Scopes('workday:write')
+  @ApiOperation({
+    summary: 'Replace work membership or toggle outside-hours hiding',
+    description:
+      'Arrays replace the whole set. Unknown ids or ids owned by someone else return 422. show_work true lasts until the next work start on every device.',
+  })
+  @ApiOkResponse({ type: WorkContextResponseDto })
+  updateWorkContext(
+    @CurrentUser() user: AuthUser,
+    @Body(
+      new ValidationPipe({
+        expectedType: UpdateWorkContextDto,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    )
+    dto: UpdateWorkContextDto,
+  ): Promise<WorkContextResponseDto> {
+    return this.me.updateWorkContext(user, dto);
   }
 
   @Patch()

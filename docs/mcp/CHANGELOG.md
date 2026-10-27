@@ -1,5 +1,11 @@
 # MCP · cambios
 
+## Carpetas y proyectos
+
+- `list_folders`, `create_folder`, `update_folder` y `delete_folder` (`lists:read` / `lists:write`).
+- `update_project`, `set_project_state`, `archive_project`, `unarchive_project` y `delete_project`.
+- `create_project` y `list_projects` aceptan carpeta, proyecto y estado. Borrar un proyecto pide archivo previo y `confirm_task_count`.
+
 ## Planifica tu día · F
 
 - Herramientas `get_day_plan`, `start_day_plan`, `record_plan_decision`, `apply_day_plan` y `revert_day_plan`.

@@ -78,6 +78,7 @@ export interface TaskSummaryJson {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  is_work?: boolean;
 }
 
 export interface ChecklistItemJson {

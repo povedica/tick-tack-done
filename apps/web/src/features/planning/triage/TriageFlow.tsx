@@ -14,30 +14,18 @@ import { TriageHelp } from './TriageHelp';
 import { useTriageKeys } from './useTriageKeys';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
-import {
-  ArrowRight,
-  Ban,
-  CalendarDays,
-  Check,
-  ChevronLeft,
-  MoreHorizontal,
-  PanelLeftOpen,
-  Sun,
-  Undo2,
-  X,
-} from 'lucide-react';
+import { ChevronLeft, MoreHorizontal, PanelLeftOpen, Undo2, X } from 'lucide-react';
 import { freeSlots, actionDate, effectOf, type PlanAction } from '@reflexionia/domain';
-import { Button, EmptyState, ErrorState, Kbd, SkeletonRows } from '../../../components/ui';
+import { Button, EmptyState, ErrorState, SkeletonRows } from '../../../components/ui';
 import { UndoToastStack } from '../../../components/UndoToast';
 import { useAppLocale } from '../../../i18n/locale';
 import { useWtFMessages } from '../i18n-wt-f';
 import { useTriageSession } from './useTriageSession';
 import { TaskCardPreview } from './TaskCardPreview';
 import { TaskCard } from './TaskCard';
-import { DurationChips } from './DurationChips';
-import { TimeSelect } from './TimeSelect';
 import { MobileActionBar } from './MobileActionBar';
 import { MoreMenu } from './MoreMenu';
+import { PlanDesktopControls } from './PlanDesktopControls';
 import { WhenSheet } from './WhenSheet';
 import { SummaryView } from './SummaryView';
 import '../planning-wt-f.css';
@@ -513,61 +501,16 @@ export function TriageFlow() {
                 <div className="plan-mobile-only">
                   <MoreMenu onAction={action} busy={busy} />
                 </div>
-                <div className="plan-desktop-controls">
-                  <div className="plan-time-controls">
-                    <DurationChips value={duration} onChange={changeDuration} />
-                    <TimeSelect value={time} slots={slots} onChange={setTime} />
-                  </div>
-                  <div className="plan-action-row">
-                    <div className="sp-primary">
-                      {(
-                        [
-                          ['today', Sun, 'H'],
-                          ['tomorrow', ArrowRight, 'M'],
-                          ['move', CalendarDays, 'O'],
-                        ] as const
-                      ).map(([a, Icon, key]) => (
-                        <Button
-                          key={a}
-                          disabled={busy}
-                          {...(a === 'move' ? { ref: anchor } : {})}
-                          onClick={() => {
-                            action(a);
-                          }}
-                        >
-                          <Icon size={17} />
-                          {m[a]}
-                          <Kbd>{key}</Kbd>
-                        </Button>
-                      ))}
-                    </div>
-                    <div className="sp-secondary">
-                      <Button
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => {
-                          action('done');
-                        }}
-                      >
-                        <Check size={16} />
-                        {m.done}
-                        <Kbd>C</Kbd>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => {
-                          action('wont_do');
-                        }}
-                      >
-                        <Ban size={16} />
-                        {m.wont_do}
-                        <Kbd>N</Kbd>
-                      </Button>
-                      <MoreMenu onAction={action} busy={busy} />
-                    </div>
-                  </div>
-                </div>
+                <PlanDesktopControls
+                  duration={duration}
+                  time={time}
+                  slots={slots}
+                  busy={busy}
+                  anchor={anchor}
+                  onDuration={changeDuration}
+                  onTime={setTime}
+                  onAction={action}
+                />
               </TaskCard>
               {nextCard ? (
                 <TaskCardPreview

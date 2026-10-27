@@ -1,4 +1,5 @@
 import { DayDetails } from '../calendar/DayDetails';
+import { WorkHoursLine } from '../settings/WorkHoursLine';
 import { CaptureDefaults } from '../settings/CaptureDefaults';
 import { useWtAMessages } from '../calendar/i18n-wt-a';
 import { composerContextFor } from '../capture/context';
@@ -510,7 +511,7 @@ export function CalendarPage() {
   const range = current === 'year' ? yearQueryRange(cursor) : monthQueryRange(cells);
   const rangedTasks = useQuery<Task[]>({
     enabled: current !== 'agenda',
-    queryKey: ['calendar-tasks', range.dueAfter, range.dueBefore],
+    queryKey: ['calendar-tasks', 'auto', range.dueAfter, range.dueBefore],
     queryFn: () =>
       collectTasks((query) => api.listTasks(query), {
         status: 'active',
@@ -518,6 +519,7 @@ export function CalendarPage() {
         sort: 'due',
         dueAfter: range.dueAfter,
         dueBefore: range.dueBefore,
+        context: 'auto',
       }),
   });
   const tasks =
@@ -526,8 +528,8 @@ export function CalendarPage() {
       : rangedTasks;
   const rangedEvents = useQuery<Awaited<ReturnType<typeof api.calendarEvents>>>({
     enabled: current !== 'agenda',
-    queryKey: ['calendar-events', range.dueAfter, range.dueBefore],
-    queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore),
+    queryKey: ['calendar-events', 'auto', range.dueAfter, range.dueBefore],
+    queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore, 'auto'),
   });
   const externalQuery =
     current === 'agenda'
@@ -798,6 +800,7 @@ export function CalendarPage() {
           )}
         </CalendarMenu>
       </header>
+      <WorkHoursLine />
       {current === 'day' && mobile ? (
         <DayWeekStrip
           selected={cursor}
@@ -1474,6 +1477,7 @@ function DayGrid({
                                   chip.task.due_date,
                                   chip.task.time_zone,
                                   new Date(),
+                                  chip.task.start_date,
                                 )
                                   ? 'cal-pill is-overdue'
                                   : 'cal-pill'
@@ -1773,7 +1777,12 @@ function MobileWeekBoard({
                     <CalendarTaskMark task={task} />
                     <Link
                       className={
-                        isCalendarOverdue(task.due_date, task.time_zone, new Date())
+                        isCalendarOverdue(
+                          task.due_date,
+                          task.time_zone,
+                          new Date(),
+                          task.start_date,
+                        )
                           ? 'is-overdue'
                           : undefined
                       }

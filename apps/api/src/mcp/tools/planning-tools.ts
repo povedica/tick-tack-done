@@ -20,7 +20,15 @@ export const planningTools: readonly McpTool[] = [
     name: 'get_day_plan',
     description: 'Read the day plan. Dates use the profile time zone.',
     scopes: ['tasks:read'],
-    inputSchema: schema({ date }),
+    inputSchema: schema({
+      date,
+      context: {
+        type: 'string',
+        enum: ['all', 'work', 'personal'],
+        description:
+          'Default all. The MCP never hides work outside hours; pass work or personal to filter.',
+      },
+    }),
   },
   {
     name: 'start_day_plan',
@@ -101,13 +109,16 @@ export async function callPlanningTool(
       'GET',
       `/api/v1/plans?date=${selected}&time_zone=${encodeURIComponent(user.timeZone)}`,
     );
-  if (name === 'get_day_load')
+  if (name === 'get_day_load') {
+    const context =
+      args.context === 'work' || args.context === 'personal' ? `&context=${args.context}` : '';
     return ask(
       'GET',
       args.days === undefined
-        ? `/api/v1/planning/load?date=${selected}&time_zone=${encodeURIComponent(user.timeZone)}`
-        : `/api/v1/planning/load?from=${selected}&days=${String(typeof args.days === 'number' ? args.days : 1)}`,
+        ? `/api/v1/planning/load?date=${selected}&time_zone=${encodeURIComponent(user.timeZone)}${context}`
+        : `/api/v1/planning/load?from=${selected}&days=${String(typeof args.days === 'number' ? args.days : 1)}${context}`,
     );
+  }
   if (name === 'start_day_plan' || name === 'replan_day') {
     if (
       name === 'replan_day' &&

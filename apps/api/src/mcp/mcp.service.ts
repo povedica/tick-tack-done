@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { isPlanningTool, callPlanningTool } from './tools/planning-tools.js';
 import { attachmentUpload } from './attachment-upload.js';
 import { buildVersion } from '../build-info.js';
@@ -7,9 +8,12 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   buildRepeatRule,
   civilDateKey,
+  isWorkTask,
   describeRepeatRule,
   nextOccurrence,
   listNameKey,
+  ACCOUNT_REMINDER_TRIGGERS,
+  LIST_REMINDER_OFF,
   HABIT_WEEKDAYS,
   parseMentions,
   parseQuickAdd,
@@ -33,11 +37,13 @@ import { SmartListsService } from '../modules/filters/smart-lists.service.js';
 import { CountdownsService } from '../modules/countdowns/countdowns.service.js';
 import { HabitsService } from '../modules/habits/habits.service.js';
 import { ListsService } from '../modules/lists/lists.service.js';
+import { ProjectsOverviewService } from '../modules/lists/projects-overview.service.js';
 import { SearchService } from '../modules/search/search.service.js';
 import { TagsService } from '../modules/tags/tags.service.js';
 import { DayClosingService } from '../modules/planning/day-closing.service.js';
 import { TasksService } from '../modules/tasks/tasks.service.js';
 import { CalendarService } from '../modules/calendar/calendar.service.js';
+import { loadWorkRow } from '../work/work-context.js';
 import { validateMcpArgs } from './mcp-args.js';
 import { findTool, visibleTools } from './mcp.catalog.js';
 
@@ -82,6 +88,7 @@ export class McpService {
     @Inject(SearchService) private readonly search: SearchService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(ProjectsOverviewService) private readonly projectOverview: ProjectsOverviewService,
   ) {}
 
   async handle(user: AuthUser, body: unknown, authorization?: string): Promise<RpcResponse | null> {
@@ -204,7 +211,17 @@ export class McpService {
         next_cursor: start + limit < matches.length ? offsetCursor(start + limit) : null,
       };
     } else if (tool.name === 'api_request') data = await requestPublicApi(args, authorization);
-    else if (tool.name === 'get_capture_settings' || tool.name === 'update_capture_settings') {
+    else if (tool.name === 'get_work_context' || tool.name === 'update_work_context') {
+      const response = await requestPublicApi(
+        {
+          method: tool.name === 'get_work_context' ? 'GET' : 'PATCH',
+          path: '/api/v1/me/work-context',
+          ...(tool.name === 'update_work_context' ? { body: args } : {}),
+        },
+        authorization,
+      );
+      data = (response as { data: unknown }).data;
+    } else if (tool.name === 'get_capture_settings' || tool.name === 'update_capture_settings') {
       const response = await requestPublicApi(
         {
           method: tool.name === 'get_capture_settings' ? 'GET' : 'PATCH',
@@ -223,6 +240,62 @@ export class McpService {
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
 
+  private async filterDayPlan(user: AuthUser, data: unknown, context: unknown): Promise<unknown> {
+    if (context !== 'work' && context !== 'personal') {
+      return data;
+    }
+    if (typeof data !== 'object' || data === null || !('members' in data)) {
+      return data;
+    }
+    const members = data.members;
+    if (!Array.isArray(members)) {
+      return data;
+    }
+    const ids = members.flatMap((member) =>
+      typeof member === 'object' &&
+      member !== null &&
+      typeof (member as { task_id?: unknown }).task_id === 'string'
+        ? [(member as { task_id: string }).task_id]
+        : [],
+    );
+    const [row, tasks] = await Promise.all([
+      loadWorkRow(this.prisma, user.id),
+      this.prisma.task.findMany({
+        where: { ownerId: user.id, id: { in: ids } },
+        select: {
+          id: true,
+          projectId: true,
+          project: { select: { folderId: true } },
+          tags: { select: { tagId: true } },
+        },
+      }),
+    ]);
+    const byId = new Map(tasks.map((task) => [task.id, task]));
+    return {
+      ...data,
+      members: members.filter((member) => {
+        const taskId =
+          typeof member === 'object' && member !== null
+            ? (member as { task_id?: unknown }).task_id
+            : undefined;
+        const task = typeof taskId === 'string' ? byId.get(taskId) : undefined;
+        if (task === undefined) {
+          return context === 'personal';
+        }
+        const work = isWorkTask(
+          { projectId: task.projectId, tagIds: task.tags.map((link) => link.tagId) },
+          {
+            workFolderIds: row.workFolderIds,
+            workProjectIds: row.workProjectIds,
+            workTagIds: row.workTagIds,
+            folderOf: () => task.project.folderId,
+          },
+        );
+        return context === 'work' ? work : !work;
+      }),
+    };
+  }
+
   private async run(
     user: AuthUser,
     name: string,
@@ -230,8 +303,10 @@ export class McpService {
     authorization?: string,
   ): Promise<unknown> {
     const limit = limitOf(args);
-    if (isPlanningTool(name) && (name !== 'replan_day' || authorization !== undefined))
-      return callPlanningTool(name, args, user, authorization);
+    if (isPlanningTool(name) && (name !== 'replan_day' || authorization !== undefined)) {
+      const planned = await callPlanningTool(name, args, user, authorization);
+      return name === 'get_day_plan' ? this.filterDayPlan(user, planned, args.context) : planned;
+    }
     switch (name) {
       case 'list_tasks': {
         const projectId = uuidOrEmpty(args.project_id);
@@ -268,8 +343,11 @@ export class McpService {
           flat: false,
           sort: 'manual',
           deleted: false,
-          overdue: false,
+          overdue: args.overdue === true,
           someday: args.someday === true,
+          ...(args.context === 'work' || args.context === 'personal'
+            ? { context: args.context }
+            : {}),
         });
         return {
           ...page,
@@ -683,6 +761,7 @@ export class McpService {
           user,
           typeof args.date === 'string' ? args.date : (civilToday(user.timeZone) ?? ''),
           typeof args.time_zone === 'string' ? args.time_zone : user.timeZone,
+          args.context === 'work' || args.context === 'personal' ? args.context : 'all',
         );
       case 'start_day_shutdown':
         return this.closing.startShutdown(
@@ -716,16 +795,91 @@ export class McpService {
           decisionList(args),
           typeof args.idempotency_key === 'string' ? args.idempotency_key : undefined,
         );
-      case 'list_projects':
-        return this.lists.listProjects(user, limit, cursorOf(args), false);
+      case 'list_projects': {
+        const folderId = folderFilter(args);
+        const state = stateOf(args);
+        return this.lists.listProjects(user, limit, cursorOf(args), args.include_closed === true, {
+          ...(folderId === undefined ? {} : { folderId }),
+          ...(typeof args.is_project === 'boolean' ? { isProject: args.is_project } : {}),
+          ...(state === undefined ? {} : { state }),
+        });
+      }
       case 'create_project':
         return (
           await this.lists.createProject(
             user,
-            { name: requiredString(args, 'name', 200) },
-            undefined,
+            { name: requiredString(args, 'name', 200), ...projectFields(args) },
+            randomUUID(),
           )
         ).body;
+      case 'list_folders':
+        return this.lists.listFolders(user, limit, cursorOf(args));
+      case 'create_folder':
+        return (
+          await this.lists.createFolder(
+            user,
+            {
+              name: requiredString(args, 'name', 200),
+              ...placementFields(args),
+            },
+            randomUUID(),
+          )
+        ).body;
+      case 'update_folder':
+        return this.lists.updateFolder(user, requiredUuid(args, 'id'), {
+          ...(typeof args.name === 'string' ? { name: requiredString(args, 'name', 200) } : {}),
+          ...placementFields(args),
+        });
+      case 'delete_folder': {
+        const removed = await this.lists.deleteFolder(user, requiredUuid(args, 'id'));
+        return { deleted: true, moved_list_ids: removed.movedListIds };
+      }
+      case 'update_project':
+        return this.lists.updateProject(user, requiredUuid(args, 'id'), {
+          ...(typeof args.name === 'string' ? { name: requiredString(args, 'name', 200) } : {}),
+          ...projectFields(args),
+        });
+      case 'set_project_state': {
+        const state = stateOf(args);
+        if (state === undefined) {
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'state is invalid',
+          );
+        }
+        return (await this.lists.setProjectState(user, requiredUuid(args, 'id'), state, undefined))
+          .body;
+      }
+      case 'archive_project':
+        return (await this.lists.archive(user, requiredUuid(args, 'id'), undefined)).body;
+      case 'unarchive_project':
+        return (await this.lists.unarchive(user, requiredUuid(args, 'id'), undefined)).body;
+      case 'delete_project': {
+        const id = requiredUuid(args, 'id');
+        const impact = deletionImpactBody(await this.lists.deletionImpact(user, id));
+        const confirm = args.confirm_task_count;
+        if (args.dry_run === true || confirm === undefined) {
+          return {
+            ...impact,
+            deleted: false,
+            hint: 'Call again with confirm_task_count=<task_count> to delete.',
+          };
+        }
+        if (typeof confirm !== 'number' || !Number.isInteger(confirm) || confirm < 0) {
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'confirm_task_count is invalid',
+          );
+        }
+        await this.lists.deleteProject(user, id, confirm);
+        return { ...impact, deleted: true };
+      }
+      case 'list_project_overview':
+        return this.projectOverview.overview(user, stateOf(args));
+      case 'mark_project_reviewed':
+        return this.projectOverview.markReviewed(user, requiredUuidList(args, 'ids'));
       case 'list_tags':
         return this.tags.list(user, limit, cursorOf(args));
       case 'create_tag':
@@ -766,6 +920,7 @@ export class McpService {
           undefined,
           limit,
           cursorOf(args),
+          args.context === 'work' || args.context === 'personal' ? args.context : 'all',
         );
       case 'list_habits':
         return this.habits.list(user, limit, cursorOf(args));
@@ -1004,6 +1159,7 @@ export class McpService {
           requiredString(args, 'from', 40),
           requiredString(args, 'to', 40),
           typeof args.subscription_id === 'string' ? args.subscription_id : undefined,
+          args.context === 'work' || args.context === 'personal' ? args.context : 'all',
         );
         if (args.include_external === false) {
           return { ...page, external: [] };
@@ -1531,6 +1687,154 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function deletionImpactBody(impact: {
+  project_id: string;
+  name: string;
+  is_project: boolean;
+  closed: boolean;
+  task_count: number;
+  completed_count: number;
+  open_count: number;
+  subtask_count: number;
+}): {
+  project_id: string;
+  name: string;
+  is_project: boolean;
+  closed: boolean;
+  task_count: number;
+  completed_count: number;
+  open_count: number;
+  subtask_count: number;
+} {
+  return {
+    project_id: impact.project_id,
+    name: impact.name,
+    is_project: impact.is_project,
+    closed: impact.closed,
+    task_count: impact.task_count,
+    completed_count: impact.completed_count,
+    open_count: impact.open_count,
+    subtask_count: impact.subtask_count,
+  };
+}
+
+const REMINDER_TRIGGERS = new Set<string>([...ACCOUNT_REMINDER_TRIGGERS, LIST_REMINDER_OFF]);
+const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
+
+function folderFilter(args: Record<string, unknown>): string | null | undefined {
+  if (args.folder_id === undefined) {
+    return undefined;
+  }
+  if (args.folder_id === 'none') {
+    return null;
+  }
+  if (args.folder_id === null) {
+    return null;
+  }
+  return requiredUuid(args, 'folder_id');
+}
+
+function stateOf(args: Record<string, unknown>): 'active' | 'paused' | 'archived' | undefined {
+  if (args.state === undefined) {
+    return undefined;
+  }
+  if (args.state === 'active' || args.state === 'paused' || args.state === 'archived') {
+    return args.state;
+  }
+  throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'state is invalid');
+}
+
+function placementFields(args: Record<string, unknown>): {
+  before_id?: string | null;
+  move_to_end?: boolean;
+} {
+  return {
+    ...('before_id' in args
+      ? { before_id: args.before_id === null ? null : requiredUuid(args, 'before_id') }
+      : {}),
+    ...(typeof args.move_to_end === 'boolean' ? { move_to_end: args.move_to_end } : {}),
+  };
+}
+
+function projectFields(args: Record<string, unknown>): {
+  color?: string | null;
+  folder_id?: string | null;
+  view_mode?: 'list' | 'kanban' | 'timeline';
+  before_id?: string | null;
+  move_to_end?: boolean;
+  is_project?: boolean;
+  project_status?: 'active' | 'paused';
+  outcome?: string | null;
+  default_reminder_trigger?: string | null;
+} {
+  const viewMode =
+    args.view_mode === 'list' || args.view_mode === 'kanban' || args.view_mode === 'timeline'
+      ? args.view_mode
+      : undefined;
+  if (args.view_mode !== undefined && viewMode === undefined) {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'view_mode is invalid');
+  }
+  const projectStatus =
+    args.project_status === 'active' || args.project_status === 'paused'
+      ? args.project_status
+      : undefined;
+  if (args.project_status !== undefined && projectStatus === undefined) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'project_status is invalid',
+    );
+  }
+  let outcome: string | null | undefined;
+  if ('outcome' in args) {
+    if (args.outcome === null) {
+      outcome = null;
+    } else if (typeof args.outcome === 'string' && args.outcome.length <= 200) {
+      outcome = args.outcome;
+    } else {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'outcome is invalid');
+    }
+  }
+  let reminder: string | null | undefined;
+  if ('default_reminder_trigger' in args) {
+    if (args.default_reminder_trigger === null) {
+      reminder = null;
+    } else if (
+      typeof args.default_reminder_trigger === 'string' &&
+      REMINDER_TRIGGERS.has(args.default_reminder_trigger)
+    ) {
+      reminder = args.default_reminder_trigger;
+    } else {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'default_reminder_trigger is invalid',
+      );
+    }
+  }
+  let color: string | null | undefined;
+  if ('color' in args) {
+    if (args.color === null) {
+      color = null;
+    } else if (typeof args.color === 'string' && HEX_COLOR.test(args.color)) {
+      color = args.color;
+    } else {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'color is invalid');
+    }
+  }
+  const folderId = 'folder_id' in args ? folderFilter(args) : undefined;
+  return {
+    ...(color === undefined ? {} : { color }),
+    ...(folderId === undefined ? {} : { folder_id: folderId }),
+    ...(viewMode === undefined ? {} : { view_mode: viewMode }),
+    ...placementFields(args),
+    ...(typeof args.is_project === 'boolean' ? { is_project: args.is_project } : {}),
+    ...(projectStatus === undefined ? {} : { project_status: projectStatus }),
+    ...(outcome === undefined ? {} : { outcome }),
+    ...(reminder === undefined ? {} : { default_reminder_trigger: reminder }),
+  };
+}
+
 function requiredString(args: Record<string, unknown>, key: string, max: number): string {
   const value = args[key];
   if (typeof value !== 'string' || value.trim().length === 0 || value.trim().length > max) {
@@ -1620,6 +1924,27 @@ function decisionList(args: Record<string, unknown>): {
 
 function civilToday(timeZone: string): string | null {
   return civilDateKey(new Date().toISOString(), timeZone);
+}
+
+function requiredUuidList(args: Record<string, unknown>, key: string): string[] {
+  const value = args[key];
+  if (!Array.isArray(value) || value.length < 1 || value.length > 50) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      `${key} must contain 1 to 50 uuids`,
+    );
+  }
+  return value.map((item) => {
+    if (typeof item !== 'string' || !UUID.test(item)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        `${key} must contain uuids`,
+      );
+    }
+    return item;
+  });
 }
 
 function requiredUuid(args: Record<string, unknown>, key: string): string {

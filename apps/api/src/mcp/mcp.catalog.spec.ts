@@ -16,6 +16,32 @@ describe('MCP tool catalog', () => {
       'update_capture_settings',
     );
   });
+
+  it('work context uses profile:read and workday:write, and listings accept context', () => {
+    expect(visibleTools(['profile:read']).map((tool) => tool.name)).toContain('get_work_context');
+    expect(visibleTools(['profile:read']).map((tool) => tool.name)).not.toContain(
+      'update_work_context',
+    );
+    expect(visibleTools(['profile:write']).map((tool) => tool.name)).not.toContain(
+      'update_work_context',
+    );
+    expect(visibleTools(['workday:write']).map((tool) => tool.name)).toContain(
+      'update_work_context',
+    );
+    const update = MCP_TOOLS.find((tool) => tool.name === 'update_work_context');
+    expect(update?.description).toContain('arrays replace the whole set');
+    expect(update?.scopes).toEqual(['workday:write']);
+    for (const name of [
+      'list_tasks',
+      'list_smart_list_tasks',
+      'get_day_load',
+      'list_calendar_events',
+      'get_day_plan',
+    ]) {
+      const tool = MCP_TOOLS.find((item) => item.name === name);
+      expect(tool?.inputSchema.properties).toHaveProperty('context');
+    }
+  });
   it('RF-2001: a tasks token cannot see tools outside its scopes', () => {
     const names = visibleTools(['tasks:read', 'tasks:write']).map((tool) => tool.name);
     expect(names).toEqual(
@@ -141,6 +167,74 @@ describe('MCP tool catalog', () => {
     expect(update?.inputSchema.properties).toHaveProperty('remove_tag_ids');
     expect(MCP_TOOLS.some((tool) => tool.name === 'quick_add')).toBe(true);
     expect(visibleTools(['tasks:write']).map((tool) => tool.name)).toContain('quick_add');
+  });
+
+  it('lists folders and project state on lists scopes', () => {
+    const read = visibleTools(['lists:read']).map((tool) => tool.name);
+    const write = visibleTools(['lists:write']).map((tool) => tool.name);
+    expect(read).toEqual(expect.arrayContaining(['list_folders', 'list_projects']));
+    const writing = [
+      'create_folder',
+      'update_folder',
+      'delete_folder',
+      'update_project',
+      'set_project_state',
+      'archive_project',
+      'unarchive_project',
+      'delete_project',
+      'create_project',
+    ];
+    for (const name of writing) {
+      expect(read, name).not.toContain(name);
+      expect(write, name).toContain(name);
+    }
+    const listed = MCP_TOOLS.find((tool) => tool.name === 'list_projects');
+    expect(listed?.scopes).toEqual(['lists:read']);
+    expect(listed?.inputSchema.properties).toHaveProperty('folder_id');
+    expect(listed?.inputSchema.properties).toHaveProperty('is_project');
+    expect(listed?.inputSchema.properties).toHaveProperty('state');
+    expect(listed?.inputSchema.properties).toHaveProperty('include_closed');
+    expect(listed?.inputSchema.additionalProperties).toBe(false);
+    const created = MCP_TOOLS.find((tool) => tool.name === 'create_project');
+    expect(created?.inputSchema.required).toEqual(['name']);
+    expect(created?.inputSchema.properties).toHaveProperty('folder_id');
+    expect(created?.inputSchema.properties).toHaveProperty('is_project');
+    expect(created?.inputSchema.properties).toHaveProperty('outcome');
+    expect(created?.inputSchema.additionalProperties).toBe(false);
+    for (const name of [
+      'list_folders',
+      'create_folder',
+      'update_folder',
+      'delete_folder',
+      'update_project',
+      'set_project_state',
+      'archive_project',
+      'unarchive_project',
+      'delete_project',
+    ]) {
+      const tool = MCP_TOOLS.find((item) => item.name === name);
+      expect(tool?.inputSchema.additionalProperties, name).toBe(false);
+    }
+    expect(MCP_TOOLS.find((tool) => tool.name === 'delete_folder')?.description).toBe(
+      'Delete a folder. Its lists move to no folder; no list or task is deleted.',
+    );
+    expect(MCP_TOOLS.find((tool) => tool.name === 'set_project_state')?.description).toContain(
+      'Archiving archives the list.',
+    );
+    const overview = MCP_TOOLS.find((tool) => tool.name === 'list_project_overview');
+    expect(overview?.scopes).toEqual(['lists:read', 'tasks:read']);
+    expect(overview?.description).toContain('Proyectos kanban');
+    expect(overview?.inputSchema.properties).toHaveProperty('state');
+    expect(overview?.inputSchema.properties).toHaveProperty('limit');
+    expect(visibleTools(['lists:read', 'tasks:read']).map((tool) => tool.name)).toContain(
+      'list_project_overview',
+    );
+    const reviewed = MCP_TOOLS.find((tool) => tool.name === 'mark_project_reviewed');
+    expect(reviewed?.scopes).toEqual(['lists:write']);
+    expect(reviewed?.inputSchema.required).toEqual(['ids']);
+    expect(visibleTools(['lists:read']).map((tool) => tool.name)).not.toContain(
+      'mark_project_reviewed',
+    );
   });
 });
 

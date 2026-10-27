@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { effectOf } from './actions';
+import { alignDueToStart, effectOf, type DueAlignment } from './actions';
 describe('F-AC-2/3 actions', () => {
   it('RF-2640: schedules today and tomorrow without writing deadline or implicit duration', () => {
     expect(effectOf({ action: 'today' }, '2026-10-25', 'Europe/Madrid')).toEqual({
@@ -48,5 +48,68 @@ describe('F-AC-2/3 actions', () => {
       { action: 'today', duration: 481 },
     ] as const)
       expect(() => effectOf(choice, '2026-10-25', 'Europe/Madrid')).toThrow();
+  });
+});
+
+const current = (dueDate: string | null, durationMinutes: number | null = null): DueAlignment => ({
+  startDate: null,
+  dueDate,
+  isAllDay: true,
+  timeZone: 'Europe/Madrid',
+  durationMinutes,
+});
+
+describe('alignDueToStart', () => {
+  it('moves an all-day deadline onto the later start day', () => {
+    expect(
+      alignDueToStart(current('2026-10-24T22:00:00.000Z'), {
+        start_date: '2026-10-29',
+        is_all_day: true,
+        time_zone: 'Europe/Madrid',
+      }),
+    ).toBe('2026-10-28T23:00:00.000Z');
+  });
+
+  it('moves a timed deadline to start plus duration', () => {
+    expect(
+      alignDueToStart(current('2026-10-24T22:00:00.000Z', 15), {
+        start_date: '2026-10-29T09:00:00.000Z',
+        is_all_day: false,
+        time_zone: 'Europe/Madrid',
+        duration_minutes: 30,
+      }),
+    ).toBe('2026-10-29T09:30:00.000Z');
+    expect(
+      alignDueToStart(current('2026-10-24T22:00:00.000Z', 45), {
+        start_date: '2026-10-29T09:00:00.000Z',
+        is_all_day: false,
+        time_zone: 'Europe/Madrid',
+      }),
+    ).toBe('2026-10-29T09:45:00.000Z');
+  });
+
+  it('keeps the deadline when the start day is earlier or the same', () => {
+    const later = current('2026-11-04T23:00:00.000Z');
+    expect(
+      alignDueToStart(later, {
+        start_date: '2026-10-28',
+        is_all_day: true,
+        time_zone: 'Europe/Madrid',
+      }),
+    ).toBeUndefined();
+    expect(
+      alignDueToStart(current('2026-10-24T22:00:00.000Z'), {
+        start_date: '2026-10-25',
+        is_all_day: true,
+        time_zone: 'Europe/Madrid',
+      }),
+    ).toBeUndefined();
+    expect(
+      alignDueToStart(current(null), {
+        start_date: '2026-10-29',
+        is_all_day: true,
+        time_zone: 'Europe/Madrid',
+      }),
+    ).toBeUndefined();
   });
 });

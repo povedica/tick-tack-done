@@ -29,6 +29,13 @@ describe('daily digest', () => {
             isAllDay: false,
             timeZone: zone,
           },
+          {
+            title: 'Planificada',
+            dueDate: '2026-10-18T08:00:00.000Z',
+            startDate: '2026-10-21T08:00:00.000Z',
+            isAllDay: false,
+            timeZone: zone,
+          },
         ],
       }),
     ).toBe('Vencidas\n- Atrasada\n\nHoy\n- Hoy mismo');

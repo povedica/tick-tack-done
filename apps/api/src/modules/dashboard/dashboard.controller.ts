@@ -20,6 +20,7 @@ import {
   telegramConfigured,
 } from '../../integrations/config.js';
 import { MetricsService } from '../metrics/metrics.service.js';
+import { ProjectsOverviewService } from '../lists/projects-overview.service.js';
 import {
   dayKey,
   parseDayBounds,
@@ -43,12 +44,13 @@ export const WIDGET_KEYS = [
   'integrations',
   'focus',
   'next_countdowns',
+  'in_flight_projects',
 ] as const;
 
 const DEFAULT_LAYOUT = WIDGET_KEYS.map((key, index) => ({
   widget_key: key,
   position: index,
-  size: key === 'projects' ? 'l' : index < 4 ? 's' : 'm',
+  size: key === 'projects' || key === 'in_flight_projects' ? 'l' : index < 4 ? 's' : 'm',
   config: {},
 }));
 
@@ -75,6 +77,7 @@ export class DashboardController {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(MetricsService) private readonly metrics: MetricsService,
+    @Inject(ProjectsOverviewService) private readonly projectsOverview: ProjectsOverviewService,
   ) {}
 
   @Get('dashboard/widgets')
@@ -101,7 +104,7 @@ export class DashboardController {
   @ApiOperation({
     summary: 'KPI for one widget (RF-2102, RF-2104)',
     description:
-      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Task creation/completion totals cover the account calendar week from local Monday through generated_at, excluding cancelled tasks. Trend compares against the previous complete Monday–Sunday week; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.',
+      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Task creation/completion totals cover the account calendar week from local Monday through generated_at, excluding cancelled tasks. Trend compares against the previous complete Monday–Sunday week; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions. in_flight_projects lists up to four active projects with next action and counts when the token has lists:read; otherwise null.',
   })
   async data(
     @CurrentUser() user: AuthUser,
@@ -192,6 +195,9 @@ export class DashboardController {
       this.prisma.calendarSubscription.count({ where: { ownerId: user.id, deletedAt: null } }),
       this.prisma.countdown.count({ where: { ownerId: user.id, deletedAt: null } }),
     ]);
+    const inFlight = user.scopes.includes('lists:read')
+      ? await this.projectsOverview.inFlight(user)
+      : null;
     const values: Record<string, unknown> = {
       completed_today: snapshot.completed_today,
       completed_week: {
@@ -270,6 +276,7 @@ export class DashboardController {
           target_date: countdown.targetDate.toISOString().slice(0, 10),
         })),
       },
+      in_flight_projects: inFlight,
     };
     if (widget === undefined || widget.length === 0) {
       respondJson(

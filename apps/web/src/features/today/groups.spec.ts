@@ -171,6 +171,55 @@ describe('today groups', () => {
     expect(mergeForGroup(parts, 'due').overdue.map((item) => item.id)).toEqual(['old-high']);
   });
 
+  it('a future start with a past deadline is neither overdue nor today', () => {
+    const viewed = new Date('2026-10-27T11:00:00.000Z');
+    const later = task({
+      id: 'later',
+      dueDate: '2026-10-24T22:00:00.000Z',
+      startDate: '2026-10-28T23:00:00.000Z',
+      allDay: true,
+    });
+    const startedToday = task({
+      id: 'started',
+      dueDate: '2026-10-24T22:00:00.000Z',
+      startDate: '2026-10-26T23:00:00.000Z',
+      allDay: true,
+    });
+    const dueOnly = task({ id: 'due', dueDate: '2026-10-24T22:00:00.000Z', allDay: true });
+    expect(isOverdue(later, viewed)).toBe(false);
+    const parts = partitionToday([later, startedToday, dueOnly], viewed);
+    expect(parts.overdue.map((item) => item.id)).toEqual(['due', 'started']);
+    expect(parts.today).toEqual([]);
+    const onStartDay = partitionToday([later], new Date('2026-10-29T11:00:00.000Z'));
+    expect(onStartDay.overdue.map((item) => item.id)).toEqual(['later']);
+    expect(onStartDay.today).toEqual([]);
+  });
+
+  it('RF-604: the 25 October clock change keeps a later start out of overdue', () => {
+    const afterFallback = new Date('2026-10-25T01:30:00.000Z');
+    const parts = partitionToday(
+      [
+        task({ id: 'yesterday', dueDate: '2026-10-23T22:00:00.000Z', allDay: true }),
+        task({ id: 'today', dueDate: '2026-10-24T22:00:00.000Z', allDay: true }),
+        task({
+          id: 'planned',
+          dueDate: '2026-10-23T22:00:00.000Z',
+          startDate: '2026-10-25T23:00:00.000Z',
+          allDay: true,
+        }),
+        task({
+          id: 'started',
+          dueDate: '2026-10-23T22:00:00.000Z',
+          startDate: '2026-10-24T22:00:00.000Z',
+          allDay: true,
+        }),
+      ],
+      afterFallback,
+    );
+    expect(parts.overdue.map((item) => item.id)).toEqual(['started', 'yesterday']);
+    expect(parts.today.map((item) => item.id)).toEqual(['today']);
+  });
+
   it('shifts a Madrid midnight across the UTC day boundary', () => {
     expect(zonedWallTime('2026-10-17', 0, 0, 'Europe/Madrid')).toBe('2026-10-16T22:00:00.000Z');
     expect(rangeIds(['a', 'b', 'c', 'd'], 'b', 'd')).toEqual(['b', 'c', 'd']);
