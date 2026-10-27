@@ -4,6 +4,13 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useLocale } from '../../../i18n/locale';
 import { WhenSheet } from './WhenSheet';
 
+vi.hoisted(() => {
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: { getItem: () => null, setItem: () => undefined },
+    configurable: true,
+  });
+});
+
 beforeEach(() => {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('768'),
