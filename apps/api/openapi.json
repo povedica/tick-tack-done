@@ -2466,6 +2466,101 @@
         ]
       }
     },
+    "/api/v1/projects/overview": {
+      "get": {
+        "operationId": "ListsController_projectOverview",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "active",
+                "paused",
+                "archived"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOverviewDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Projects kanban: next action, progress and state for every project list",
+        "tags": [
+          "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/review": {
+      "post": {
+        "operationId": "ListsController_reviewProjects",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewProjectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectReviewResultDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark up to 50 projects as reviewed",
+        "tags": [
+          "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/projects/{id}": {
       "get": {
         "operationId": "ListsController_getProject",
@@ -2729,6 +2824,50 @@
           }
         },
         "summary": "Move a project between active, paused and archived in one call",
+        "tags": [
+          "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/review": {
+      "post": {
+        "operationId": "ListsController_reviewProject",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectReviewResultDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark one project as reviewed",
         "tags": [
           "lists"
         ],
@@ -7878,7 +8017,7 @@
     },
     "/api/v1/dashboard/data": {
       "get": {
-        "description": "Without widget, returns widgets, generated_at and period (from, to, time_zone). Task creation/completion totals cover the account calendar week from local Monday through generated_at, excluding cancelled tasks. Trend compares against the previous complete Monday–Sunday week; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.",
+        "description": "Without widget, returns widgets, generated_at and period (from, to, time_zone). Task creation/completion totals cover the account calendar week from local Monday through generated_at, excluding cancelled tasks. Trend compares against the previous complete Monday–Sunday week; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions. in_flight_projects lists up to four active projects with next action and counts when the token has lists:read; otherwise null.",
         "operationId": "DashboardController_data",
         "parameters": [],
         "responses": {
@@ -11745,7 +11884,7 @@
     },
     "/api/v1/review/weekly": {
       "get": {
-        "description": "Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks.",
+        "description": "Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks. projects groups project lists into attention, paused and ok when the token has lists:read; otherwise projects is null and projects_scope is missing.",
         "operationId": "ReviewController_weekly",
         "parameters": [],
         "responses": {
@@ -16834,6 +16973,199 @@
         },
         "required": [
           "name"
+        ]
+      },
+      "ProjectNextActionDto": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "due_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_all_day": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "task_id",
+          "title",
+          "due_date",
+          "start_date",
+          "is_all_day"
+        ]
+      },
+      "ProjectOverviewItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "folder_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "outcome": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "archived"
+            ]
+          },
+          "project_status_changed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "closed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "project_reviewed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "done_count": {
+            "type": "number"
+          },
+          "total_count": {
+            "type": "number"
+          },
+          "open_count": {
+            "type": "number"
+          },
+          "next_action": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProjectNextActionDto"
+              }
+            ]
+          },
+          "last_activity_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "attention": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "no_next_action",
+              "stale"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "color",
+          "folder_id",
+          "outcome",
+          "state",
+          "project_status_changed_at",
+          "closed_at",
+          "created_at",
+          "project_reviewed_at",
+          "done_count",
+          "total_count",
+          "open_count",
+          "next_action",
+          "last_activity_at",
+          "attention"
+        ]
+      },
+      "ProjectOverviewCountsDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "number"
+          },
+          "paused": {
+            "type": "number"
+          },
+          "archived": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "active",
+          "paused",
+          "archived"
+        ]
+      },
+      "ProjectOverviewDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectOverviewItemDto"
+            }
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ProjectOverviewCountsDto"
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "The board is not paged. Present so MCP list tools do not slice it."
+          }
+        },
+        "required": [
+          "items",
+          "counts",
+          "next_cursor"
+        ]
+      },
+      "ReviewProjectsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "ProjectReviewResultDto": {
+        "type": "object",
+        "properties": {
+          "reviewed": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "reviewed"
         ]
       },
       "UpdateProjectDto": {

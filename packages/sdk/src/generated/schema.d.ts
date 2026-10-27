@@ -872,6 +872,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Projects kanban: next action, progress and state for every project list */
+        get: operations["ListsController_projectOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark up to 50 projects as reviewed */
+        post: operations["ListsController_reviewProjects"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}": {
         parameters: {
             query?: never;
@@ -936,6 +970,23 @@ export interface paths {
         put?: never;
         /** Move a project between active, paused and archived in one call */
         post: operations["ListsController_setProjectState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark one project as reviewed */
+        post: operations["ListsController_reviewProject"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2711,7 +2762,7 @@ export interface paths {
         };
         /**
          * KPI for one widget (RF-2102, RF-2104)
-         * @description Without widget, returns widgets, generated_at and period (from, to, time_zone). Task creation/completion totals cover the account calendar week from local Monday through generated_at, excluding cancelled tasks. Trend compares against the previous complete Monday–Sunday week; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.
+         * @description Without widget, returns widgets, generated_at and period (from, to, time_zone). Task creation/completion totals cover the account calendar week from local Monday through generated_at, excluding cancelled tasks. Trend compares against the previous complete Monday–Sunday week; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions. in_flight_projects lists up to four active projects with next action and counts when the token has lists:read; otherwise null.
          */
         get: operations["DashboardController_data"];
         put?: never;
@@ -2930,7 +2981,7 @@ export interface paths {
         };
         /**
          * Guided weekly review (RF-2302, RF-2303)
-         * @description Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks.
+         * @description Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks. projects groups project lists into attention, paused and ok when the token has lists:read; otherwise projects is null and projects_scope is missing.
          */
         get: operations["ReviewController_weekly"];
         put?: never;
@@ -4552,6 +4603,50 @@ export interface components {
             /** @enum {string} */
             project_status?: "active" | "paused";
             outcome?: Record<string, never> | null;
+        };
+        ProjectNextActionDto: {
+            task_id: string;
+            title: string;
+            due_date: string | null;
+            start_date: string | null;
+            is_all_day: boolean;
+        };
+        ProjectOverviewItemDto: {
+            id: string;
+            name: string;
+            color: string | null;
+            folder_id: string | null;
+            outcome: string | null;
+            /** @enum {string} */
+            state: "active" | "paused" | "archived";
+            project_status_changed_at: string | null;
+            closed_at: string | null;
+            created_at: string;
+            project_reviewed_at: string | null;
+            done_count: number;
+            total_count: number;
+            open_count: number;
+            next_action: components["schemas"]["ProjectNextActionDto"] | null;
+            last_activity_at: string | null;
+            /** @enum {string|null} */
+            attention: "no_next_action" | "stale" | null;
+        };
+        ProjectOverviewCountsDto: {
+            active: number;
+            paused: number;
+            archived: number;
+        };
+        ProjectOverviewDto: {
+            items: components["schemas"]["ProjectOverviewItemDto"][];
+            counts: components["schemas"]["ProjectOverviewCountsDto"];
+            /** @description The board is not paged. Present so MCP list tools do not slice it. */
+            next_cursor: string | null;
+        };
+        ReviewProjectsDto: {
+            ids: string[];
+        };
+        ProjectReviewResultDto: {
+            reviewed: number;
         };
         UpdateProjectDto: {
             name?: string;
@@ -6985,6 +7080,54 @@ export interface operations {
             };
         };
     };
+    ListsController_projectOverview: {
+        parameters: {
+            query?: {
+                state?: "active" | "paused" | "archived";
+            };
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOverviewDto"];
+                };
+            };
+        };
+    };
+    ListsController_reviewProjects: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewProjectsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectReviewResultDto"];
+                };
+            };
+        };
+    };
     ListsController_getProject: {
         parameters: {
             query?: never;
@@ -7126,6 +7269,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectResponseDto"];
+                };
+            };
+        };
+    };
+    ListsController_reviewProject: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectReviewResultDto"];
                 };
             };
         };

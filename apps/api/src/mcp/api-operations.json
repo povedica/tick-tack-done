@@ -1590,6 +1590,58 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/projects/overview",
+    "summary": "Projects kanban: next action, progress and state for every project list",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "state",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["active", "paused", "archived"], "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/review",
+    "summary": "Mark up to 50 projects as reviewed",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "ids": {
+                "minItems": 1,
+                "maxItems": 50,
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            },
+            "required": ["ids"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/projects/{id}",
     "summary": "Get a list",
     "parameters": [
@@ -1723,6 +1775,21 @@
         }
       }
     }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/review",
+    "summary": "Mark one project as reviewed",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
   },
   {
     "method": "POST",
