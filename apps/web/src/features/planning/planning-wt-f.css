@@ -1339,30 +1339,43 @@
   gap: var(--sp-2);
   margin-left: auto;
 }
-.plan-when-someday {
+.plan-when-popover .plan-when-someday {
+  position: relative;
   display: inline-flex;
   align-items: center;
   flex: none;
   gap: var(--sp-1);
-  min-height: var(--tap);
+  height: 36px;
   margin: 0;
-  padding: 0 var(--sp-2);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--ink-2);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--ink);
   font: inherit;
   font-size: var(--fs-sm);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
 }
-.plan-when-someday:hover {
-  background: var(--surface-2);
-  color: var(--ink);
+.plan-when-popover .plan-when-someday svg {
+  flex: none;
+  color: var(--accent);
 }
-.plan-when-someday:disabled {
+.plan-when-popover .plan-when-someday::before {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+}
+.plan-when-popover .plan-when-someday:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.plan-when-popover .plan-when-someday:hover:not(:disabled) svg {
+  color: inherit;
+}
+.plan-when-popover .plan-when-someday:disabled {
   opacity: 0.45;
   cursor: default;
 }
@@ -1595,16 +1608,106 @@
   color: var(--ink-2);
 }
 .plan-triage .plan-time-controls {
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
   gap: var(--sp-3);
+}
+.plan-time-sep,
+.plan-action-sep {
+  width: 1px;
+  height: 20px;
+  flex: none;
+  align-self: center;
+  background: var(--border-strong);
 }
 .plan-triage .plan-action-row {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  overflow-x: auto;
-  padding-bottom: 4px;
+  gap: var(--sp-3);
+  flex-wrap: nowrap;
+}
+.plan-day-segment {
+  display: inline-flex;
+  align-items: stretch;
+  flex: none;
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.plan-day-segment button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 100%;
+  margin: 0;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-inline-end: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.plan-day-segment button:last-child {
+  border-inline-end: 0;
+}
+.plan-day-segment button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.plan-day-segment button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+  position: relative;
+  z-index: 1;
+}
+.plan-someday-action,
+.plan-text-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 36px;
+  margin: 0;
+  padding: 0 var(--sp-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.plan-someday-action {
+  color: var(--ink);
+  font-weight: 600;
+}
+.plan-someday-action svg {
+  flex: none;
+  color: var(--accent);
+}
+.plan-text-action {
+  color: var(--ink-2);
+}
+.plan-someday-action:hover:not(:disabled),
+.plan-text-action:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.plan-day-segment button:disabled,
+.plan-someday-action:disabled,
+.plan-text-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.plan-triage .plan-action-row .plan-more-trigger {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 var(--sp-1);
 }
 .plan-triage .plan-action-row .ui-button {
   white-space: nowrap;
@@ -1614,10 +1717,13 @@
   font-size: var(--fs-sm);
 }
 .plan-triage .sp-primary,
-.plan-triage .sp-secondary {
+.plan-triage .plan-action-row .sp-secondary {
   flex-wrap: nowrap;
   flex: none;
-  gap: var(--sp-1);
+  gap: var(--sp-2);
+}
+.plan-triage .plan-action-row .sp-secondary {
+  margin-left: auto;
 }
 .plan-triage .plan-action-row .ui-kbd {
   display: none;
@@ -1727,6 +1833,14 @@
   }
   .plan-triage .sp-card {
     padding: var(--sp-4);
+  }
+  .plan-triage .plan-time-controls,
+  .plan-triage .plan-action-row,
+  .plan-triage .sp-dur {
+    flex-wrap: wrap;
+  }
+  .plan-triage .plan-action-row .sp-secondary {
+    margin-left: 0;
   }
 }
 @media (max-width: 768px) {
