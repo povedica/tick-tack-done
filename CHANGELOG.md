@@ -1,5 +1,16 @@
 # Historial de cambios
 
+## Revisión del paquete de listas
+
+- Planificar un día completo conserva la estimación de esfuerzo. Antes se
+  guardaba como 0 y desaparecía de la carga del día.
+- Un proyecto no marca «vencida» una próxima acción cuyo inicio ya pasó si el
+  vencimiento sigue por delante. Un inicio futuro tampoco cuenta como vencida.
+- `GET /projects` incluye `owner_id`. Una lista de otro dueño no ofrece «Mover
+  a carpeta».
+- El cliente declara `before_id` y `move_to_end` al actualizar una lista.
+- En el tablero de proyectos, una pulsación larga abre el menú de la tarjeta.
+
 ## Algún día más visible en la planificación
 
 - La hoja «¿Cuándo?» muestra «Algún día» como píldora neutra, pareja de la X,
