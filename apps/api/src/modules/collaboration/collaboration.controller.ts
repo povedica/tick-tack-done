@@ -14,7 +14,7 @@ import {
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsEmail, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
-import { allows, parseMentions, type SharePermission } from '@reflexionia/domain';
+import { parseMentions, type SharePermission } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
@@ -24,6 +24,7 @@ import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { CollaborationService } from './collaboration.service.js';
 
 class ShareDto {
   @ApiProperty({ required: false })
@@ -61,6 +62,7 @@ export class CollaborationController {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(CollaborationService) private readonly collaboration: CollaborationService,
   ) {}
 
   @Get('projects/:id/members')
@@ -72,26 +74,7 @@ export class CollaborationController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    await this.can(user, id, 'read');
-    const rows = await this.prisma.projectMember.findMany({
-      where: { projectId: id, deletedAt: null },
-      include: { member: { select: { email: true, displayName: true } } },
-    });
-    respondJson(
-      req,
-      res,
-      200,
-      {
-        items: rows.map((row) => ({
-          id: row.id,
-          permission: row.permission,
-          email: row.member?.email ?? null,
-          token_id: row.tokenId,
-          display_name: row.member?.displayName ?? null,
-        })),
-      },
-      false,
-    );
+    respondJson(req, res, 200, await this.collaboration.members(user, id), false);
   }
 
   @Post('projects/:id/members')
@@ -104,43 +87,8 @@ export class CollaborationController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    await this.owner(user.id, id);
-    const member =
-      dto.email === undefined
-        ? null
-        : await this.prisma.user.findFirst({ where: { email: dto.email, deletedAt: null } });
-    if (dto.email !== undefined && member === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'user_not_found', 'User was not found');
-    }
-    if (dto.token_id !== undefined) {
-      const token = await this.prisma.personalAccessToken.findFirst({
-        where: { id: dto.token_id, revokedAt: null, deletedAt: null },
-      });
-      if (token === null) {
-        throw new DomainException(HttpStatus.NOT_FOUND, 'token_not_found', 'Token was not found');
-      }
-    }
-    const row = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.projectMember.create({
-        data: {
-          ownerId: user.id,
-          projectId: id,
-          memberId: member?.id ?? null,
-          tokenId: dto.token_id ?? null,
-          permission: dto.permission,
-        },
-      });
-      await this.events.record(tx, actorOf(user), {
-        type: DomainEvent.projectShared,
-        entityType: 'project',
-        entityId: id,
-        action: 'updated',
-        data: asJson({ member_id: created.id, permission: dto.permission }),
-        previous: null,
-      });
-      return created;
-    });
-    respondJson(req, res, 201, { id: row.id, permission: row.permission }, false);
+    const result = await this.collaboration.share(user, id, dto);
+    respondJson(req, res, result.statusCode, result.body, false);
   }
 
   @Delete('projects/:id/members/:memberId')
@@ -152,11 +100,7 @@ export class CollaborationController {
     @Param('memberId', ParseUUIDPipe) memberId: string,
     @Res() res: Response,
   ): Promise<void> {
-    await this.owner(user.id, id);
-    await this.prisma.projectMember.updateMany({
-      where: { id: memberId, projectId: id },
-      data: { deletedAt: new Date() },
-    });
+    await this.collaboration.unshare(user, id, memberId);
     res.status(204).end();
   }
 
@@ -169,7 +113,7 @@ export class CollaborationController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    await this.can(user, id, 'read');
+    await this.collaboration.can(user, id, 'read');
     const row = await this.prisma.listPresence.upsert({
       where: { projectId_userId: { projectId: id, userId: user.id } },
       create: { projectId: id, userId: user.id, seenAt: new Date() },
@@ -199,7 +143,7 @@ export class CollaborationController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    await this.can(user, id, 'read');
+    await this.collaboration.can(user, id, 'read');
     const tasks = await this.prisma.task.findMany({
       where: { projectId: id, deletedAt: null },
       select: { id: true },
@@ -307,44 +251,12 @@ export class CollaborationController {
     respondJson(req, res, 200, { id: row.id, assignee_id: row.assigneeId }, false);
   }
 
-  private async owner(userId: string, projectId: string): Promise<void> {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, ownerId: userId, deletedAt: null },
-    });
-    if (project === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'project_not_found', 'List was not found');
-    }
-  }
-
-  private async can(user: AuthUser, projectId: string, action: 'read' | 'comment' | 'write') {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, deletedAt: null },
-    });
-    if (project === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'project_not_found', 'List was not found');
-    }
-    if (project.ownerId === user.id) {
-      return project;
-    }
-    const member = await this.prisma.projectMember.findFirst({
-      where: {
-        projectId,
-        deletedAt: null,
-        OR: [{ memberId: user.id }, ...(user.tokenId === null ? [] : [{ tokenId: user.tokenId }])],
-      },
-    });
-    if (member === null || !allows(member.permission, action)) {
-      throw new DomainException(HttpStatus.FORBIDDEN, 'forbidden', 'Not allowed on this list');
-    }
-    return project;
-  }
-
   private async task(user: AuthUser, taskId: string, action: 'read' | 'comment' | 'write') {
     const task = await this.prisma.task.findFirst({ where: { id: taskId, deletedAt: null } });
     if (task === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
-    await this.can(user, task.projectId, action);
+    await this.collaboration.can(user, task.projectId, action);
     return task;
   }
 }
