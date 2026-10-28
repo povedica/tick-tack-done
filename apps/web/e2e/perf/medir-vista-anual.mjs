@@ -12,8 +12,7 @@ const dist = process.env.DIST ?? path.resolve(here, '../../dist');
 const runs = Number(process.env.RUNS ?? 3);
 const cpuRate = Number(process.env.CPU ?? 4);
 const port = Number(process.env.PORT ?? 4187);
-const chrome =
-  process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const chrome = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 const SENTINEL_2026 = '15 de junio de 2026, 1 elemento';
 const SENTINEL_2027 = '15 de junio de 2027, 1 elemento';
@@ -63,11 +62,15 @@ function buildFixtures() {
     const month = (index % 12) + 1;
     if (month === 6 && day === 15) continue;
     const iso = `2026-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T09:00:00Z`;
-    tasks.push(task(`task-${String(index)}`, iso, { project_id: index % 2 === 0 ? 'list' : 'other' }));
+    tasks.push(
+      task(`task-${String(index)}`, iso, { project_id: index % 2 === 0 ? 'list' : 'other' }),
+    );
   }
   while (tasks.length < 70) {
     const n = tasks.length;
-    tasks.push(task(`pad-${String(n)}`, `2026-08-${String((n % 27) + 1).padStart(2, '0')}T11:00:00Z`));
+    tasks.push(
+      task(`pad-${String(n)}`, `2026-08-${String((n % 27) + 1).padStart(2, '0')}T11:00:00Z`),
+    );
   }
 
   const external = [];
@@ -128,16 +131,39 @@ function apiBody(pathname) {
   if (pathname === '/api/v1/projects') {
     return {
       items: [
-        { id: 'list', name: 'Lista', color: '#4772fa', is_inbox: true, kind: 'list', sort_order: '1' },
-        { id: 'other', name: 'Otra', color: '#b45309', is_inbox: false, kind: 'list', sort_order: '2' },
-        { id: 'sentinel', name: 'Centinela', color: '#ff00aa', is_inbox: false, kind: 'list', sort_order: '3' },
+        {
+          id: 'list',
+          name: 'Lista',
+          color: '#4772fa',
+          is_inbox: true,
+          kind: 'list',
+          sort_order: '1',
+        },
+        {
+          id: 'other',
+          name: 'Otra',
+          color: '#b45309',
+          is_inbox: false,
+          kind: 'list',
+          sort_order: '2',
+        },
+        {
+          id: 'sentinel',
+          name: 'Centinela',
+          color: '#ff00aa',
+          is_inbox: false,
+          kind: 'list',
+          sort_order: '3',
+        },
       ],
       next_cursor: null,
     };
   }
   if (pathname === '/api/v1/calendar/subscriptions') {
     return {
-      items: [{ id: 'cal', summary: 'Sintético', visible: true, color: '#4772fa', provider: 'google' }],
+      items: [
+        { id: 'cal', summary: 'Sintético', visible: true, color: '#4772fa', provider: 'google' },
+      ],
       next_cursor: null,
     };
   }
