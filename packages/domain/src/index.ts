@@ -108,6 +108,7 @@ export {
   matchesSmartList,
   pageTaskGroups,
   parseFilterRules,
+  requireConditions,
   parseSearchQuery,
   parseTaskView,
   RECENT_WINDOW_DAYS,

@@ -7,6 +7,7 @@ import {
   matchesSmartList,
   pageTaskGroups,
   parseFilterRules,
+  requireConditions,
   parseSearchQuery,
   parseTaskView,
   savedFilterClause,
@@ -80,6 +81,41 @@ describe('filter grammar', () => {
     };
     expect(parseFilterRules(advanced, 'advanced').ok).toBe(true);
     expect(parseFilterRules(advanced, 'normal')).toEqual({ ok: false, reason: 'normal_shape' });
+  });
+
+  it('TTD-FIL-08: requireConditions rejects an empty filter, an empty group, and accepts a real one', () => {
+    const keyword = {
+      field: 'keyword' as const,
+      op: 'contains' as const,
+      value: 'informe',
+    };
+    expect(
+      requireConditions({
+        combinator: 'AND',
+        groups: [{ combinator: 'AND', conditions: [] }],
+      }),
+    ).toEqual({ ok: false, reason: 'empty_filter' });
+    expect(
+      requireConditions({
+        combinator: 'AND',
+        groups: [],
+      }),
+    ).toEqual({ ok: false, reason: 'empty_filter' });
+    expect(
+      requireConditions({
+        combinator: 'OR',
+        groups: [
+          { combinator: 'AND', conditions: [keyword] },
+          { combinator: 'OR', conditions: [] },
+        ],
+      }),
+    ).toEqual({ ok: false, reason: 'empty_group' });
+    expect(
+      requireConditions({
+        combinator: 'AND',
+        groups: [{ combinator: 'AND', conditions: [keyword] }],
+      }),
+    ).toEqual({ ok: true });
   });
 
   it('RF-902: rejects an empty keyword, a reversed range and an unknown field', () => {

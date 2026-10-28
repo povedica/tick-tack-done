@@ -47,6 +47,20 @@ export function parseFilterRules(value: unknown, mode: FilterMode): FilterParse 
   return { ok: true, rules: { combinator, groups } };
 }
 
+/** Rejects a saved filter with no conditions, or an advanced group that has none. */
+export function requireConditions(
+  rules: FilterRules,
+): { readonly ok: true } | { readonly ok: false; readonly reason: 'empty_filter' | 'empty_group' } {
+  const total = rules.groups.reduce((sum, group) => sum + group.conditions.length, 0);
+  if (total === 0) {
+    return { ok: false, reason: 'empty_filter' };
+  }
+  if (rules.groups.some((group) => group.conditions.length === 0)) {
+    return { ok: false, reason: 'empty_group' };
+  }
+  return { ok: true };
+}
+
 function parseGroup(
   value: unknown,
 ): { ok: true; group: FilterGroup } | { ok: false; reason: string } {
