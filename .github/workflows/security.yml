@@ -29,6 +29,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   codeql:
+    # Code scanning no está disponible en este repositorio privado (la API
+    # responde 403). Volver a activar el job cuando el repo sea público o
+    # pertenezca a una organización con GitHub Code Security.
+    if: false
     runs-on: ubuntu-latest
     permissions:
       security-events: write
