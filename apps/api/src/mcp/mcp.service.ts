@@ -237,7 +237,9 @@ export class McpService {
       const record = response as { data: { capture_settings: unknown } };
       data = record.data.capture_settings;
     } else data = await this.run(user, tool.name, args, authorization);
-    if (tool.name.startsWith('list_')) data = listResult(data, args);
+    if (tool.name.startsWith('list_') && tool.name !== 'list_project_members') {
+      data = listResult(data, args);
+    }
     if (args.include_activity !== 'full') data = summarizeActivity(data, tool.name === 'get_task');
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
