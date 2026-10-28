@@ -1,5 +1,6 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { allows, type SharePermission } from '@reflexionia/domain';
+import type { Project } from '@prisma/client';
+import { allows, projectConstraint, type SharePermission } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
@@ -13,11 +14,14 @@ export interface ShareInput {
   readonly permission: SharePermission;
 }
 
+export type ShareChange = 'created' | 'updated' | 'unchanged';
+
 export interface ShareResult {
   readonly statusCode: number;
   readonly body: {
     readonly id: string;
     readonly permission: SharePermission;
+    readonly changed: ShareChange;
   };
 }
 
@@ -46,7 +50,14 @@ export class CollaborationService {
   }
 
   async share(user: AuthUser, id: string, dto: ShareInput): Promise<ShareResult> {
-    await this.owner(user, id);
+    const project = await this.owner(user, id);
+    if (project.isInbox) {
+      throw new DomainException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'inbox_not_shareable',
+        'The inbox cannot be shared',
+      );
+    }
     const member =
       dto.email === undefined
         ? null
@@ -56,13 +67,51 @@ export class CollaborationService {
     }
     if (dto.token_id !== undefined) {
       const token = await this.prisma.personalAccessToken.findFirst({
-        where: { id: dto.token_id, revokedAt: null, deletedAt: null },
+        where: { id: dto.token_id, ownerId: user.id, revokedAt: null, deletedAt: null },
       });
       if (token === null) {
         throw new DomainException(HttpStatus.NOT_FOUND, 'token_not_found', 'Token was not found');
       }
     }
-    const row = await this.prisma.$transaction(async (tx) => {
+    const match =
+      member === null && dto.token_id === undefined
+        ? []
+        : [
+            ...(member === null ? [] : [{ memberId: member.id }]),
+            ...(dto.token_id === undefined ? [] : [{ tokenId: dto.token_id }]),
+          ];
+    return this.prisma.$transaction(async (tx) => {
+      const existing =
+        match.length === 0
+          ? null
+          : await tx.projectMember.findFirst({
+              where: { projectId: id, deletedAt: null, OR: match },
+              orderBy: { updatedAt: 'desc' },
+            });
+      if (existing !== null && existing.permission === dto.permission) {
+        return {
+          statusCode: 200,
+          body: { id: existing.id, permission: existing.permission, changed: 'unchanged' },
+        };
+      }
+      if (existing !== null) {
+        const saved = await tx.projectMember.update({
+          where: { id: existing.id },
+          data: { permission: dto.permission },
+        });
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.projectShared,
+          entityType: 'project',
+          entityId: id,
+          action: 'updated',
+          data: asJson({ member_id: saved.id, permission: dto.permission }),
+          previous: asJson({ permission: existing.permission }),
+        });
+        return {
+          statusCode: 200,
+          body: { id: saved.id, permission: saved.permission, changed: 'updated' },
+        };
+      }
       const created = await tx.projectMember.create({
         data: {
           ownerId: user.id,
@@ -80,31 +129,39 @@ export class CollaborationService {
         data: asJson({ member_id: created.id, permission: dto.permission }),
         previous: null,
       });
-      return created;
+      return {
+        statusCode: 201,
+        body: { id: created.id, permission: created.permission, changed: 'created' },
+      };
     });
-    return { statusCode: 201, body: { id: row.id, permission: row.permission } };
   }
 
   async unshare(user: AuthUser, id: string, memberId: string): Promise<void> {
     await this.owner(user, id);
-    await this.prisma.projectMember.updateMany({
-      where: { id: memberId, projectId: id },
+    const updated = await this.prisma.projectMember.updateMany({
+      where: { id: memberId, projectId: id, deletedAt: null },
       data: { deletedAt: new Date() },
     });
+    if (updated.count === 0) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'member_not_found', 'Member was not found');
+    }
   }
 
-  async owner(user: AuthUser, projectId: string): Promise<void> {
+  async owner(user: AuthUser, projectId: string): Promise<Project> {
+    const gate = projectConstraint(user.listIds, projectId);
     const project = await this.prisma.project.findFirst({
-      where: { id: projectId, ownerId: user.id, deletedAt: null },
+      where: { id: gate.id ?? projectId, ownerId: user.id, deletedAt: null },
     });
     if (project === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'project_not_found', 'List was not found');
     }
+    return project;
   }
 
   async can(user: AuthUser, projectId: string, action: 'read' | 'comment' | 'write') {
+    const gate = projectConstraint(user.listIds, projectId);
     const project = await this.prisma.project.findFirst({
-      where: { id: projectId, deletedAt: null },
+      where: { id: gate.id ?? projectId, deletedAt: null },
     });
     if (project === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'project_not_found', 'List was not found');
