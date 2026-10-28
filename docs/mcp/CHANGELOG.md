@@ -1,5 +1,13 @@
 # MCP · cambios
 
+## Compartir listas
+
+- `list_project_members` (`lists:read`) devuelve los miembros igual que `GET /projects/{id}/members`.
+- `share_project` (`lists:write`) comparte por email en dos pasos. Sin `confirm:true` no crea nada y la vista previa no dice si el email tiene cuenta. Con `confirm:true` responde `{shared, member_id, permission, changed}`.
+- `unshare_project` (`lists:write`) quita un miembro. Si no hay fila activa, el error es `member_not_found`.
+- `POST /projects/{id}/members` ya no responde siempre 201. Crea con 201 (`changed: created`), actualiza el permiso con 200 (`updated`) y, si el permiso es el mismo, responde 200 (`unchanged`). El cuerpo es `{id, permission, changed}`.
+- La Bandeja no se puede compartir (`422 inbox_not_shareable`). Un `token_id` tiene que ser de un token activo del dueño.
+
 ## Carpetas y proyectos
 
 - `list_folders`, `create_folder`, `update_folder` y `delete_folder` (`lists:read` / `lists:write`).
