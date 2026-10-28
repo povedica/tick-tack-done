@@ -22,6 +22,7 @@ import {
 import { TokenAudit } from './token-audit.js';
 import { createHash } from 'node:crypto';
 import { dayKey } from '@reflexionia/domain';
+import { beginAuth, endAuth } from '../observability/request-timing.js';
 import { applyRateLimitHeaders, TokenRateLimiter } from './token-rate-limit.js';
 import { trustedMcpSource } from '../mcp/internal-source.js';
 import { hashPersonalAccessToken, parseBearer } from './token-secret.js';
@@ -62,8 +63,16 @@ export class ApiAuthGuard implements CanActivate {
     if (isPublic) {
       return true;
     }
-    const scopes = required ?? [];
+    beginAuth();
+    const authStarted = performance.now();
+    try {
+      return await this.authorize(context, required ?? []);
+    } finally {
+      endAuth(performance.now() - authStarted);
+    }
+  }
 
+  private async authorize(context: ExecutionContext, scopes: readonly string[]): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request & { user?: AuthUser }>();
     const response = context.switchToHttp().getResponse<Response>();
     const bearer = parseBearer(request.header('authorization'));

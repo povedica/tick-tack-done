@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## Medición del calendario (F1)
+
+- Cada respuesta `/api/*` lleva `Server-Timing` (`auth`, `db` con el número de
+  consultas, `app`, `total`). Una consulta de más de 50 ms o una petición de
+  más de 200 ms queda en el log con `X-Request-Id`, sin datos personales.
+- `scripts/seed-perf.ts` solo escribe en Postgres efímero (`reflexionia_perf`).
+  `TOKEN_RATE_LIMIT_TEST` no existe en producción.
+- La línea base se reproduce con `pnpm perf:baseline`.
+
 ## Revisión del paquete de listas
 
 - Planificar un día completo conserva la estimación de esfuerzo. Antes se

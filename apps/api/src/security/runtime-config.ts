@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { resolveTokenRateLimit } from '../auth/token-rate-limit.js';
 import { emailConfigured } from '../mail/send-email.js';
 
 const EXAMPLE_SECRETS = [
@@ -12,6 +13,7 @@ export function assertRuntimeConfig(): void {
   if (process.env.NODE_ENV !== 'production') {
     return;
   }
+  resolveTokenRateLimit();
   if (process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_WEBHOOK_SECRET) {
     new Logger('RuntimeConfig').warn(
       'Variables de Telegram heredadas ignoradas: Telegram es por usuario.',

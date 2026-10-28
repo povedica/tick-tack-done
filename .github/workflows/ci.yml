@@ -122,3 +122,77 @@ jobs:
             apps/web/test-results
             test-artifacts/audit/r80/98-waterfall-despues-*.json
           retention-days: 14
+
+  perf-k6:
+    # F1. Ephemeral Postgres only. TOKEN_RATE_LIMIT_TEST is refused when NODE_ENV=production.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: postgresql://reflexionia:ci@localhost:5432/reflexionia_perf
+      REDIS_URL: redis://localhost:6379
+      PERF_SEED: ephemeral
+      PERF_PROFILE: x100
+      NODE_ENV: development
+      AUTH_MODE: session
+      BUS_AUTOSTART: 'false'
+      SCHEDULER_AUTOSTART: 'false'
+      TOKEN_RATE_LIMIT_TEST: '100000'
+      PORT: '3000'
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: reflexionia
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: reflexionia_perf
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U reflexionia"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @reflexionia/domain build
+      - run: pnpm db:deploy
+      - name: Install k6
+        run: |
+          curl --fail --silent --show-error --location --output k6.tar.gz https://github.com/grafana/k6/releases/download/v0.57.0/k6-v0.57.0-linux-amd64.tar.gz
+          tar --extract --gzip --file k6.tar.gz
+          sudo mv k6-v0.57.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Seed and measure the year view
+        run: |
+          password="$(openssl rand -hex 18)"
+          export PERF_SEED_PASSWORD="$password"
+          export PERF_MANIFEST="$RUNNER_TEMP/manifest.json"
+          export PERF_TOKEN_FILE="$RUNNER_TEMP/token"
+          export PERF_SESSION_FILE="$RUNNER_TEMP/session.json"
+          pnpm --filter api exec tsx ../../scripts/seed-perf.ts
+          pnpm --filter api build
+          pnpm --filter api start >"$RUNNER_TEMP/api.log" 2>&1 &
+          for _ in $(seq 1 40); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:3000/api/v1/health; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent --output /dev/null http://127.0.0.1:3000/api/v1/health
+          TTD_TOKEN="$(cat "$PERF_TOKEN_FILE")" \
+            TTD_BASE=http://127.0.0.1:3000 \
+            TTD_MANIFEST="$PERF_MANIFEST" \
+            TTD_SUMMARY_PATH="$RUNNER_TEMP/k6.json" \
+            TTD_OPENS=8 \
+            k6 run scripts/perf/k6-vista-anual.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf-k6-summary
+          path: ${{ runner.temp }}/k6.json
+          retention-days: 14

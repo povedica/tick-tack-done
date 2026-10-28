@@ -21,6 +21,7 @@
     "test": "bash scripts/with-node.sh sh -c \"pnpm --filter @reflexionia/domain build && pnpm -r --filter '!reflexionia-tasks' test\"",
     "test:integration": "bash scripts/with-node.sh pnpm --filter api test:integration",
     "test:e2e": "pnpm --filter web test:e2e",
+    "perf:baseline": "bash scripts/perf-baseline.sh",
     "db:migrate": "bash scripts/with-node.sh pnpm --filter api exec prisma migrate dev",
     "db:deploy": "bash scripts/with-node.sh pnpm --filter api exec prisma migrate deploy",
     "db:seed": "bash scripts/with-node.sh pnpm --filter api seed",

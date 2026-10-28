@@ -9,6 +9,12 @@ import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { oauthEdgeMiddleware } from './auth/oauth-edge.js';
 import { ApiExceptionFilter } from './http/api-exception.filter.js';
+import {
+  createRequestStore,
+  enterRequest,
+  installServerTiming,
+  normalizeRoute,
+} from './observability/request-timing.js';
 import { isPublicOperation } from './security/public-operations.js';
 import { trustProxyHops } from './security/runtime-config.js';
 
@@ -48,6 +54,11 @@ export function configureApp(app: INestApplication): void {
     const incoming = req.header('x-request-id');
     const requestId = incoming !== undefined && REQUEST_ID.test(incoming) ? incoming : randomUUID();
     res.setHeader('X-Request-Id', requestId);
+    if (path.startsWith('/api/')) {
+      const store = createRequestStore(requestId, normalizeRoute(req.method, path));
+      enterRequest(store);
+      installServerTiming(res, store);
+    }
     next();
   });
   app.useGlobalPipes(

@@ -11,7 +11,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig(({ mode }) => {
   // Worktrees set VITE_API_PROXY in the repo-root .env. The main checkout keeps :3000.
   const env = loadEnv(mode, path.resolve(root, '../..'), '');
-  const api = env.VITE_API_PROXY || 'http://localhost:3000';
+  const api = process.env.VITE_API_PROXY || env.VITE_API_PROXY || 'http://localhost:3000';
 
   let commit = process.env.GIT_COMMIT || env.GIT_COMMIT || 'unknown';
   if (commit === 'unknown') {
@@ -127,6 +127,14 @@ export default defineConfig(({ mode }) => {
         process.env.CHOKIDAR_USEPOLLING === 'true'
           ? { usePolling: true, interval: 300 }
           : undefined,
+      proxy: {
+        '/api': api,
+        '/mcp': api,
+      },
+    },
+    preview: {
+      // The baseline reaches this server as https://perf-web. Vite 6 blocks other hosts.
+      allowedHosts: ['perf-web', 'localhost', '127.0.0.1'],
       proxy: {
         '/api': api,
         '/mcp': api,
