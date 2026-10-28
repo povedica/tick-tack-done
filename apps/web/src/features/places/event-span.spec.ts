@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { eventDayRange, eventSpan, isSpanningEvent } from './event-span';
 import type { ExternalEventView } from '../calendar/ExternalEvent';
 
@@ -68,4 +68,23 @@ it('RF-1103: timed events use the viewer zone while all-day dates survive DST', 
       'America/New_York',
     ),
   ).toEqual({ start: '2026-10-25', end: '2026-10-25' });
+});
+
+it('creates at most one Intl.DateTimeFormat across 10_000 calls on the same event', () => {
+  const sample = {
+    ...event,
+    id: 'memo',
+    is_all_day: false,
+    starts_at: '2026-06-15T10:00:00Z',
+    ends_at: '2026-06-15T11:00:00Z',
+  };
+  const spy = vi.spyOn(Intl, 'DateTimeFormat');
+  try {
+    for (let call = 0; call < 10_000; call += 1) {
+      eventDayRange(sample);
+    }
+    expect(spy.mock.calls.length).toBeLessThanOrEqual(1);
+  } finally {
+    spy.mockRestore();
+  }
 });
