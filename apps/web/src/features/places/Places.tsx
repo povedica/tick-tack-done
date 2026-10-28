@@ -2723,11 +2723,6 @@ export function RegisterPage() {
   return <AuthNote title={messages.registerTitle} body={messages.registerDev} />;
 }
 
-export function ForgotPage() {
-  const messages = useMessages();
-  return <AuthNote title={messages.forgotTitle} body={messages.forgotDev} />;
-}
-
 export function AccountPage() {
   const messages = useMessages();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });

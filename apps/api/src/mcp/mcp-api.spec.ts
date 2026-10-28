@@ -34,6 +34,20 @@ it('RF-2001: preserves the bearer and returns HTTP authorization failures', asyn
     headers: { Authorization: 'Bearer caller' },
   });
 });
+it('RF-PR-11: rejects password reset and other auth routes for agents', async () => {
+  request.mockClear();
+  await expect(
+    requestPublicApi(
+      { method: 'POST', path: '/api/v1/auth/password-reset/request', body: { email: 'a@b.c' } },
+      'Bearer caller',
+    ),
+  ).rejects.toThrow('This API path is not available to agents');
+  await expect(
+    requestPublicApi({ method: 'POST', path: '/api/v1/auth/login' }, 'Bearer caller'),
+  ).rejects.toThrow('This API path is not available to agents');
+  expect(request).not.toHaveBeenCalled();
+});
+
 it.each([
   'https://evil.test/api/v1/tasks',
   '/api/v1/mcp',

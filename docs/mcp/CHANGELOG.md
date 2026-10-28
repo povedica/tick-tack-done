@@ -1,5 +1,10 @@
 # MCP · cambios
 
+## Restablecer contraseña
+
+- `api_request` rechaza `/api/v1/auth/*` salvo `GET /api/v1/auth/session` (D-5). El mensaje es `This API path is not available to agents`.
+- El catálogo generado ya no incluye login, registro ni `password-reset`.
+
 ## Carpetas y proyectos
 
 - `list_folders`, `create_folder`, `update_folder` y `delete_folder` (`lists:read` / `lists:write`).

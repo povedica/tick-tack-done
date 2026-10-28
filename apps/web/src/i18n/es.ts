@@ -312,6 +312,7 @@ export const es = {
     'No se ha podido comprobar la sesión. Revisa la conexión e inténtalo de nuevo.',
   registerTitle: 'Crear cuenta',
   forgotTitle: 'Recuperar contraseña',
+  resetTitle: 'Nueva contraseña',
   smartListsLink: 'Listas inteligentes',
   filtersLink: 'Filtros',
   tokensLink: 'Tokens',

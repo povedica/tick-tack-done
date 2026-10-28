@@ -308,6 +308,7 @@ export const en = {
   sessionNetworkError: 'Could not check the session. Check your connection and try again.',
   registerTitle: 'Create account',
   forgotTitle: 'Reset password',
+  resetTitle: 'New password',
   smartListsLink: 'Smart lists',
   filtersLink: 'Filters',
   tokensLink: 'Tokens',

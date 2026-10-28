@@ -1,7 +1,7 @@
 import { runAction } from '../../components/run-action';
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
-import { createApiClient } from '@reflexionia/sdk';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { ApiError, createApiClient } from '@reflexionia/sdk';
 import { sessionMode } from '../../api';
 import { BrandMark } from '../../components/BrandMark';
 import { messagesFor, useMessages } from '../../i18n';
@@ -19,6 +19,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [failures, setFailures] = useState(0);
   const registrationOpen = useRegistrationOpen();
 
   async function submit(): Promise<void> {
@@ -26,10 +27,12 @@ export function LoginPage() {
     try {
       const session = await sessionApi.login({ email, password });
       markSession('authenticated', session.csrf_token);
+      setFailures(0);
       followOauthNext(next, () => {
         runAction(Promise.resolve(navigate('/today')));
       });
     } catch {
+      setFailures((count) => count + 1);
       setError(messages.loginFailed);
     }
   }
@@ -72,10 +75,21 @@ export function LoginPage() {
             }}
           />
         </label>
+        <Link className="auth-forgot" to="/forgot-password" state={{ email }}>
+          {messages.forgotLink}
+        </Link>
         <button type="submit">{messages.loginTitle}</button>
         {error !== null ? (
           <p className="error" role="alert">
             {error}
+            {failures >= 2 ? (
+              <>
+                {' '}
+                <Link to="/forgot-password" state={{ email }}>
+                  {messages.forgotLink}
+                </Link>
+              </>
+            ) : null}
           </p>
         ) : null}
       </form>
@@ -171,6 +185,393 @@ export function RegisterPage() {
   );
 }
 
+export function ForgotPasswordPage() {
+  const messages = messagesFor(navigator.language);
+  const location = useLocation();
+  const seeded = emailFromState(location.state);
+  const [email, setEmail] = useState(seeded);
+  const [phase, setPhase] = useState<'form' | 'sent' | 'limited'>('form');
+  const [sending, setSending] = useState(false);
+  const [sends, setSends] = useState(0);
+  const [wait, setWait] = useState(0);
+  const [retryMinutes, setRetryMinutes] = useState(1);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, [phase]);
+
+  useEffect(() => {
+    if (wait <= 0) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setWait((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [wait]);
+
+  async function submit(): Promise<void> {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setPhase('form');
+      return;
+    }
+    setSending(true);
+    try {
+      await sessionApi.requestPasswordReset({
+        email,
+        locale: messages === messagesFor('en') ? 'en' : 'es',
+      });
+      setSends((count) => count + 1);
+      setWait(60);
+      setPhase('sent');
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 429) {
+        const minutes = retryMinutesOf(error);
+        setRetryMinutes(minutes);
+        setPhase('limited');
+      } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setPhase('form');
+      } else {
+        setSends((count) => count + 1);
+        setWait(60);
+        setPhase('sent');
+      }
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const title =
+    phase === 'sent'
+      ? messages.forgotSentTitle
+      : phase === 'limited'
+        ? messages.forgotTitle
+        : messages.forgotTitle;
+
+  return (
+    <AuthCard title={title} titleRef={titleRef}>
+      {phase === 'limited' ? (
+        <p role="alert">{fill(messages.forgotRateLimited, { minutes: String(retryMinutes) })}</p>
+      ) : null}
+      {phase === 'sent' ? (
+        <div aria-live="polite">
+          <p>{fill(messages.forgotSentBody, { email })}</p>
+          <p>{fill(messages.forgotSentHint, { minutes: '30' })}</p>
+          {sends < 3 ? (
+            <p>
+              {messages.forgotSpamHint}{' '}
+              {wait > 0 ? (
+                <span>{fill(messages.forgotResendIn, { seconds: String(wait) })}</span>
+              ) : (
+                <button
+                  type="button"
+                  className="auth-reveal"
+                  onClick={() => {
+                    runAction(submit());
+                  }}
+                >
+                  {messages.forgotResend}
+                </button>
+              )}
+            </p>
+          ) : (
+            <p>{messages.forgotSpamHint}</p>
+          )}
+        </div>
+      ) : (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            runAction(submit());
+          }}
+        >
+          <p>{messages.forgotIntro}</p>
+          {typeof navigator !== 'undefined' && !navigator.onLine ? (
+            <p role="alert">{messages.offlineAction}</p>
+          ) : null}
+          <label>
+            {messages.email}
+            <input
+              type="email"
+              value={email}
+              autoComplete="email"
+              inputMode="email"
+              autoFocus={email.length === 0}
+              onChange={(event) => {
+                setEmail(event.target.value);
+              }}
+            />
+          </label>
+          <button type="submit" disabled={sending || !navigator.onLine}>
+            {sending ? messages.forgotSending : messages.forgotSubmit}
+          </button>
+        </form>
+      )}
+      <Link to="/login">{messages.backToLogin}</Link>
+    </AuthCard>
+  );
+}
+
+export function ResetPasswordPage() {
+  const messages = messagesFor(navigator.language);
+  const navigate = useNavigate();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const [token] = useState(consumeResetToken);
+  const [phase, setPhase] = useState<'checking' | 'form' | 'done' | 'expired'>('checking');
+  const [totpRequired, setTotpRequired] = useState(false);
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [password, setPassword] = useState('');
+  const [repeat, setRepeat] = useState('');
+  const [code, setCode] = useState('');
+  const [visible, setVisible] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    const meta = document.createElement('meta');
+    meta.name = 'referrer';
+    meta.content = 'no-referrer';
+    document.head.append(meta);
+    return () => {
+      meta.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, [phase]);
+
+  useEffect(() => {
+    if (token.length < 43) {
+      setPhase('expired');
+      return;
+    }
+    if (!navigator.onLine) {
+      setOffline(true);
+      setPhase('expired');
+      return;
+    }
+    let live = true;
+    void sessionApi
+      .verifyPasswordReset({ token })
+      .then((result) => {
+        if (!live) {
+          return;
+        }
+        setTotpRequired(result.totp_required);
+        setPhase('form');
+      })
+      .catch(() => {
+        if (live) {
+          setPhase('expired');
+        }
+      });
+    return () => {
+      live = false;
+    };
+  }, [token]);
+
+  async function submit(): Promise<void> {
+    setError(null);
+    if (!navigator.onLine) {
+      setOffline(true);
+      return;
+    }
+    if (password.length < 10 || password !== repeat) {
+      setError(password.length < 10 ? messages.resetMinLength : messages.resetMismatch);
+      return;
+    }
+    try {
+      await sessionApi.confirmPasswordReset({
+        token,
+        new_password: password,
+        ...(totpRequired && !useRecovery ? { totp_code: code } : {}),
+        ...(totpRequired && useRecovery ? { recovery_code: code } : {}),
+      });
+      setPhase('done');
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === 'password_reused') {
+        setError(messages.resetPasswordReused);
+        return;
+      }
+      if (caught instanceof ApiError && caught.code === 'password_too_common') {
+        setError(messages.resetPasswordTooCommon);
+        return;
+      }
+      if (
+        caught instanceof ApiError &&
+        (caught.code === 'invalid_totp' || caught.code === 'totp_required')
+      ) {
+        setError(messages.resetInvalidTotp);
+        return;
+      }
+      if (caught instanceof ApiError && caught.code === 'reset_token_invalid') {
+        setPhase('expired');
+        return;
+      }
+      setError(messages.resetInvalidTotp);
+    }
+  }
+
+  const title =
+    phase === 'done'
+      ? messages.resetDoneTitle
+      : phase === 'expired'
+        ? messages.resetExpiredTitle
+        : phase === 'checking'
+          ? messages.resetChecking
+          : messages.resetTitle;
+
+  return (
+    <AuthCard title={title} titleRef={titleRef}>
+      {offline ? <p role="alert">{messages.offlineAction}</p> : null}
+      {phase === 'checking' ? <p aria-live="polite">{messages.resetChecking}</p> : null}
+      {phase === 'expired' ? (
+        <>
+          <p>{messages.resetExpiredBody}</p>
+          <Link to="/forgot-password">{messages.resetRequestAgain}</Link>
+          <Link to="/login">{messages.backToLogin}</Link>
+        </>
+      ) : null}
+      {phase === 'done' ? (
+        <>
+          <p>{messages.resetDoneBody}</p>
+          <button
+            type="submit"
+            onClick={() => {
+              runAction(Promise.resolve(navigate('/login')));
+            }}
+          >
+            {messages.loginTitle}
+          </button>
+        </>
+      ) : null}
+      {phase === 'form' ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            runAction(submit());
+          }}
+        >
+          <label>
+            {messages.resetNewPassword}
+            <span className="auth-password">
+              <input
+                type={visible ? 'text' : 'password'}
+                value={password}
+                autoComplete="new-password"
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                }}
+              />
+              <button
+                type="button"
+                className="auth-reveal"
+                aria-pressed={visible}
+                onClick={() => {
+                  setVisible((current) => !current);
+                }}
+              >
+                {visible ? messages.hidePassword : messages.showPassword}
+              </button>
+            </span>
+          </label>
+          <label>
+            {messages.resetRepeatPassword}
+            <input
+              type={visible ? 'text' : 'password'}
+              value={repeat}
+              autoComplete="new-password"
+              onChange={(event) => {
+                setRepeat(event.target.value);
+              }}
+            />
+          </label>
+          <p className="auth-help">{password.length >= 10 ? '✓' : messages.resetMinLength}</p>
+          {totpRequired ? (
+            <>
+              <label>
+                {useRecovery ? messages.resetRecoveryLabel : messages.resetTotpLabel}
+                <input
+                  value={code}
+                  inputMode={useRecovery ? 'text' : 'numeric'}
+                  autoComplete="one-time-code"
+                  maxLength={useRecovery ? 20 : 6}
+                  onChange={(event) => {
+                    setCode(event.target.value);
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="auth-reveal"
+                onClick={() => {
+                  setUseRecovery((current) => !current);
+                  setCode('');
+                }}
+              >
+                {useRecovery ? messages.resetUseTotp : messages.resetUseRecovery}
+              </button>
+            </>
+          ) : null}
+          {error !== null ? (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <button type="submit">{messages.resetSubmit}</button>
+          <p className="auth-help">{messages.resetSignOutNote}</p>
+        </form>
+      ) : null}
+    </AuthCard>
+  );
+}
+
+function consumeResetToken(): string {
+  const raw = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  const token = new URLSearchParams(raw).get('token') ?? '';
+  if (window.location.hash.length > 0) {
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${window.location.search}`,
+    );
+  }
+  return token;
+}
+
+function emailFromState(state: unknown): string {
+  if (
+    typeof state === 'object' &&
+    state !== null &&
+    'email' in state &&
+    typeof state.email === 'string'
+  ) {
+    return state.email;
+  }
+  return '';
+}
+
+function fill(template: string, values: Readonly<Record<string, string>>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
+}
+
+function retryMinutesOf(error: ApiError): number {
+  const details = error.details;
+  if (typeof details === 'object' && details !== null && 'retry_after' in details) {
+    const seconds = Number(details.retry_after);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return Math.max(1, Math.ceil(seconds / 60));
+    }
+  }
+  return 1;
+}
+
 function useRegistrationOpen(): boolean | null {
   const [open, setOpen] = useState<boolean | null>(null);
   useEffect(() => {
@@ -194,14 +595,24 @@ function useRegistrationOpen(): boolean | null {
   return open;
 }
 
-function AuthCard({ title, children }: { readonly title: string; readonly children: ReactNode }) {
+function AuthCard({
+  title,
+  children,
+  titleRef,
+}: {
+  readonly title: string;
+  readonly children: ReactNode;
+  readonly titleRef?: { current: HTMLHeadingElement | null };
+}) {
   const m = useMessages();
   return (
     <main className="auth-screen">
       <section className="auth-card">
         <header className="auth-brand">
           <BrandMark size={64} />
-          <h1>{title}</h1>
+          <h1 tabIndex={-1} ref={titleRef}>
+            {title}
+          </h1>
         </header>
         {children}
         <nav>

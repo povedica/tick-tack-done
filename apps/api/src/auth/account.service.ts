@@ -1,12 +1,16 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { actorOf, type AuthUser } from './auth-user.js';
 import type { ChangePasswordDto, DeleteMeDto } from './me.dto.js';
+import { isCommonPassword } from './common-passwords.js';
 import { hashPassword, verifyPassword } from './passwords.js';
+import { publicOrigin } from './public-origin.js';
 import { requireBrowserSession } from './session-access.js';
 import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { renderPasswordChanged } from '../mail/templates/password-reset.js';
+import { sendEmail } from '../mail/send-email.js';
 import { sendSecurityNotice } from '../security/security-mail.js';
 import { TotpService } from './totp.controller.js';
 
@@ -18,7 +22,11 @@ export class AccountService {
     @Inject(TotpService) private readonly totp: TotpService,
   ) {}
 
-  async changePassword(user: AuthUser, dto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    user: AuthUser,
+    dto: ChangePasswordDto,
+    meta: { ip: string | null; userAgent: string | null } = { ip: null, userAgent: null },
+  ): Promise<void> {
     requireBrowserSession(user);
     if (dto.current_password === dto.new_password) {
       throw new DomainException(
@@ -27,9 +35,22 @@ export class AccountService {
         'Choose a different password',
       );
     }
+    if (isCommonPassword(dto.new_password)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'password_too_common',
+        'Choose a less common password',
+      );
+    }
     const row = await this.prisma.user.findFirst({
       where: { id: user.id, deletedAt: null },
-      select: { passwordHash: true, email: true },
+      select: {
+        passwordHash: true,
+        email: true,
+        locale: true,
+        timeZone: true,
+        displayName: true,
+      },
     });
     if (row?.passwordHash == null) {
       throw new DomainException(
@@ -47,6 +68,7 @@ export class AccountService {
       );
     }
     const passwordHash = await hashPassword(dto.new_password);
+    const now = new Date();
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
       await tx.session.updateMany({
@@ -55,7 +77,15 @@ export class AccountService {
           revokedAt: null,
           ...(user.sessionId === null ? {} : { id: { not: user.sessionId } }),
         },
-        data: { revokedAt: new Date() },
+        data: { revokedAt: now },
+      });
+      await tx.oauthRefreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      await tx.personalAccessToken.updateMany({
+        where: { ownerId: user.id, oauthClientId: { not: null }, revokedAt: null },
+        data: { revokedAt: now },
       });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.accountPasswordChanged,
@@ -66,11 +96,30 @@ export class AccountService {
         previous: null,
       });
     });
-    await sendSecurityNotice(
-      row.email,
-      'Password changed',
-      'The password on your account was changed. Other sessions were signed out. If this was not you, reset access from a device you still trust.',
-    );
+    const manuals = await this.prisma.personalAccessToken.findMany({
+      where: { ownerId: user.id, oauthClientId: null, revokedAt: null, deletedAt: null },
+      select: { name: true },
+    });
+    const locale = row.locale.toLowerCase().startsWith('en') ? 'en' : 'es';
+    const origin = publicOrigin();
+    const rendered = renderPasswordChanged({
+      locale,
+      displayName: row.displayName,
+      when: now,
+      timeZone: row.timeZone,
+      ip: meta.ip ?? 'unknown',
+      userAgent: meta.userAgent ?? 'unknown',
+      manualTokens: manuals.map((item) => item.name),
+      settingsUrl: `${origin}/settings/tokens`,
+      forgotUrl: `${origin}/forgot-password`,
+    });
+    await sendEmail({
+      to: row.email,
+      subject: rendered.subject,
+      text: rendered.text,
+      html: rendered.html,
+      idempotencyKey: `password-changed/${user.id}/${String(now.getTime())}`,
+    });
   }
 
   async delete(user: AuthUser, dto: DeleteMeDto): Promise<void> {
@@ -153,6 +202,7 @@ export class AccountService {
       await tx.weeklyReport.deleteMany({ where: { ownerId } });
       await tx.focusSettings.deleteMany({ where: { userId: ownerId } });
       await tx.session.deleteMany({ where: { userId: ownerId } });
+      await tx.passwordResetToken.deleteMany({ where: { userId: ownerId } });
       await tx.oauthAuthorizationCode.deleteMany({ where: { userId: ownerId } });
       await tx.oauthClient.deleteMany({ where: { ownerId } });
       await tx.telegramBotConfiguration.deleteMany({ where: { ownerId } });

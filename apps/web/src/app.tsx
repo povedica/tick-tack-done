@@ -33,7 +33,6 @@ import {
   AccountPage,
   CalendarPage,
   CaptureSettings,
-  ForgotPage,
   InboxPage,
   MatrixPage,
   NoteRoute,
@@ -64,7 +63,12 @@ import { AppearancePage } from './features/settings/AppearancePage';
 import { FeaturesPage } from './features/settings/FeaturesPage';
 import { featureFlags, useFeatures, type FeatureFlags } from './features/settings/feature-flags';
 import { ConsentPage } from './features/auth/ConsentPage';
-import { LoginPage, RegisterPage } from './features/auth/AuthPages';
+import {
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+} from './features/auth/AuthPages';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
 import { RepeatPage } from './features/repeat/RepeatPage';
 import { ShutdownPage } from './features/closing/ShutdownPage';
@@ -122,7 +126,8 @@ function Shell() {
         <Route path="/terms" element={<PolicyPage terms />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<RequireSession />}>
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/today" replace />} />

@@ -141,6 +141,20 @@ export interface ApiClient extends ResourceClient {
   revokeToken(id: string): Promise<void>;
   tokenActivity(id: string, query?: PageQuery): Promise<ActivityPage>;
   login(body: { email: string; password: string }): Promise<SessionBody>;
+  requestPasswordReset(body: {
+    email: string;
+    locale?: 'es' | 'en';
+    captcha_token?: string;
+  }): Promise<void>;
+  verifyPasswordReset(body: {
+    token: string;
+  }): Promise<{ valid: true; totp_required: boolean; expires_at: string }>;
+  confirmPasswordReset(body: {
+    token: string;
+    new_password: string;
+    totp_code?: string;
+    recovery_code?: string;
+  }): Promise<void>;
   register(body: { email: string; password: string; display_name: string }): Promise<SessionBody>;
   registrationOpen(): Promise<boolean>;
   currentSession(): Promise<SessionBody>;
@@ -419,6 +433,39 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     login(body) {
       return request(call, options, 'POST', '/api/v1/auth/login', body, undefined, isSession);
     },
+    async requestPasswordReset(body) {
+      await request(
+        call,
+        options,
+        'POST',
+        '/api/v1/auth/password-reset/request',
+        body,
+        undefined,
+        isResetAccepted,
+      );
+    },
+    verifyPasswordReset(body) {
+      return request(
+        call,
+        options,
+        'POST',
+        '/api/v1/auth/password-reset/verify',
+        body,
+        undefined,
+        isResetVerified,
+      );
+    },
+    async confirmPasswordReset(body) {
+      await request(
+        call,
+        options,
+        'POST',
+        '/api/v1/auth/password-reset/confirm',
+        body,
+        undefined,
+        isEmpty,
+      );
+    },
     register(body) {
       return request(call, options, 'POST', '/api/v1/auth/register', body, undefined, isSession);
     },
@@ -529,7 +576,7 @@ async function request<T>(
       options.onUnauthorized(path);
     }
     const error = readError(payload);
-    throw new ApiError(response.status, error.code, error.message);
+    throw new ApiError(response.status, error.code, error.message, error.details);
   }
   if (!parse(payload)) {
     throw new ApiError(response.status, 'request_failed', 'Response does not match the API');
@@ -537,14 +584,16 @@ async function request<T>(
   return payload;
 }
 
-function readError(value: unknown): { code: string; message: string } {
+function readError(value: unknown): { code: string; message: string; details: unknown } {
   if (typeof value !== 'object' || value === null) {
-    return { code: 'request_failed', message: 'Request failed' };
+    return { code: 'request_failed', message: 'Request failed', details: null };
   }
-  const error = (value as { error?: { code?: unknown; message?: unknown } }).error;
+  const error = (value as { error?: { code?: unknown; message?: unknown; details?: unknown } })
+    .error;
   return {
     code: typeof error?.code === 'string' ? error.code : 'request_failed',
     message: typeof error?.message === 'string' ? error.message : 'Request failed',
+    details: error?.details ?? null,
   };
 }
 
@@ -716,6 +765,27 @@ function isSyncPage(value: unknown): value is SyncPage {
   return (
     Array.isArray(page.changes) &&
     (page.next_cursor === null || typeof page.next_cursor === 'string')
+  );
+}
+
+function isResetAccepted(value: unknown): value is { status: 'accepted' } {
+  return (
+    typeof value === 'object' && value !== null && 'status' in value && value.status === 'accepted'
+  );
+}
+
+function isResetVerified(
+  value: unknown,
+): value is { valid: true; totp_required: boolean; expires_at: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'valid' in value &&
+    value.valid === true &&
+    'totp_required' in value &&
+    typeof value.totp_required === 'boolean' &&
+    'expires_at' in value &&
+    typeof value.expires_at === 'string'
   );
 }
 
