@@ -54,7 +54,9 @@ forbidden_path() {
 }
 
 forbidden_image() {
-  case "$1" in
+  local lower
+  lower="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$lower" in
     *.png | *.jpg | *.jpeg | *.gif | *.webp | *.ico) ;;
     *)
       return 1
@@ -68,6 +70,11 @@ forbidden_image() {
       return 0
       ;;
   esac
+}
+
+# ada@gmail.com is allowed in any letter case. Every other gmail address fails.
+disallowed_gmail() {
+  awk -v ok="$ALLOWED_GMAIL" 'NF { if (tolower($0) != ok) print }'
 }
 
 check_paths() {
@@ -100,7 +107,7 @@ check_index_content() {
   fi
 
   set +e
-  hits="$(git grep --cached -I -h -o -E '[A-Za-z0-9._%+-]+@gmail\.com' -- . ":(exclude)$SELF_REL" 2>/dev/null)"
+  hits="$(git grep --cached -I -i -h -o -E '[A-Za-z0-9._%+-]+@gmail\.com' -- . ":(exclude)$SELF_REL" 2>/dev/null)"
   status=$?
   set -e
   if [ "$status" -gt 1 ]; then
@@ -108,7 +115,7 @@ check_index_content() {
     return 1
   fi
   if [ "$status" -eq 0 ]; then
-    bad="$(printf '%s\n' "$hits" | awk -v ok="$ALLOWED_GMAIL" 'NF && $0 != ok { print }')"
+    bad="$(printf '%s\n' "$hits" | disallowed_gmail)"
     if [ -n "$bad" ]; then
       fail "disallowed gmail address in the index"
       return 1
@@ -118,9 +125,21 @@ check_index_content() {
 
 check_diff() {
   local base="$1"
-  local tmp path added bad
+  local tmp path status bad
+  if ! git rev-parse --verify --quiet "${base}^{commit}" >/dev/null; then
+    fail "diff base is not a commit: $base"
+    return 1
+  fi
   tmp="$(mktemp)"
+  set +e
   git diff -U0 --name-only --diff-filter=AM "$base" -- . ":(exclude)$SELF_REL" >"$tmp"
+  status=$?
+  set -e
+  if [ "$status" -ne 0 ]; then
+    rm -f "$tmp"
+    fail "could not list added or modified paths"
+    return 1
+  fi
   while IFS= read -r path; do
     [ -n "$path" ] || continue
     if forbidden_path "$path"; then
@@ -135,15 +154,23 @@ check_diff() {
     fi
   done <"$tmp"
 
+  set +e
   git diff -U0 --diff-filter=AM "$base" -- . ":(exclude)$SELF_REL" \
     | awk 'BEGIN { keep=0 } /^\+\+\+/ { next } /^\+/ { print substr($0, 2) }' >"$tmp"
+  status=$?
+  set -e
+  if [ "$status" -ne 0 ]; then
+    rm -f "$tmp"
+    fail "could not read added or modified lines"
+    return 1
+  fi
   if grep -F -q -- "$USERS_MARKER" "$tmp"; then
     rm -f "$tmp"
     fail "local home path in added or modified lines"
     return 1
   fi
-  bad="$(grep -o -E '[A-Za-z0-9._%+-]+@gmail\.com' "$tmp" || true)"
-  bad="$(printf '%s\n' "$bad" | awk -v ok="$ALLOWED_GMAIL" 'NF && $0 != ok { print }')"
+  bad="$(grep -i -o -E '[A-Za-z0-9._%+-]+@gmail\.com' "$tmp" || true)"
+  bad="$(printf '%s\n' "$bad" | disallowed_gmail)"
   rm -f "$tmp"
   if [ -n "$bad" ]; then
     fail "disallowed gmail address in added or modified lines"
@@ -214,22 +241,43 @@ self_test() {
   rm -rf "$dir"
 
   echo "case 3: another gmail address or a local home path fails"
-  dir="$(new_repo)"
-  printf '%s\n' "$OTHER_GMAIL" >"$dir/note.txt"
-  git -C "$dir" add note.txt
-  expect_fail "$dir" "case 3 gmail"
-  rm -rf "$dir"
+  local addr
+  for addr in "$OTHER_GMAIL" "other@Gmail.com" "other@GMAIL.COM"; do
+    dir="$(new_repo)"
+    printf '%s\n' "$addr" >"$dir/note.txt"
+    git -C "$dir" add note.txt
+    expect_fail "$dir" "case 3 gmail $addr"
+    rm -rf "$dir"
+  done
   dir="$(new_repo)"
   printf '%s\n' "${USERS_MARKER}hidden" >"$dir/note.txt"
   git -C "$dir" add note.txt
   expect_fail "$dir" "case 3 home"
   rm -rf "$dir"
+  for addr in capture.png capture.PNG; do
+    dir="$(new_repo)"
+    printf 'x\n' >"$dir/$addr"
+    git -C "$dir" add "$addr"
+    expect_fail "$dir" "case 3 image $addr"
+    rm -rf "$dir"
+  done
 
   echo "case 4: synthetic ada mailbox passes"
   dir="$(new_repo)"
-  printf '%s\n' "$ALLOWED_GMAIL" "ada@example.com" "test@example.test" >"$dir/calendar.txt"
+  printf '%s\n' "$ALLOWED_GMAIL" "ada@Gmail.com" "ada@GMAIL.COM" "ada@example.com" "test@example.test" >"$dir/calendar.txt"
   git -C "$dir" add calendar.txt
+  mkdir -p "$dir/apps/web/public"
+  printf 'x\n' >"$dir/apps/web/public/icon.PNG"
+  git -C "$dir" add apps/web/public/icon.PNG
   expect_pass "$dir" "case 4"
+  rm -rf "$dir"
+
+  echo "invalid diff base fails"
+  dir="$(new_repo)"
+  printf 'ok\n' >"$dir/note.txt"
+  git -C "$dir" add note.txt
+  commit_in "$dir" add
+  expect_fail "$dir" "invalid diff base" --diff-base nonexistent-review-base
   rm -rf "$dir"
 
   echo "case 5: this script passes"
