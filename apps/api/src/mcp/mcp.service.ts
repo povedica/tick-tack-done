@@ -37,6 +37,7 @@ import { SmartListsService } from '../modules/filters/smart-lists.service.js';
 import { CountdownsService } from '../modules/countdowns/countdowns.service.js';
 import { HabitsService } from '../modules/habits/habits.service.js';
 import { ListsService } from '../modules/lists/lists.service.js';
+import { CollaborationService } from '../modules/collaboration/collaboration.service.js';
 import { ProjectsOverviewService } from '../modules/lists/projects-overview.service.js';
 import { SearchService } from '../modules/search/search.service.js';
 import { TagsService } from '../modules/tags/tags.service.js';
@@ -89,6 +90,7 @@ export class McpService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(ProjectsOverviewService) private readonly projectOverview: ProjectsOverviewService,
+    @Inject(CollaborationService) private readonly collaboration: CollaborationService,
   ) {}
 
   async handle(user: AuthUser, body: unknown, authorization?: string): Promise<RpcResponse | null> {
@@ -880,6 +882,29 @@ export class McpService {
         return this.projectOverview.overview(user, stateOf(args));
       case 'mark_project_reviewed':
         return this.projectOverview.markReviewed(user, requiredUuidList(args, 'ids'));
+      case 'list_project_members':
+        return this.collaboration.members(user, requiredUuid(args, 'id'));
+      case 'share_project': {
+        const id = requiredUuid(args, 'id');
+        const email = requiredString(args, 'email', 320);
+        const permission = sharePermission(args.permission);
+        if (args.confirm !== true) {
+          return this.collaboration.previewShare(user, id, email, permission);
+        }
+        const shared = await this.collaboration.share(user, id, { email, permission });
+        return {
+          shared: true,
+          member_id: shared.body.id,
+          permission: shared.body.permission,
+          changed: shared.body.changed,
+        };
+      }
+      case 'unshare_project': {
+        const id = requiredUuid(args, 'id');
+        const memberId = requiredUuid(args, 'member_id');
+        await this.collaboration.unshare(user, id, memberId);
+        return { removed: true, member_id: memberId };
+      }
       case 'list_tags':
         return this.tags.list(user, limit, cursorOf(args));
       case 'create_tag':
@@ -1833,6 +1858,16 @@ function projectFields(args: Record<string, unknown>): {
     ...(outcome === undefined ? {} : { outcome }),
     ...(reminder === undefined ? {} : { default_reminder_trigger: reminder }),
   };
+}
+
+function sharePermission(value: unknown): 'read' | 'comment' | 'write' {
+  if (value === undefined) {
+    return 'read';
+  }
+  if (value === 'read' || value === 'comment' || value === 'write') {
+    return value;
+  }
+  throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'permission is invalid');
 }
 
 function requiredString(args: Record<string, unknown>, key: string, max: number): string {

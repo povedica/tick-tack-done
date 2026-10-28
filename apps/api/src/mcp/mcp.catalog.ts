@@ -948,6 +948,37 @@ const CATALOG: readonly McpTool[] = [
     ),
   },
   {
+    name: 'list_project_members',
+    description: 'List members of a shared list.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'share_project',
+    description:
+      "Share a list with another ttd user by email. Two steps: call without confirm to preview, then confirm=true. Never share without the owner's explicit OK.",
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        email: { type: 'string', format: 'email' },
+        permission: {
+          type: 'string',
+          enum: ['read', 'comment', 'write'],
+          default: 'read',
+        },
+        confirm: { type: 'boolean' },
+      },
+      ['id', 'email'],
+    ),
+  },
+  {
+    name: 'unshare_project',
+    description: 'Remove a member from a list you own.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id, member_id: id }, ['id', 'member_id']),
+  },
+  {
     name: 'list_tags',
     description: 'List tags.',
     scopes: ['tags:read'],
@@ -1246,6 +1277,9 @@ const CATALOG: readonly McpTool[] = [
   },
 ];
 
+/** Members follow GET /projects/{id}/members: one id, no page. */
+const UNPAGED_LIST_TOOLS = new Set(['list_project_members']);
+
 /** Every listing shares paging inputs; task activity defaults to a compact summary. */
 const ACTIVITY_TOOLS = new Set([
   'get_task',
@@ -1263,7 +1297,9 @@ export const MCP_TOOLS: readonly McpTool[] = CATALOG.map((tool) => ({
   inputSchema: {
     ...tool.inputSchema,
     properties: {
-      ...(tool.name.startsWith('list_') ? { limit, cursor } : {}),
+      ...(tool.name.startsWith('list_') && !UNPAGED_LIST_TOOLS.has(tool.name)
+        ? { limit, cursor }
+        : {}),
       ...(ACTIVITY_TOOLS.has(tool.name)
         ? {
             include_activity: {

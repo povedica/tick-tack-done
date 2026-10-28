@@ -191,4 +191,46 @@ export class CollaborationService {
     }
     return project;
   }
+
+  async previewShare(
+    user: AuthUser,
+    projectId: string,
+    email: string,
+    permission: SharePermission,
+  ) {
+    const project = await this.owner(user, projectId);
+    if (project.isInbox) {
+      throw new DomainException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'inbox_not_shareable',
+        'The inbox cannot be shared',
+      );
+    }
+    const account = await this.prisma.user.findFirst({
+      where: { email, deletedAt: null },
+      select: { id: true },
+    });
+    const existing =
+      account === null
+        ? null
+        : await this.prisma.projectMember.findFirst({
+            where: { projectId, memberId: account.id, deletedAt: null },
+            select: { id: true, permission: true },
+          });
+    const taskCount = await this.prisma.task.count({
+      where: { projectId, ownerId: user.id, deletedAt: null },
+    });
+    return {
+      shared: false as const,
+      preview: {
+        list_name: project.name,
+        task_count: taskCount,
+        email,
+        permission,
+        already_member:
+          existing === null ? null : { id: existing.id, permission: existing.permission },
+      },
+      hint: 'Call again with confirm=true to share.',
+    };
+  }
 }
