@@ -4,8 +4,8 @@ Cubre la aceptación desplegada de RF-2001/2002, RF-2003/2004/2005 y RF-802/804/
 
 ## Aislamiento
 
-- Directorio `/opt/todo-staging/app`, proyecto Compose `todo-staging`.
-- Secretos nuevos en `/opt/todo-staging/runtime/staging.env` (0600), fuera del código.
+- Directorio `<APP_DIR>`, proyecto Compose `todo-staging`.
+- Secretos nuevos en `<APP_DIR>` (0600), fuera del código.
 - PostgreSQL `ttd_staging`, volúmenes `todo-staging_pgdata` y `todo-staging_redisdata`.
 - Red privada interna y red `todo_staging_edge`; solo el proxy compartido se conecta a esta última. Sin puertos publicados.
 - Cookies `__Host-` sin Domain: la cookie de staging queda limitada a su host.
@@ -17,7 +17,7 @@ Cubre la aceptación desplegada de RF-2001/2002, RF-2003/2004/2005 y RF-802/804/
 
 Ejecutar `deploy.sh` con `RUNTIME_ENV_FILE` y `GIT_COMMIT` explícitos. El script construye secuencialmente y levanta solo el proyecto de staging. No activa ni reinicia el proxy.
 
-El Caddy compartido actual es 2.10.2 con `admin off`: no admite recarga por API ni SIGUSR1. Instalar `staging.caddy` en `/etc/caddy/sites/` y validar la configuración completa es seguro sin activarla; la activación requiere resolver esa limitación con Pablo antes de interrumpir el proxy compartido. No usar el reinicio automático de `deploy/production/deploy.sh` para staging.
+El Caddy compartido actual es 2.10.2 con `admin off`: no admite recarga por API ni SIGUSR1. Instalar `staging.caddy` en `<APP_DIR>` y validar la configuración completa es seguro sin activarla; la activación requiere resolver esa limitación con Pablo antes de interrumpir el proxy compartido. No usar el reinicio automático de `deploy/production/deploy.sh` para staging.
 
 ## Configuración externa pendiente
 
@@ -27,7 +27,7 @@ Configurar `TELEGRAM_BOT_TOKEN` y `TELEGRAM_WEBHOOK_SECRET` de un bot exclusivo 
 
 ## Retirada al terminar la aceptación
 
-1. Instalar `index.html` como `/etc/caddy/sites/staging-index.html` y sustituir únicamente `staging.caddy` por `retired.caddy`.
+1. Instalar `index.html` como `<APP_DIR>` y sustituir únicamente `staging.caddy` por `retired.caddy`.
 2. Validar y activar el proxy por el procedimiento acordado. Comprobar que el dominio sirve la página estática y producción sigue sana.
 3. Conservar evidencias saneadas fuera del repositorio. Ejecutar Compose con `-p todo-staging`, su archivo y su env: `down --volumes --remove-orphans`. Esto elimina exclusivamente los volúmenes sintéticos de staging.
 4. Desconectar el proxy de `todo_staging_edge` y retirar esa red y los secretos de staging cuando ya no se necesiten.

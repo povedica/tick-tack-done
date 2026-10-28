@@ -8,10 +8,10 @@ const night = { start: '22:00', end: '06:00', days: [1] };
 describe('work context', () => {
   it('isWorkTask: list, folder or any tag makes the task work', () => {
     const membership = {
-      workFolderIds: ['folder-vass'],
+      workFolderIds: ['folder-work'],
       workProjectIds: ['list-notes'],
       workTagIds: ['tag-curro'],
-      folderOf: (projectId: string) => (projectId === 'list-trabajo' ? 'folder-vass' : null),
+      folderOf: (projectId: string) => (projectId === 'list-trabajo' ? 'folder-work' : null),
     };
     expect(isWorkTask({ projectId: 'list-notes', tagIds: [] }, membership)).toBe(true);
     expect(isWorkTask({ projectId: 'list-trabajo', tagIds: [] }, membership)).toBe(true);
