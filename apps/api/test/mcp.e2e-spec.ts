@@ -1135,9 +1135,6 @@ describe('MCP server', () => {
         name: tool.name,
         arguments: { ...args, limit: 2 },
       });
-      if (response.body.result.isError === true) {
-        throw new Error(`${tool.name}: ${toolText(response.body as unknown)}`);
-      }
       expect(response.body.result.isError, tool.name).toBe(false);
       const page = JSON.parse(toolText(response.body as unknown)) as Record<string, unknown>;
       if (tool.name === 'list_filter_tasks') {
