@@ -122,3 +122,17 @@ jobs:
             apps/web/test-results
             test-artifacts/audit/r80/98-waterfall-despues-*.json
           retention-days: 14
+
+  public-tree-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Five cases on a temporary tree, then this checkout
+        run: bash scripts/public-tree-guard.sh --self-test
+      - name: Added and modified lines of a pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.base_ref }}"
+          bash scripts/public-tree-guard.sh --diff-base "origin/${{ github.base_ref }}"
