@@ -52,6 +52,11 @@ describe('MCP tool catalog', () => {
       'create_habit',
       'list_projects',
       'create_filter',
+      'get_filter',
+      'update_filter',
+      'delete_filter',
+      'restore_filter',
+      'list_filter_tasks',
       'list_notes',
       'start_focus',
     ]) {

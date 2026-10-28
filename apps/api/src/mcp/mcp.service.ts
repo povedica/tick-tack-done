@@ -32,6 +32,7 @@ import { projectConstraint } from '@reflexionia/domain';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../reading/snapshot.js';
+import type { CreateFilterDto, UpdateFilterDto } from '../modules/filters/filters.dto.js';
 import { FiltersService } from '../modules/filters/filters.service.js';
 import { SmartListsService } from '../modules/filters/smart-lists.service.js';
 import { CountdownsService } from '../modules/countdowns/countdowns.service.js';
@@ -888,28 +889,46 @@ export class McpService {
         ).body;
       case 'list_filters':
         return this.filters.list(user, limit, cursorOf(args));
+      case 'get_filter':
+        return this.filters.get(user, requiredUuid(args, 'id'));
       case 'create_filter': {
-        const keyword = requiredString(args, 'keyword', 200);
+        const drafted = filterDraft(args, true);
+        if (drafted.mode === undefined || drafted.rules === undefined) {
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'provide keyword, match and conditions, or mode and rules',
+          );
+        }
         return (
           await this.filters.create(
             user,
             {
               name: requiredString(args, 'name', 80),
-              mode: 'normal',
-              rules: {
-                combinator: 'AND',
-                groups: [
-                  {
-                    combinator: 'AND',
-                    conditions: [{ field: 'keyword', op: 'contains', value: keyword }],
-                  },
-                ],
-              },
+              mode: drafted.mode,
+              rules: drafted.rules,
+              ...(drafted.color === undefined ? {} : { color: drafted.color }),
             },
             undefined,
           )
         ).body;
       }
+      case 'update_filter':
+        return this.filters.update(user, requiredUuid(args, 'id'), filterUpdate(args));
+      case 'delete_filter':
+        await this.filters.remove(user, requiredUuid(args, 'id'));
+        return { deleted: true };
+      case 'restore_filter':
+        return this.filters.restore(user, requiredUuid(args, 'id'));
+      case 'list_filter_tasks':
+        return this.filters.tasks(
+          user,
+          requiredUuid(args, 'id'),
+          typeof args.group_by === 'string' ? args.group_by : undefined,
+          typeof args.sort === 'string' ? args.sort : undefined,
+          limit,
+          cursorOf(args),
+        );
       case 'list_smart_lists':
         return this.smartLists.list(user);
       case 'list_smart_list_tasks':
@@ -1832,6 +1851,122 @@ function projectFields(args: Record<string, unknown>): {
     ...(projectStatus === undefined ? {} : { project_status: projectStatus }),
     ...(outcome === undefined ? {} : { outcome }),
     ...(reminder === undefined ? {} : { default_reminder_trigger: reminder }),
+  };
+}
+
+function keywordRules(keyword: string): CreateFilterDto['rules'] {
+  return {
+    combinator: 'AND',
+    groups: [
+      {
+        combinator: 'AND',
+        conditions: [{ field: 'keyword', op: 'contains', value: keyword }],
+      },
+    ],
+  };
+}
+
+function filterColor(args: Record<string, unknown>): string | null | undefined {
+  if (!('color' in args)) {
+    return undefined;
+  }
+  if (args.color === null) {
+    return null;
+  }
+  if (typeof args.color === 'string' && HEX_COLOR.test(args.color)) {
+    return args.color;
+  }
+  throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'color is invalid');
+}
+
+function filterDraft(
+  args: Record<string, unknown>,
+  required: boolean,
+): {
+  mode?: 'normal' | 'advanced';
+  rules?: CreateFilterDto['rules'];
+  color?: string | null;
+} {
+  const hasKeyword = args.keyword !== undefined;
+  const hasMatch = args.match !== undefined || args.conditions !== undefined;
+  const hasRules = args.mode !== undefined || args.rules !== undefined;
+  const forms = [hasKeyword, hasMatch, hasRules].filter(Boolean).length;
+  if (required && forms !== 1) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'provide keyword, match and conditions, or mode and rules',
+    );
+  }
+  if (!required && forms > 1) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'provide only one of keyword, match and conditions, or mode and rules',
+    );
+  }
+  const color = filterColor(args);
+  if (hasKeyword) {
+    return {
+      mode: 'normal' as const,
+      rules: keywordRules(requiredString(args, 'keyword', 200)),
+      ...(color === undefined ? {} : { color }),
+    };
+  }
+  if (hasMatch) {
+    if (args.match !== 'all' && args.match !== 'any') {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'match is invalid');
+    }
+    if (!Array.isArray(args.conditions)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'conditions are required',
+      );
+    }
+    const groupCombinator = args.match === 'all' ? 'AND' : 'OR';
+    const conditions = args.conditions as CreateFilterDto['rules']['groups'][number]['conditions'];
+    return {
+      mode: args.match === 'all' ? 'normal' : 'advanced',
+      rules: {
+        combinator: 'AND',
+        groups: [{ combinator: groupCombinator, conditions }],
+      },
+      ...(color === undefined ? {} : { color }),
+    };
+  }
+  if (hasRules) {
+    let mode: 'normal' | 'advanced' | undefined;
+    if (args.mode !== undefined) {
+      if (args.mode !== 'normal' && args.mode !== 'advanced') {
+        throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'mode is invalid');
+      }
+      mode = args.mode;
+    }
+    return {
+      ...(mode === undefined ? {} : { mode }),
+      ...(args.rules === undefined ? {} : { rules: asFilterRules(args.rules) }),
+      ...(color === undefined ? {} : { color }),
+    };
+  }
+  return color === undefined ? {} : { color };
+}
+
+function asFilterRules(value: unknown): CreateFilterDto['rules'] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'rules are invalid');
+  }
+  return value as CreateFilterDto['rules'];
+}
+
+function filterUpdate(args: Record<string, unknown>): UpdateFilterDto {
+  const drafted = filterDraft(args, false);
+  return {
+    ...(typeof args.name === 'string' ? { name: requiredString(args, 'name', 80) } : {}),
+    ...(drafted.color === undefined ? {} : { color: drafted.color }),
+    ...(drafted.mode === undefined ? {} : { mode: drafted.mode }),
+    ...(drafted.rules === undefined ? {} : { rules: drafted.rules }),
+    ...(typeof args.pinned === 'boolean' ? { pinned: args.pinned } : {}),
   };
 }
 
