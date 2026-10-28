@@ -61,7 +61,8 @@ test('RF-PR-01 CA-1 CA-12: login link, request, sent, new password, success and 
   await page.getByLabel('Repite la contraseña').fill('correct-horse');
   await page.getByRole('button', { name: 'Guardar contraseña' }).click();
   await expect(page.getByRole('heading', { name: 'Contraseña cambiada' })).toBeVisible();
-  await page.goto('/reset-password#token=expired-token-expired-token-expired');
+  await page.goto('/login');
+  await page.goto(`/reset-password#token=${'expired-token'.padEnd(43, 'x')}`);
   await expect(page.getByRole('heading', { name: 'Este enlace ya no sirve' })).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
