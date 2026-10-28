@@ -2,7 +2,7 @@ import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import type { EventActor } from './auth-user.js';
 import { AttemptLimiter } from './attempt-limiter.js';
 import { isCommonPassword } from './common-passwords.js';
-import { humanCheckFromEnv, type HumanCheck } from './human-check.js';
+import { humanCheckFromEnv } from './human-check.js';
 import { hashPassword, verifyPassword } from './passwords.js';
 import type {
   PasswordResetConfirmDto,
@@ -27,7 +27,6 @@ const MAX_FACTOR_FAILURES = 5;
 @Injectable()
 export class PasswordResetService {
   private readonly logger = new Logger(PasswordResetService.name);
-  private readonly humans: HumanCheck = humanCheckFromEnv();
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
@@ -156,7 +155,7 @@ export class PasswordResetService {
   }
 
   private async requestInner(dto: PasswordResetRequestDto, meta: RequestMeta): Promise<void> {
-    await this.humans.assert(dto.captcha_token);
+    await humanCheckFromEnv().assert(dto.captcha_token, 'password_reset', meta.ip ?? undefined);
     const email = dto.email.trim().toLowerCase();
     const ip = meta.ip ?? 'unknown';
     await this.attempts.assertNamed(`reset-ip:${ip}`);

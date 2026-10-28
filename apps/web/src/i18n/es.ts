@@ -537,6 +537,7 @@ export const es = {
   email: 'Correo',
   password: 'Contraseña',
   loginFailed: 'Correo o contraseña incorrectos.',
+  captchaFailed: 'No hemos podido comprobar que eres una persona. Vuelve a intentarlo.',
   registerFailed: 'No se ha podido crear la cuenta.',
   consentTitle: 'Permiso para la aplicación',
   consentHint:

@@ -145,6 +145,7 @@ export interface ApiClient extends ResourceClient {
     password: string;
     totp_code?: string;
     recovery_code?: string;
+    captcha_token?: string;
   }): Promise<SessionBody>;
   requestPasswordReset(body: {
     email: string;

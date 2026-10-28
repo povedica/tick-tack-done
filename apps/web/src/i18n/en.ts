@@ -533,6 +533,7 @@ export const en = {
   email: 'Email',
   password: 'Password',
   loginFailed: 'Email or password is wrong.',
+  captchaFailed: 'We could not confirm that you are a person. Try again.',
   registerFailed: 'The account could not be created.',
   consentTitle: 'App permission',
   consentHint:

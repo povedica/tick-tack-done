@@ -15915,6 +15915,9 @@
           },
           "recovery_code": {
             "type": "string"
+          },
+          "captcha_token": {
+            "type": "string"
           }
         },
         "required": [

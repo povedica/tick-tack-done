@@ -17,6 +17,8 @@ ARG BUILD_TIME
 ENV GIT_COMMIT=$GIT_COMMIT
 ENV BUILD_TIME=$BUILD_TIME
 ENV VITE_AUTH_MODE=session
+ARG VITE_RECAPTCHA_SITE_KEY=
+ENV VITE_RECAPTCHA_SITE_KEY=$VITE_RECAPTCHA_SITE_KEY
 RUN pnpm --filter @reflexionia/domain build && pnpm --filter web build
 
 FROM nginx:alpine AS runner

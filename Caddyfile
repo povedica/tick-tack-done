@@ -62,7 +62,7 @@
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
-		Content-Security-Policy "default-src 'self'; script-src 'self' https://apis.google.com https://accounts.google.com/gsi/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob: https://www.google.com https://*.googleusercontent.com https://www.gstatic.com; font-src 'self' data:; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://docs.google.com https://drive.google.com https://accounts.google.com/gsi/; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://apis.google.com https://accounts.google.com/gsi/ https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob: https://www.google.com https://*.googleusercontent.com https://www.gstatic.com; font-src 'self' data:; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/ https://www.google.com; frame-src https://docs.google.com https://drive.google.com https://accounts.google.com/gsi/ https://www.google.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
 		Permissions-Policy "camera=(), microphone=(), payment=(), usb=()"
 		Cross-Origin-Opener-Policy "same-origin-allow-popups"
 		-Server

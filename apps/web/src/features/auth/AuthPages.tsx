@@ -6,6 +6,7 @@ import { ApiError, createApiClient } from '@reflexionia/sdk';
 import { sessionMode } from '../../api';
 import { BrandMark } from '../../components/BrandMark';
 import { messagesFor, useMessages } from '../../i18n';
+import { recaptchaToken } from './recaptcha';
 import { markSession, sessionStatus, subscribeSession } from './session';
 import './auth.css';
 
@@ -29,9 +30,11 @@ export function LoginPage() {
   async function submit(): Promise<void> {
     setError(null);
     try {
+      const captchaToken = await recaptchaToken('login');
       const session = await sessionApi.login({
         email,
         password,
+        ...(captchaToken === undefined ? {} : { captcha_token: captchaToken }),
         ...(step === 'totp' && !useRecovery ? { totp_code: code } : {}),
         ...(step === 'totp' && useRecovery ? { recovery_code: code } : {}),
       });
@@ -48,6 +51,14 @@ export function LoginPage() {
       if (caught instanceof ApiError && caught.code === 'invalid_totp') {
         setStep('totp');
         setError(messages.resetInvalidTotp);
+        return;
+      }
+      if (caught instanceof ApiError && caught.code === 'captcha_failed') {
+        setError(messages.captchaFailed);
+        return;
+      }
+      if (caught instanceof Error && caught.message === 'recaptcha_unavailable') {
+        setError(messages.captchaFailed);
         return;
       }
       setFailures((count) => count + 1);
@@ -256,6 +267,7 @@ export function ForgotPasswordPage() {
   const [sends, setSends] = useState(0);
   const [wait, setWait] = useState(0);
   const [retryMinutes, setRetryMinutes] = useState(1);
+  const [formError, setFormError] = useState<string | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -279,11 +291,14 @@ export function ForgotPasswordPage() {
       setPhase('form');
       return;
     }
+    setFormError(null);
     setSending(true);
     try {
+      const captchaToken = await recaptchaToken('password_reset');
       await sessionApi.requestPasswordReset({
         email,
         locale: messages === messagesFor('en') ? 'en' : 'es',
+        ...(captchaToken === undefined ? {} : { captcha_token: captchaToken }),
       });
       setSends((count) => count + 1);
       setWait(60);
@@ -293,6 +308,12 @@ export function ForgotPasswordPage() {
         const minutes = retryMinutesOf(error);
         setRetryMinutes(minutes);
         setPhase('limited');
+      } else if (
+        (error instanceof ApiError && error.code === 'captcha_failed') ||
+        (error instanceof Error && error.message === 'recaptcha_unavailable')
+      ) {
+        setPhase('form');
+        setFormError(messages.captchaFailed);
       } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
         setPhase('form');
       } else {
@@ -353,6 +374,7 @@ export function ForgotPasswordPage() {
           {typeof navigator !== 'undefined' && !navigator.onLine ? (
             <p role="alert">{messages.offlineAction}</p>
           ) : null}
+          {formError !== null ? <p role="alert">{formError}</p> : null}
           <label>
             {messages.email}
             <input

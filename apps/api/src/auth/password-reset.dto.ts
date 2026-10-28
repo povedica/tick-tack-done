@@ -23,7 +23,7 @@ export class PasswordResetRequestDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  @MaxLength(2048)
+  @MaxLength(4096)
   captcha_token?: string;
 }
 
