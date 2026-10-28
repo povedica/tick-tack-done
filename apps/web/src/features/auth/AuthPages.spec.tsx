@@ -32,6 +32,7 @@ vi.mock('@reflexionia/sdk', () => ({
   },
 }));
 
+import { ApiError } from '@reflexionia/sdk';
 import { ForgotPasswordPage, LoginPage, ResetPasswordPage } from './AuthPages';
 
 beforeEach(() => {
@@ -63,6 +64,37 @@ describe('RF-PR-01 login recovery link', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
     await waitFor(() => {
       expect(screen.getAllByRole('link', { name: '¿Has olvidado tu contraseña?' })).toHaveLength(2);
+    });
+  });
+
+  it('asks for the second factor and sends the code with the same password', async () => {
+    api.login
+      .mockRejectedValueOnce(new ApiError(401, 'totp_required', 'Second factor required'))
+      .mockResolvedValueOnce({
+        id: 'user-1',
+        email: 'ada@example.test',
+        display_name: 'Ada',
+        csrf_token: 'csrf-1',
+      });
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText('Correo'), { target: { value: 'ada@example.test' } });
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'correct-horse' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+    await waitFor(() => {
+      expect(screen.getByText('Esta cuenta pide un segundo factor.')).toBeTruthy();
+    });
+    fireEvent.change(screen.getByLabelText('Código de tu app'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+    await waitFor(() => {
+      expect(api.login).toHaveBeenLastCalledWith({
+        email: 'ada@example.test',
+        password: 'correct-horse',
+        totp_code: '123456',
+      });
     });
   });
 });

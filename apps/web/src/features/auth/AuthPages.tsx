@@ -18,6 +18,9 @@ export function LoginPage() {
   const status = useSyncExternalStore(subscribeSession, sessionStatus, sessionStatus);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [step, setStep] = useState<'password' | 'totp'>('password');
   const [error, setError] = useState<string | null>(null);
   const [failures, setFailures] = useState(0);
   const registrationOpen = useRegistrationOpen();
@@ -25,13 +28,27 @@ export function LoginPage() {
   async function submit(): Promise<void> {
     setError(null);
     try {
-      const session = await sessionApi.login({ email, password });
+      const session = await sessionApi.login({
+        email,
+        password,
+        ...(step === 'totp' && !useRecovery ? { totp_code: code } : {}),
+        ...(step === 'totp' && useRecovery ? { recovery_code: code } : {}),
+      });
       markSession('authenticated', session.csrf_token);
       setFailures(0);
       followOauthNext(next, () => {
         runAction(Promise.resolve(navigate('/today')));
       });
-    } catch {
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === 'totp_required') {
+        setStep('totp');
+        return;
+      }
+      if (caught instanceof ApiError && caught.code === 'invalid_totp') {
+        setStep('totp');
+        setError(messages.resetInvalidTotp);
+        return;
+      }
       setFailures((count) => count + 1);
       setError(messages.loginFailed);
     }
@@ -53,31 +70,74 @@ export function LoginPage() {
           runAction(submit());
         }}
       >
-        <label>
-          {messages.email}
-          <input
-            type="email"
-            value={email}
-            autoComplete="username"
-            onChange={(event) => {
-              setEmail(event.target.value);
-            }}
-          />
-        </label>
-        <label>
-          {messages.password}
-          <input
-            type="password"
-            value={password}
-            autoComplete="current-password"
-            onChange={(event) => {
-              setPassword(event.target.value);
-            }}
-          />
-        </label>
-        <Link className="auth-forgot" to="/forgot-password" state={{ email }}>
-          {messages.forgotLink}
-        </Link>
+        {step === 'password' ? (
+          <>
+            <label>
+              {messages.email}
+              <input
+                type="email"
+                value={email}
+                autoComplete="username"
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                }}
+              />
+            </label>
+            <label>
+              {messages.password}
+              <input
+                type="password"
+                value={password}
+                autoComplete="current-password"
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                }}
+              />
+            </label>
+            <Link className="auth-forgot" to="/forgot-password" state={{ email }}>
+              {messages.forgotLink}
+            </Link>
+          </>
+        ) : (
+          <>
+            <p>{messages.loginSecondFactor}</p>
+            <label>
+              {useRecovery ? messages.resetRecoveryLabel : messages.resetTotpLabel}
+              <input
+                value={code}
+                inputMode={useRecovery ? 'text' : 'numeric'}
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={useRecovery ? 20 : 6}
+                onChange={(event) => {
+                  setCode(event.target.value);
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className="auth-reveal"
+              onClick={() => {
+                setUseRecovery((current) => !current);
+                setCode('');
+                setError(null);
+              }}
+            >
+              {useRecovery ? messages.resetUseTotp : messages.resetUseRecovery}
+            </button>
+            <button
+              type="button"
+              className="auth-reveal"
+              onClick={() => {
+                setStep('password');
+                setCode('');
+                setError(null);
+              }}
+            >
+              {messages.loginChangeCredentials}
+            </button>
+          </>
+        )}
         <button type="submit">{messages.loginTitle}</button>
         {error !== null ? (
           <p className="error" role="alert">

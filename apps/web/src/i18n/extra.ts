@@ -190,7 +190,11 @@ export const extraEs = {
   focusShortcutToggle: 'Foco: iniciar, pausar o continuar',
   focusShortcutMode: 'Foco: alternar Pomo y Cronómetro',
   privacyTitle: 'Política de privacidad',
+  privacyCalendarTitle: 'Calendario de Google',
+  privacyDriveTitle: 'Google Drive',
   termsTitle: 'Condiciones de uso',
+  loginSecondFactor: 'Esta cuenta pide un segundo factor.',
+  loginChangeCredentials: 'Cambiar correo o contraseña',
   privacyPurpose:
     'tick-tack-done guarda los datos de tu cuenta, tareas, hábitos, preferencias y registros de actividad para ofrecer el gestor de tareas. Las credenciales de las integraciones se almacenan en el servidor y no se publican.',
   privacyCalendar:
@@ -1523,7 +1527,11 @@ export const extraEn = {
   focusShortcutToggle: 'Focus: start, pause or resume',
   focusShortcutMode: 'Focus: switch Pomo and Stopwatch',
   privacyTitle: 'Privacy policy',
+  privacyCalendarTitle: 'Google Calendar',
+  privacyDriveTitle: 'Google Drive',
   termsTitle: 'Terms of use',
+  loginSecondFactor: 'This account asks for a second factor.',
+  loginChangeCredentials: 'Change email or password',
   privacyPurpose:
     'tick-tack-done stores your account, tasks, habits, preferences and activity records to provide task management. Integration credentials are stored on the server and are not published.',
   privacyCalendar:

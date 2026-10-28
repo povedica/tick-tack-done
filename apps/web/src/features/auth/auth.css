@@ -1,3 +1,50 @@
+.legal-screen {
+  box-sizing: border-box;
+  min-height: 100%;
+  overflow: auto;
+  padding: 24px 16px 48px;
+  background: var(--sidebar-bg);
+}
+
+.legal-doc {
+  width: min(100%, 40rem);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px 28px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.legal-doc h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.legal-doc h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.legal-doc p {
+  margin: 0;
+}
+
+.legal-doc a {
+  color: var(--accent-ink);
+}
+
+.legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
 .auth-screen {
   width: 100%;
   max-width: none;

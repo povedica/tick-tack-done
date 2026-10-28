@@ -140,7 +140,12 @@ export interface ApiClient extends ResourceClient {
   createToken(body: CreateTokenBody): Promise<CreatedToken>;
   revokeToken(id: string): Promise<void>;
   tokenActivity(id: string, query?: PageQuery): Promise<ActivityPage>;
-  login(body: { email: string; password: string }): Promise<SessionBody>;
+  login(body: {
+    email: string;
+    password: string;
+    totp_code?: string;
+    recovery_code?: string;
+  }): Promise<SessionBody>;
   requestPasswordReset(body: {
     email: string;
     locale?: 'es' | 'en';
