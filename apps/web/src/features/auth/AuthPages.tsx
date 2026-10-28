@@ -456,10 +456,11 @@ export function ResetPasswordPage() {
             runAction(submit());
           }}
         >
-          <label>
-            {messages.resetNewPassword}
+          <div className="auth-field">
+            <label htmlFor="reset-new">{messages.resetNewPassword}</label>
             <span className="auth-password">
               <input
+                id="reset-new"
                 type={visible ? 'text' : 'password'}
                 value={password}
                 autoComplete="new-password"
@@ -478,7 +479,7 @@ export function ResetPasswordPage() {
                 {visible ? messages.hidePassword : messages.showPassword}
               </button>
             </span>
-          </label>
+          </div>
           <label>
             {messages.resetRepeatPassword}
             <input

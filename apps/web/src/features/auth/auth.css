@@ -46,7 +46,8 @@
   gap: 12px;
 }
 
-.auth-card label {
+.auth-card label,
+.auth-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
