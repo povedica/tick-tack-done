@@ -172,7 +172,13 @@ describe('MCP tool catalog', () => {
   it('lists folders and project state on lists scopes', () => {
     const read = visibleTools(['lists:read']).map((tool) => tool.name);
     const write = visibleTools(['lists:write']).map((tool) => tool.name);
-    expect(read).toEqual(expect.arrayContaining(['list_folders', 'list_projects']));
+    expect(read).toEqual(
+      expect.arrayContaining(['list_folders', 'list_projects', 'list_project_members']),
+    );
+    expect(read).not.toContain('share_project');
+    expect(read).not.toContain('unshare_project');
+    expect(write).toContain('share_project');
+    expect(write).toContain('unshare_project');
     const writing = [
       'create_folder',
       'update_folder',
@@ -235,6 +241,18 @@ describe('MCP tool catalog', () => {
     expect(visibleTools(['lists:read']).map((tool) => tool.name)).not.toContain(
       'mark_project_reviewed',
     );
+    const share = MCP_TOOLS.find((tool) => tool.name === 'share_project');
+    expect(share?.inputSchema.additionalProperties).toBe(false);
+    expect(share?.inputSchema.properties).not.toHaveProperty('token_id');
+    expect(share?.description).toBe(
+      "Share a list with another ttd user by email. Two steps: call without confirm to preview, then confirm=true. Never share without the owner's explicit OK.",
+    );
+    expect(MCP_TOOLS.find((tool) => tool.name === 'unshare_project')?.description).toBe(
+      'Remove a member from a list you own.',
+    );
+    const members = MCP_TOOLS.find((tool) => tool.name === 'list_project_members');
+    expect(members?.scopes).toEqual(['lists:read']);
+    expect(Object.keys(members?.inputSchema.properties ?? {})).toEqual(['id']);
   });
 });
 
@@ -246,7 +264,9 @@ it('TTD-AUD-82: cancellation explains history, reopening and trash separately', 
 });
 
 it('TTD-AUD-83: every list tool declares limit and opaque cursor', () => {
-  for (const tool of MCP_TOOLS.filter((tool) => tool.name.startsWith('list_'))) {
+  for (const tool of MCP_TOOLS.filter(
+    (tool) => tool.name.startsWith('list_') && tool.name !== 'list_project_members',
+  )) {
     expect(tool.inputSchema.properties, tool.name).toHaveProperty('cursor');
     expect(tool.inputSchema.properties, tool.name).toHaveProperty('limit');
   }

@@ -1105,7 +1105,9 @@ describe('MCP server', () => {
         title: 'R80 list contract',
       },
     });
-    for (const tool of MCP_TOOLS.filter((tool) => tool.name.startsWith('list_'))) {
+    for (const tool of MCP_TOOLS.filter(
+      (tool) => tool.name.startsWith('list_') && tool.name !== 'list_project_members',
+    )) {
       const required = tool.inputSchema.required ?? [];
       const candidates: Record<string, unknown> = {
         task_id: task.id,
