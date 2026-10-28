@@ -91,6 +91,7 @@ export const DomainEvent = {
   stickyNoteDeleted: 'sticky_note.deleted@v1',
   commentCreated: 'comment.created@v1',
   projectShared: 'project.shared@v1',
+  projectUnshared: 'project.unshared@v1',
   taskAssigned: 'task.assigned@v1',
   viewPreferenceUpdated: 'account.view_preference_updated@v1',
   focusSettingsUpdated: 'focus.settings_updated@v1',

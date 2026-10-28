@@ -138,13 +138,23 @@ export class CollaborationService {
 
   async unshare(user: AuthUser, id: string, memberId: string): Promise<void> {
     await this.owner(user, id);
-    const updated = await this.prisma.projectMember.updateMany({
-      where: { id: memberId, projectId: id, deletedAt: null },
-      data: { deletedAt: new Date() },
+    await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.projectMember.updateMany({
+        where: { id: memberId, projectId: id, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+      if (updated.count === 0) {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'member_not_found', 'Member was not found');
+      }
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.projectUnshared,
+        entityType: 'project',
+        entityId: id,
+        action: 'updated',
+        data: asJson({ member_id: memberId }),
+        previous: null,
+      });
     });
-    if (updated.count === 0) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'member_not_found', 'Member was not found');
-    }
   }
 
   async owner(user: AuthUser, projectId: string): Promise<Project> {
