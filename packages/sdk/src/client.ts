@@ -130,9 +130,11 @@ export interface ApiClient extends ResourceClient {
   updateSmartLists(body: UpdateSmartListsBody): Promise<SmartListPage>;
   smartListTasks(key: string, options?: ViewOptions): Promise<ViewPage>;
   listFilters(): Promise<FilterPage>;
+  getFilter(id: string): Promise<Filter>;
   createFilter(body: CreateFilterBody, idempotencyKey: string): Promise<Filter>;
   updateFilter(id: string, body: UpdateFilterBody): Promise<Filter>;
   deleteFilter(id: string): Promise<void>;
+  restoreFilter(id: string): Promise<Filter>;
   previewFilter(body: PreviewFilterBody, options?: ViewOptions): Promise<ViewPage>;
   filterTasks(id: string, options?: ViewOptions): Promise<ViewPage>;
   search(q: string, types?: string): Promise<SearchResponse>;
@@ -319,6 +321,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     listFilters() {
       return request(call, options, 'GET', '/api/v1/filters', undefined, undefined, isFilterPage);
     },
+    getFilter(id) {
+      return request(call, options, 'GET', `/api/v1/filters/${id}`, undefined, undefined, isFilter);
+    },
     createFilter(body, idempotencyKey) {
       return request(call, options, 'POST', '/api/v1/filters', body, idempotencyKey, isFilter);
     },
@@ -334,6 +339,17 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         undefined,
         undefined,
         isEmpty,
+      );
+    },
+    restoreFilter(id) {
+      return request(
+        call,
+        options,
+        'POST',
+        `/api/v1/filters/${id}/restore`,
+        undefined,
+        undefined,
+        isFilter,
       );
     },
     previewFilter(body, view) {

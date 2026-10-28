@@ -1190,6 +1190,23 @@ export interface paths {
         patch: operations["FiltersController_update"];
         trace?: never;
     };
+    "/api/v1/filters/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a deleted filter (TTD-FIL-03) */
+        post: operations["FiltersController_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/smart-lists": {
         parameters: {
             query?: never;
@@ -4837,6 +4854,7 @@ export interface components {
             mode: "normal" | "advanced";
             rules: components["schemas"]["FilterRulesDto"];
             sort_order: string;
+            pinned: boolean;
             task_count: number;
             created_at: string;
             updated_at: string;
@@ -4923,8 +4941,13 @@ export interface components {
             rules?: components["schemas"]["FilterRulesDto"];
             before_id?: string | null;
             move_to_end?: boolean;
-            /** @description Place the filter first in the sidebar (RF-903). */
+            /**
+             * @deprecated
+             * @description Obsolete alias of pinned. pin true sets pinned true.
+             */
             pin?: boolean;
+            /** @description Keep the filter in the pinned block (TTD-FIL-11). */
+            pinned?: boolean;
         };
         SmartListResponseDto: {
             id: string;
@@ -7802,6 +7825,29 @@ export interface operations {
                 "application/json": components["schemas"]["UpdateFilterDto"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterResponseDto"];
+                };
+            };
+        };
+    };
+    FiltersController_restore: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
