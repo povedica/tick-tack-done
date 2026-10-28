@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpStatus,
   Inject,
   Injectable,
@@ -10,7 +11,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, Length } from 'class-validator';
 import type { Request, Response } from 'express';
 import { randomBase32, recoveryCodes, sha256Hex, verifyTotp } from '@reflexionia/domain';
@@ -25,6 +26,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { openField, sealField } from '../security/field-cipher.js';
 import { AttemptLimiter } from './attempt-limiter.js';
 import { Scopes } from './scopes.decorator.js';
+
+class TotpStatusDto {
+  @ApiProperty()
+  enabled!: boolean;
+}
 
 class TotpCodeDto {
   @ApiProperty()
@@ -52,7 +58,18 @@ export class TotpService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
   ) {}
 
+  async isEnabled(userId: string): Promise<boolean> {
+    const row = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { totpEnabled: true },
+    });
+    return row?.totpEnabled === true;
+  }
+
   async begin(user: AuthUser): Promise<{ secret: string; otpauth: string }> {
+    if (await this.isEnabled(user.id)) {
+      throw new DomainException(HttpStatus.CONFLICT, 'totp_enabled', '2FA is already on');
+    }
     const secret = randomBase32(randomBytes(20));
     await this.prisma.user.update({
       where: { id: user.id },
@@ -213,6 +230,18 @@ export class TotpController {
     @Inject(TotpService) private readonly totp: TotpService,
     @Inject(AttemptLimiter) private readonly attempts: AttemptLimiter,
   ) {}
+
+  @Get()
+  @Scopes('profile:read')
+  @ApiOperation({ summary: 'Whether TOTP is enabled for the current account' })
+  @ApiOkResponse({ type: TotpStatusDto })
+  async status(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, { enabled: await this.totp.isEnabled(user.id) }, false);
+  }
 
   @Post()
   @Scopes('profile:write')

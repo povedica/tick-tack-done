@@ -897,6 +897,13 @@
     }
   },
   {
+    "method": "GET",
+    "path": "/api/v1/me/totp",
+    "summary": "Whether TOTP is enabled for the current account",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
     "method": "POST",
     "path": "/api/v1/me/totp",
     "summary": "Start TOTP. It is not forced on the dev user.",

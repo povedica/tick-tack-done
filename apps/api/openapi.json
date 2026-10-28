@@ -1565,6 +1565,31 @@
       }
     },
     "/api/v1/me/totp": {
+      "get": {
+        "operationId": "TotpController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotpStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Whether TOTP is enabled for the current account",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
       "post": {
         "operationId": "TotpController_begin",
         "parameters": [],
@@ -16407,6 +16432,17 @@
           "token_endpoint_auth_methods_supported",
           "scopes_supported",
           "authorization_response_iss_parameter_supported"
+        ]
+      },
+      "TotpStatusDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
         ]
       },
       "TotpCodeDto": {

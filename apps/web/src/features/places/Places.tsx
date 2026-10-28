@@ -2740,6 +2740,8 @@ export function AccountPage() {
   const [totpCode, setTotpCode] = useState('');
   const [codes, setCodes] = useState<readonly string[] | null>(null);
   const [totpError, setTotpError] = useState<string | null>(null);
+  const totp = useQuery({ queryKey: ['me', 'totp'], queryFn: () => api.totpStatus() });
+  const totpOn = totp.data?.enabled === true || codes !== null;
   const displayName = name ?? profile?.display_name ?? '';
   const timeZone = zone ?? profile?.time_zone ?? '';
   const childPolicy = children ?? profile?.task_complete_children ?? 'ask';
@@ -2952,11 +2954,13 @@ export function AccountPage() {
           <section className="token-panel">
             <div className="token-panel-head">
               <div>
-                <h2>{messages.enableTwoFactor}</h2>
+                <h2 className={totpOn ? 'totp-status' : undefined}>
+                  {totpOn ? messages.twoFactorActive : messages.enableTwoFactor}
+                </h2>
                 <p>{messages.twoFactorHint}</p>
               </div>
             </div>
-            {setup === null ? (
+            {totpOn || totp.isPending ? null : setup === null ? (
               <Button
                 type="button"
                 size="sm"
