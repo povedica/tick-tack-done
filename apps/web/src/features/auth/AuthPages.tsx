@@ -1,4 +1,5 @@
 import { runAction } from '../../components/run-action';
+import { Eye, EyeOff } from 'lucide-react';
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ApiError, createApiClient } from '@reflexionia/sdk';
@@ -387,6 +388,7 @@ export function ResetPasswordPage() {
   const [repeat, setRepeat] = useState('');
   const [code, setCode] = useState('');
   const [visible, setVisible] = useState(false);
+  const passwordsMatch = password.length >= 10 && password === repeat;
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
 
@@ -516,42 +518,39 @@ export function ResetPasswordPage() {
             runAction(submit());
           }}
         >
-          <div className="auth-field">
-            <label htmlFor="reset-new">{messages.resetNewPassword}</label>
-            <span className="auth-password">
-              <input
-                id="reset-new"
-                type={visible ? 'text' : 'password'}
-                value={password}
-                autoComplete="new-password"
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                }}
-              />
-              <button
-                type="button"
-                className="auth-reveal"
-                aria-pressed={visible}
-                onClick={() => {
-                  setVisible((current) => !current);
-                }}
-              >
-                {visible ? messages.hidePassword : messages.showPassword}
-              </button>
-            </span>
-          </div>
-          <label>
-            {messages.resetRepeatPassword}
-            <input
-              type={visible ? 'text' : 'password'}
-              value={repeat}
-              autoComplete="new-password"
-              onChange={(event) => {
-                setRepeat(event.target.value);
-              }}
-            />
-          </label>
-          <p className="auth-help">{password.length >= 10 ? '✓' : messages.resetMinLength}</p>
+          <PasswordField
+            id="reset-new"
+            label={messages.resetNewPassword}
+            value={password}
+            visible={visible}
+            showLabel={messages.showPassword}
+            hideLabel={messages.hidePassword}
+            matched={passwordsMatch}
+            onToggle={() => {
+              setVisible((current) => !current);
+            }}
+            onChange={setPassword}
+          />
+          <PasswordField
+            id="reset-repeat"
+            label={messages.resetRepeatPassword}
+            value={repeat}
+            visible={visible}
+            showLabel={messages.showPassword}
+            hideLabel={messages.hidePassword}
+            matched={passwordsMatch}
+            onToggle={() => {
+              setVisible((current) => !current);
+            }}
+            onChange={setRepeat}
+          />
+          <p className={passwordsMatch ? 'auth-help is-match' : 'auth-help'}>
+            {passwordsMatch
+              ? messages.resetMatch
+              : repeat.length > 0 && password !== repeat
+                ? messages.resetMismatch
+                : messages.resetMinLength}
+          </p>
           {totpRequired ? (
             <>
               <label>
@@ -588,6 +587,55 @@ export function ResetPasswordPage() {
         </form>
       ) : null}
     </AuthCard>
+  );
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  visible,
+  showLabel,
+  hideLabel,
+  matched,
+  onToggle,
+  onChange,
+}: {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly visible: boolean;
+  readonly showLabel: string;
+  readonly hideLabel: string;
+  readonly matched: boolean;
+  readonly onToggle: () => void;
+  readonly onChange: (value: string) => void;
+}) {
+  const Icon = visible ? EyeOff : Eye;
+  return (
+    <div className="auth-field">
+      <label htmlFor={id}>{label}</label>
+      <span className={matched ? 'auth-password is-match' : 'auth-password'}>
+        <input
+          id={id}
+          type={visible ? 'text' : 'password'}
+          value={value}
+          autoComplete="new-password"
+          onChange={(event) => {
+            onChange(event.target.value);
+          }}
+        />
+        <button
+          type="button"
+          className="auth-eye"
+          aria-pressed={visible}
+          aria-label={visible ? hideLabel : showLabel}
+          onClick={onToggle}
+        >
+          <Icon size={18} aria-hidden="true" />
+        </button>
+      </span>
+    </div>
   );
 }
 
