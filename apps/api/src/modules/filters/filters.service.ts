@@ -3,6 +3,7 @@ import type { Filter, FilterMode } from '@prisma/client';
 import {
   parseFilterRules,
   parseTaskView,
+  requireConditions,
   savedFilterClause,
   type FilterClock,
   type FilterClause,
@@ -11,12 +12,13 @@ import {
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
-import { decodeCursor, slicePage, type Page } from '../../http/cursor.js';
+import { decodeCursor, encodeCursor, type Page } from '../../http/cursor.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { asJson, iso } from '../../http/json.js';
 import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint.js';
 import { IdempotencyService } from '../../idempotency/idempotency.service.js';
 import { placementPlan } from '../../ordering/placement.js';
+import type { SortPlan } from '../../ordering/plan-sort-order.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Tx } from '../../prisma/tx.js';
 import type { ViewPageJson } from '../../reading/view-page.js';
@@ -47,23 +49,16 @@ export class FiltersService {
       where: {
         ownerId: user.id,
         deletedAt: null,
-        ...(cursor === undefined
-          ? {}
-          : {
-              OR: [
-                { sortOrder: { gt: cursor.sortOrder } },
-                { sortOrder: cursor.sortOrder, id: { gt: cursor.id } },
-              ],
-            }),
+        ...(cursor === undefined ? {} : filterCursorWhere(cursor)),
       },
-      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+      orderBy: [{ pinned: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }],
       take: limit + 1,
     });
     const clock = this.clock(user);
     const counts = await Promise.all(
       rows.map((row) => countViewTasks(this.prisma, user.id, this.clause(row, clock), clock)),
     );
-    return slicePage(
+    return pageFilters(
       rows.map((row, index) => this.toJson(row, counts[index] ?? 0)),
       limit,
     );
@@ -75,6 +70,7 @@ export class FiltersService {
     keyRaw: string | undefined,
   ): Promise<{ statusCode: number; body: FilterResponseDto; replayed: boolean }> {
     const rules = this.parse(dto.mode, dto.rules);
+    this.assertConditions(rules);
     const key = normalizeIdempotencyKey(keyRaw);
     return this.idempotency.run({
       ownerId: user.id,
@@ -121,11 +117,15 @@ export class FiltersService {
   }
 
   async update(user: AuthUser, id: string, dto: UpdateFilterDto): Promise<FilterResponseDto> {
-    if (dto.pin === true && (dto.before_id !== undefined || dto.move_to_end === true)) {
+    const pinned = pinnedValue(dto);
+    if (
+      (dto.pinned !== undefined || dto.pin === true) &&
+      (dto.before_id !== undefined || dto.move_to_end === true)
+    ) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'validation_failed',
-        'pin cannot be combined with another placement',
+        'pinned cannot be combined with another placement',
       );
     }
     return this.prisma.$transaction(async (tx) => {
@@ -135,14 +135,15 @@ export class FiltersService {
       if (dto.rules === undefined && dto.mode !== undefined && dto.mode !== current.mode) {
         this.parse(dto.mode, rules);
       }
+      if (dto.rules !== undefined || dto.mode !== undefined) {
+        this.assertConditions(rules);
+      }
       const rows = await tx.filter.findMany({
         where: { ownerId: user.id, deletedAt: null },
-        select: { id: true, sortOrder: true },
+        select: { id: true, sortOrder: true, pinned: true },
         orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
       });
-      const beforeId = dto.pin === true ? this.firstOther(rows, id) : (dto.before_id ?? undefined);
-      const reorder = dto.pin === true || dto.before_id != null || dto.move_to_end === true;
-      const plan = reorder ? placementPlan(rows, id, beforeId, dto.move_to_end) : null;
+      const plan = placementFor(rows, id, dto, pinned);
       if (plan !== null) {
         for (const update of plan.updates) {
           await tx.filter.update({
@@ -160,6 +161,7 @@ export class FiltersService {
           ...(dto.mode !== undefined || dto.rules !== undefined
             ? { mode, rules: asJson(rules) }
             : {}),
+          ...(pinned !== undefined ? { pinned } : {}),
           ...(plan !== null ? { sortOrder: plan.movingSortOrder } : {}),
         },
       });
@@ -175,6 +177,35 @@ export class FiltersService {
         action: 'updated',
         data: { filter: asJson(body) },
         previous: asJson(this.toJson(current, 0)),
+      });
+      return body;
+    });
+  }
+
+  async restore(user: AuthUser, id: string): Promise<FilterResponseDto> {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.filter.findFirst({
+        where: { id, ownerId: user.id, deletedAt: { not: null } },
+      });
+      if (current === null) {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'filter_not_found', 'Filter was not found');
+      }
+      const row = await tx.filter.update({
+        where: { id },
+        data: { deletedAt: null },
+      });
+      const clock = this.clock(user);
+      const body = this.toJson(
+        row,
+        await countViewTasks(tx, user.id, this.clause(row, clock), clock),
+      );
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.filterRestored,
+        entityType: 'filter',
+        entityId: id,
+        action: 'updated',
+        data: { filter: asJson(body) },
+        previous: { deleted_at: iso(current.deletedAt), pinned: current.pinned },
       });
       return body;
     });
@@ -310,15 +341,16 @@ export class FiltersService {
     return row;
   }
 
-  private firstOther(
-    rows: readonly { id: string; sortOrder: bigint }[],
-    id: string,
-  ): string | undefined {
-    const ordered = [...rows].sort((left, right) =>
-      left.sortOrder < right.sortOrder ? -1 : left.sortOrder > right.sortOrder ? 1 : 0,
-    );
-    const first = ordered.find((row) => row.id !== id);
-    return first?.id;
+  private assertConditions(rules: FilterRules): void {
+    const checked = requireConditions(rules);
+    if (!checked.ok) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'Filter needs at least one condition',
+        { reason: checked.reason },
+      );
+    }
   }
 
   private cleanName(name: string): string {
@@ -342,11 +374,78 @@ export class FiltersService {
       mode: row.mode,
       rules: this.readRules(row) as FilterResponseDto['rules'],
       sort_order: row.sortOrder.toString(),
+      pinned: row.pinned,
       task_count: taskCount,
       created_at: iso(row.createdAt) ?? '',
       updated_at: iso(row.updatedAt) ?? '',
     };
   }
+}
+
+function pinnedValue(dto: UpdateFilterDto): boolean | undefined {
+  if (dto.pinned !== undefined && dto.pin === true && !dto.pinned) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'pin and pinned disagree',
+    );
+  }
+  if (dto.pinned !== undefined) {
+    return dto.pinned;
+  }
+  return dto.pin === true ? true : undefined;
+}
+
+function placementFor(
+  rows: readonly { id: string; sortOrder: bigint; pinned: boolean }[],
+  id: string,
+  dto: UpdateFilterDto,
+  pinned: boolean | undefined,
+): SortPlan | null {
+  if (pinned === true) {
+    return placementPlan(
+      rows.filter((row) => row.pinned),
+      id,
+      undefined,
+      true,
+    );
+  }
+  if (pinned === false) {
+    // CA-API-02: after unpinning C the list is A, B, C, the end of the unpinned block.
+    return placementPlan(
+      rows.filter((row) => !row.pinned),
+      id,
+      undefined,
+      true,
+    );
+  }
+  if (dto.before_id != null || dto.move_to_end === true) {
+    return placementPlan(rows, id, dto.before_id ?? undefined, dto.move_to_end);
+  }
+  return null;
+}
+
+function filterCursorWhere(cursor: { sortOrder: bigint; id: string; pinned: boolean }): {
+  OR: Record<string, unknown>[];
+} {
+  return {
+    OR: [
+      ...(cursor.pinned ? [{ pinned: false }] : []),
+      { pinned: cursor.pinned, sortOrder: { gt: cursor.sortOrder } },
+      { pinned: cursor.pinned, sortOrder: cursor.sortOrder, id: { gt: cursor.id } },
+    ],
+  };
+}
+
+function pageFilters(rows: readonly FilterResponseDto[], limit: number): Page<FilterResponseDto> {
+  const hasMore = rows.length > limit;
+  const items = rows.slice(0, limit);
+  const last = items.at(-1);
+  return {
+    items: [...items],
+    next_cursor:
+      hasMore && last !== undefined ? encodeCursor(last.sort_order, last.id, last.pinned) : null,
+  };
 }
 
 function blankToNull(value: string | null | undefined): string | null {

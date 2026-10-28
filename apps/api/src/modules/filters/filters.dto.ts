@@ -136,10 +136,22 @@ export class UpdateFilterDto {
   @IsBoolean()
   move_to_end?: boolean;
 
-  @ApiProperty({ required: false, description: 'Place the filter first in the sidebar (RF-903).' })
+  @ApiProperty({
+    required: false,
+    deprecated: true,
+    description: 'Obsolete alias of pinned. pin true sets pinned true.',
+  })
   @IsOptional()
   @IsBoolean()
   pin?: boolean;
+
+  @ApiProperty({
+    required: false,
+    description: 'Keep the filter in the pinned block (TTD-FIL-11).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  pinned?: boolean;
 }
 
 export class PreviewFilterDto {
@@ -298,6 +310,9 @@ export class FilterResponseDto {
 
   @ApiProperty()
   sort_order!: string;
+
+  @ApiProperty()
+  pinned!: boolean;
 
   @ApiProperty()
   task_count!: number;

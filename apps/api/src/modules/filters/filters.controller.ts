@@ -138,6 +138,19 @@ export class FiltersController {
     respondJson(req, res, 200, await this.filters.update(user, id, dto), false);
   }
 
+  @Post(':id/restore')
+  @Scopes('filters:write')
+  @ApiOperation({ summary: 'Restore a deleted filter (TTD-FIL-03)' })
+  @ApiOkResponse({ type: FilterResponseDto })
+  async restore(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.filters.restore(user, id), false);
+  }
+
   @Delete(':id')
   @Scopes('filters:write')
   @ApiOperation({ summary: 'Move a filter to the trash (RF-902)' })

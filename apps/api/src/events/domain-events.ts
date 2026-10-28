@@ -64,6 +64,7 @@ export const DomainEvent = {
   filterCreated: 'filter.created@v1',
   filterUpdated: 'filter.updated@v1',
   filterDeleted: 'filter.deleted@v1',
+  filterRestored: 'filter.restored@v1',
   smartListUpdated: 'smart_list.updated@v1',
   tokenCreated: 'token.created@v1',
   tokenRevoked: 'token.revoked@v1',

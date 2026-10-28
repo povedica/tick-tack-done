@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## Sin publicar
+
+- Un filtro se puede fijar (`pinned`) y restaurar después del borrado lógico.
+  Crear o cambiar las reglas exige al menos una condición; un filtro vacío ya
+  guardado sigue leyéndose. El MCP lista, lee, crea, edita, fija, borra y
+  restaura filtros.
+
 ## Revisión del paquete de listas
 
 - Planificar un día completo conserva la estimación de esfuerzo. Antes se
