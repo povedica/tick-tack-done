@@ -1237,6 +1237,9 @@ model AutomationRun {
 }
 
 /// RF-1801. A member is a user or a personal access token. The list still has one owner.
+/// Active rows are unique on (project_id, member_id) and (project_id, token_id).
+/// Prisma cannot model those partial indexes; see
+/// prisma/migrations/20261028092916_project_member_unique_active.
 model ProjectMember {
   id         String              @id @default(uuid()) @db.Uuid
   ownerId    String              @map("owner_id") @db.Uuid
