@@ -2267,6 +2267,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List members of a shared list (RF-1801) */
+        get: operations["CollaborationController_members"];
+        put?: never;
+        /** Share a list with a user or a token (RF-1801, RF-1805) */
+        post: operations["CollaborationController_share"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/members/{memberId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a member (RF-1801) */
+        delete: operations["CollaborationController_unshare"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark that you are looking at the list (RF-1804) */
+        post: operations["CollaborationController_presence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Activity of a shared list (RF-1803) */
+        get: operations["CollaborationController_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comments on a task (RF-1803) */
+        get: operations["CollaborationController_comments"];
+        put?: never;
+        /** Comment, with @mentions (RF-1803) */
+        post: operations["CollaborationController_comment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/assignee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign a task (RF-1802) */
+        post: operations["CollaborationController_assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/planning/candidates": {
         parameters: {
             query?: never;
@@ -3324,110 +3428,6 @@ export interface paths {
         head?: never;
         /** Optional pomodoro estimate on a task (RF-1202) */
         patch: operations["FocusController_estimate"];
-        trace?: never;
-    };
-    "/api/v1/projects/{id}/members": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List members of a shared list (RF-1801) */
-        get: operations["CollaborationController_members"];
-        put?: never;
-        /** Share a list with a user or a token (RF-1801, RF-1805) */
-        post: operations["CollaborationController_share"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/{id}/members/{memberId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Remove a member (RF-1801) */
-        delete: operations["CollaborationController_unshare"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/{id}/presence": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Mark that you are looking at the list (RF-1804) */
-        post: operations["CollaborationController_presence"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/{id}/activity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Activity of a shared list (RF-1803) */
-        get: operations["CollaborationController_activity"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks/{id}/comments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Comments on a task (RF-1803) */
-        get: operations["CollaborationController_comments"];
-        put?: never;
-        /** Comment, with @mentions (RF-1803) */
-        post: operations["CollaborationController_comment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks/{id}/assignee": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Assign a task (RF-1802) */
-        post: operations["CollaborationController_assign"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/api/v1/plugins": {
@@ -5403,6 +5403,18 @@ export interface components {
             /** @example restore */
             confirmation: string;
         };
+        ShareDto: {
+            email?: string;
+            token_id?: string;
+            /** @enum {string} */
+            permission: "read" | "comment" | "write";
+        };
+        CommentDto: {
+            body: string;
+        };
+        AssignDto: {
+            assignee_id: Record<string, never> | null;
+        };
         StartPlanDto: {
             /** @example 2026-10-19 */
             local_date: string;
@@ -5552,18 +5564,6 @@ export interface components {
         };
         EstimateDto: {
             estimated_pomodoros: number;
-        };
-        ShareDto: {
-            email?: string;
-            token_id?: string;
-            /** @enum {string} */
-            permission: "read" | "comment" | "write";
-        };
-        CommentDto: {
-            body: string;
-        };
-        AssignDto: {
-            assignee_id: Record<string, never> | null;
         };
         ConvertDto: {
             /** @enum {string} */
@@ -9718,6 +9718,171 @@ export interface operations {
             };
         };
     };
+    CollaborationController_members: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CollaborationController_share: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CollaborationController_unshare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                memberId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CollaborationController_presence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CollaborationController_activity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CollaborationController_comments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CollaborationController_comment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CollaborationController_assign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     PlanningController_candidates: {
         parameters: {
             query: {
@@ -12029,171 +12194,6 @@ export interface operations {
         };
         responses: {
             200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CollaborationController_members: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CollaborationController_share: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ShareDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CollaborationController_unshare: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                memberId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CollaborationController_presence: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CollaborationController_activity: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CollaborationController_comments: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CollaborationController_comment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CommentDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CollaborationController_assign: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssignDto"];
-            };
-        };
-        responses: {
-            201: {
                 headers: {
                     [name: string]: unknown;
                 };

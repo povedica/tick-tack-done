@@ -4007,6 +4007,116 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/projects/{id}/members",
+    "summary": "List members of a shared list (RF-1801)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/members",
+    "summary": "Share a list with a user or a token (RF-1801, RF-1805)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "email": { "type": "string" },
+              "token_id": { "type": "string" },
+              "permission": { "type": "string", "enum": ["read", "comment", "write"] }
+            },
+            "required": ["permission"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/projects/{id}/members/{memberId}",
+    "summary": "Remove a member (RF-1801)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "memberId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/presence",
+    "summary": "Mark that you are looking at the list (RF-1804)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{id}/activity",
+    "summary": "Activity of a shared list (RF-1803)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/comments",
+    "summary": "Comments on a task (RF-1803)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/comments",
+    "summary": "Comment, with @mentions (RF-1803)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "body": { "type": "string" } },
+            "required": ["body"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/assignee",
+    "summary": "Assign a task (RF-1802)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "assignee_id": { "type": "object", "nullable": true } },
+            "required": ["assignee_id"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/planning/candidates",
     "summary": "Count candidates without creating a session (F-AC-5)",
     "parameters": [
@@ -5360,116 +5470,6 @@
             "type": "object",
             "properties": { "estimated_pomodoros": { "type": "number" } },
             "required": ["estimated_pomodoros"]
-          }
-        }
-      }
-    }
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/projects/{id}/members",
-    "summary": "List members of a shared list (RF-1801)",
-    "parameters": [
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {}
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/projects/{id}/members",
-    "summary": "Share a list with a user or a token (RF-1801, RF-1805)",
-    "parameters": [
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {
-      "required": true,
-      "content": {
-        "application/json": {
-          "schema": {
-            "type": "object",
-            "properties": {
-              "email": { "type": "string" },
-              "token_id": { "type": "string" },
-              "permission": { "type": "string", "enum": ["read", "comment", "write"] }
-            },
-            "required": ["permission"]
-          }
-        }
-      }
-    }
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/v1/projects/{id}/members/{memberId}",
-    "summary": "Remove a member (RF-1801)",
-    "parameters": [
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
-      { "name": "memberId", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {}
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/projects/{id}/presence",
-    "summary": "Mark that you are looking at the list (RF-1804)",
-    "parameters": [
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {}
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/projects/{id}/activity",
-    "summary": "Activity of a shared list (RF-1803)",
-    "parameters": [
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {}
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/tasks/{id}/comments",
-    "summary": "Comments on a task (RF-1803)",
-    "parameters": [
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {}
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/tasks/{id}/comments",
-    "summary": "Comment, with @mentions (RF-1803)",
-    "parameters": [
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {
-      "required": true,
-      "content": {
-        "application/json": {
-          "schema": {
-            "type": "object",
-            "properties": { "body": { "type": "string" } },
-            "required": ["body"]
-          }
-        }
-      }
-    }
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/tasks/{id}/assignee",
-    "summary": "Assign a task (RF-1802)",
-    "parameters": [
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {
-      "required": true,
-      "content": {
-        "application/json": {
-          "schema": {
-            "type": "object",
-            "properties": { "assignee_id": { "type": "object", "nullable": true } },
-            "required": ["assignee_id"]
           }
         }
       }
