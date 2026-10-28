@@ -480,6 +480,13 @@ export interface ResourceClient {
     email: string,
     permission: 'read' | 'comment' | 'write',
   ): Promise<JsonObject>;
+  removeMember(projectId: string, memberId: string): Promise<void>;
+  shareProject(
+    projectId: string,
+    email: string,
+    permission: 'read' | 'comment' | 'write',
+  ): Promise<JsonObject>;
+  unshareProject(projectId: string, memberId: string): Promise<void>;
 }
 
 function pageQuery(query: PageQuery | undefined): string {
@@ -956,6 +963,32 @@ export function resourceMethods(http: Http): ResourceClient {
         undefined,
         isJsonObject,
       ),
+    async removeMember(projectId, memberId) {
+      await ask(
+        'DELETE',
+        `/api/v1/projects/${projectId}/members/${memberId}`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    shareProject: (projectId, email, permission) =>
+      ask(
+        'POST',
+        `/api/v1/projects/${projectId}/members`,
+        { email, permission },
+        undefined,
+        isJsonObject,
+      ),
+    async unshareProject(projectId, memberId) {
+      await ask(
+        'DELETE',
+        `/api/v1/projects/${projectId}/members/${memberId}`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
   };
 }
 
