@@ -135,7 +135,11 @@ export interface ApiClient extends ResourceClient {
   updateFilter(id: string, body: UpdateFilterBody): Promise<Filter>;
   deleteFilter(id: string): Promise<void>;
   restoreFilter(id: string): Promise<Filter>;
-  previewFilter(body: PreviewFilterBody, options?: ViewOptions): Promise<ViewPage>;
+  previewFilter(
+    body: PreviewFilterBody,
+    options?: ViewOptions,
+    signal?: AbortSignal,
+  ): Promise<ViewPage>;
   filterTasks(id: string, options?: ViewOptions): Promise<ViewPage>;
   search(q: string, types?: string): Promise<SearchResponse>;
   listTokens(query?: PageQuery & { readonly status?: 'active' | 'revoked' }): Promise<TokenPage>;
@@ -352,7 +356,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         isFilter,
       );
     },
-    previewFilter(body, view) {
+    previewFilter(body, view, signal) {
       return request(
         call,
         options,
@@ -361,6 +365,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         body,
         undefined,
         isViewPage,
+        signal,
       );
     },
     filterTasks(id, view) {
@@ -511,6 +516,7 @@ async function request<T>(
   body: unknown,
   idempotencyKey: string | undefined,
   parse: (value: unknown) => value is T,
+  signal?: AbortSignal,
 ): Promise<T> {
   const prefix = options.baseUrl.replace(/\/$/, '');
   const headers: Record<string, string> = { accept: 'application/json' };
@@ -524,7 +530,7 @@ async function request<T>(
   if (idempotencyKey !== undefined && idempotencyKey.length > 0) {
     headers['Idempotency-Key'] = idempotencyKey;
   }
-  const init: RequestInit = { method, headers };
+  const init: RequestInit = { method, headers, ...(signal === undefined ? {} : { signal }) };
   if (options.credentials !== undefined) {
     init.credentials = options.credentials;
   }
@@ -545,7 +551,7 @@ async function request<T>(
       options.onUnauthorized(path);
     }
     const error = readError(payload);
-    throw new ApiError(response.status, error.code, error.message);
+    throw new ApiError(response.status, error.code, error.message, error.details);
   }
   if (!parse(payload)) {
     throw new ApiError(response.status, 'request_failed', 'Response does not match the API');
@@ -553,14 +559,16 @@ async function request<T>(
   return payload;
 }
 
-function readError(value: unknown): { code: string; message: string } {
+function readError(value: unknown): { code: string; message: string; details: unknown } {
   if (typeof value !== 'object' || value === null) {
-    return { code: 'request_failed', message: 'Request failed' };
+    return { code: 'request_failed', message: 'Request failed', details: null };
   }
-  const error = (value as { error?: { code?: unknown; message?: unknown } }).error;
+  const error = (value as { error?: { code?: unknown; message?: unknown; details?: unknown } })
+    .error;
   return {
     code: typeof error?.code === 'string' ? error.code : 'request_failed',
     message: typeof error?.message === 'string' ? error.message : 'Request failed',
+    details: error?.details ?? null,
   };
 }
 
