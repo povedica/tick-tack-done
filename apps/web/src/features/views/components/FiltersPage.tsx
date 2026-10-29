@@ -32,6 +32,7 @@ import { fill, useMessages, type Messages } from '../../../i18n';
 import { SidebarFoldButton } from '../../../shell/SidebarFoldButton';
 import { viewsApi } from '../api';
 import { duplicateFilter, pinFilter } from '../filter-commands';
+import { filterMove } from '../filter-order';
 import { useFilterUi } from '../filter-ui';
 import { filterTagLabels, summarizeRules, type ChipIcon, type SummaryText } from '../summarize';
 import { FilterMenu } from './FilterMenu';
@@ -118,17 +119,13 @@ export function FiltersPage() {
   const text = summaryText(messages);
   const open = items.find((item) => item.id === menu?.id);
 
-  function move(sourceId: string, beforeId: string): void {
-    const source = items.find((item) => item.id === sourceId);
-    const target = items.find((item) => item.id === beforeId);
-    if (source === undefined || target === undefined) {
-      return;
-    }
-    if (source.pinned !== target.pinned) {
+  function move(sourceId: string, targetId: string, after: boolean): void {
+    const next = filterMove(items, sourceId, targetId, after);
+    if (next === null) {
       return;
     }
     runAction(
-      api.updateFilter(sourceId, { before_id: beforeId }).then(() => {
+      api.updateFilter(sourceId, next).then(() => {
         return queryClient.invalidateQueries({ queryKey: ['filters'] });
       }),
     );
@@ -210,8 +207,8 @@ export function FiltersPage() {
               onDragEnd={() => {
                 setDragging(null);
               }}
-              onDrop={(beforeId) => {
-                move(filter.id, beforeId);
+              onDrop={(sourceId, after) => {
+                move(sourceId, filter.id, after);
               }}
             />
           ))}
@@ -309,7 +306,7 @@ function FilterRow({
   readonly onOpenMenu: (anchor: HTMLElement) => void;
   readonly onDragStart: () => void;
   readonly onDragEnd: () => void;
-  readonly onDrop: (beforeId: string) => void;
+  readonly onDrop: (sourceId: string, after: boolean) => void;
 }) {
   const rowRef = useRef<HTMLLIElement>(null);
   const press = useLongPress(() => {
@@ -339,9 +336,11 @@ function FilterRow({
       }}
       onDrop={(event: DragEvent<HTMLLIElement>) => {
         const id = event.dataTransfer.getData('text/filter-id');
-        if (id.length > 0) {
-          onDrop(id);
+        if (id.length === 0) {
+          return;
         }
+        const rect = event.currentTarget.getBoundingClientRect();
+        onDrop(id, event.clientY > rect.top + rect.height / 2);
       }}
       {...press}
     >
