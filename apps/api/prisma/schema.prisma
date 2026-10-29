@@ -599,11 +599,13 @@ model Filter {
   mode      FilterMode @default(normal)
   rules     Json
   sortOrder BigInt     @default(65536) @map("sort_order")
+  pinned    Boolean    @default(false)
   createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt DateTime?  @map("deleted_at") @db.Timestamptz(6)
 
   @@index([ownerId, sortOrder])
+  @@index([ownerId, pinned(sort: Desc), sortOrder])
   @@map("filters")
 }
 

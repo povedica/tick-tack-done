@@ -125,7 +125,7 @@ export class ReviewController {
         ...(listFilter.id === undefined ? {} : { id: listFilter.id }),
       },
       include: {
-        tags: { select: { tag: { select: { name: true } } } },
+        tags: { select: { tagId: true, tag: { select: { name: true } } } },
         project: { select: { name: true } },
       },
     });
@@ -140,6 +140,7 @@ export class ReviewController {
       listName: row.project.name,
       status: row.status,
       updatedAt: row.updatedAt.toISOString(),
+      tagIds: row.tags.map((link) => link.tagId),
       tagNames: row.tags.map((link) => link.tag.name),
       assigneeId: row.assigneeId,
       content: row.content,

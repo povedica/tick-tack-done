@@ -423,6 +423,7 @@ export const es = {
   filterDelete: 'Eliminar',
   filterCount: '{count}',
   fieldList: 'Lista',
+  fieldFolder: 'Carpeta',
   fieldTag: 'Etiqueta',
   fieldDate: 'Fecha',
   fieldPriority: 'Prioridad',

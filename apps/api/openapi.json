@@ -3751,6 +3751,50 @@
         ]
       }
     },
+    "/api/v1/filters/{id}/restore": {
+      "post": {
+        "operationId": "FiltersController_restore",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Restore a deleted filter (TTD-FIL-03)",
+        "tags": [
+          "filters"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/smart-lists": {
       "get": {
         "operationId": "SmartListsController_list",
@@ -18040,6 +18084,26 @@
           "effect"
         ]
       },
+      "FilterTagLabelDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "color",
+          "deleted"
+        ]
+      },
       "FilterConditionDto": {
         "type": "object",
         "properties": {
@@ -18047,6 +18111,7 @@
             "type": "string",
             "enum": [
               "list",
+              "folder",
               "tag",
               "date",
               "priority",
@@ -18148,8 +18213,23 @@
           "rules": {
             "$ref": "#/components/schemas/FilterRulesDto"
           },
+          "tag_labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          },
+          "folder_labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          },
           "sort_order": {
             "type": "string"
+          },
+          "pinned": {
+            "type": "boolean"
           },
           "task_count": {
             "type": "number"
@@ -18168,7 +18248,10 @@
           "color",
           "mode",
           "rules",
+          "tag_labels",
+          "folder_labels",
           "sort_order",
+          "pinned",
           "task_count",
           "created_at",
           "updated_at"
@@ -18535,7 +18618,12 @@
           },
           "pin": {
             "type": "boolean",
-            "description": "Place the filter first in the sidebar (RF-903)."
+            "deprecated": true,
+            "description": "Obsolete alias of pinned. pin true sets pinned true."
+          },
+          "pinned": {
+            "type": "boolean",
+            "description": "Keep the filter in the pinned block (TTD-FIL-11)."
           }
         }
       },

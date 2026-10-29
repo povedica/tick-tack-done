@@ -130,10 +130,16 @@ export interface ApiClient extends ResourceClient {
   updateSmartLists(body: UpdateSmartListsBody): Promise<SmartListPage>;
   smartListTasks(key: string, options?: ViewOptions): Promise<ViewPage>;
   listFilters(): Promise<FilterPage>;
+  getFilter(id: string): Promise<Filter>;
   createFilter(body: CreateFilterBody, idempotencyKey: string): Promise<Filter>;
   updateFilter(id: string, body: UpdateFilterBody): Promise<Filter>;
   deleteFilter(id: string): Promise<void>;
-  previewFilter(body: PreviewFilterBody, options?: ViewOptions): Promise<ViewPage>;
+  restoreFilter(id: string): Promise<Filter>;
+  previewFilter(
+    body: PreviewFilterBody,
+    options?: ViewOptions,
+    signal?: AbortSignal,
+  ): Promise<ViewPage>;
   filterTasks(id: string, options?: ViewOptions): Promise<ViewPage>;
   search(q: string, types?: string): Promise<SearchResponse>;
   listTokens(query?: PageQuery & { readonly status?: 'active' | 'revoked' }): Promise<TokenPage>;
@@ -339,6 +345,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     listFilters() {
       return request(call, options, 'GET', '/api/v1/filters', undefined, undefined, isFilterPage);
     },
+    getFilter(id) {
+      return request(call, options, 'GET', `/api/v1/filters/${id}`, undefined, undefined, isFilter);
+    },
     createFilter(body, idempotencyKey) {
       return request(call, options, 'POST', '/api/v1/filters', body, idempotencyKey, isFilter);
     },
@@ -356,7 +365,18 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         isEmpty,
       );
     },
-    previewFilter(body, view) {
+    restoreFilter(id) {
+      return request(
+        call,
+        options,
+        'POST',
+        `/api/v1/filters/${id}/restore`,
+        undefined,
+        undefined,
+        isFilter,
+      );
+    },
+    previewFilter(body, view, signal) {
       return request(
         call,
         options,
@@ -365,6 +385,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         body,
         undefined,
         isViewPage,
+        signal,
       );
     },
     filterTasks(id, view) {
@@ -548,6 +569,7 @@ async function request<T>(
   body: unknown,
   idempotencyKey: string | undefined,
   parse: (value: unknown) => value is T,
+  signal?: AbortSignal,
 ): Promise<T> {
   const prefix = options.baseUrl.replace(/\/$/, '');
   const headers: Record<string, string> = { accept: 'application/json' };
@@ -561,7 +583,7 @@ async function request<T>(
   if (idempotencyKey !== undefined && idempotencyKey.length > 0) {
     headers['Idempotency-Key'] = idempotencyKey;
   }
-  const init: RequestInit = { method, headers };
+  const init: RequestInit = { method, headers, ...(signal === undefined ? {} : { signal }) };
   if (options.credentials !== undefined) {
     init.credentials = options.credentials;
   }

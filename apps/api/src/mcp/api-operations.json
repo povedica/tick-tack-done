@@ -2021,6 +2021,7 @@
                                 "type": "string",
                                 "enum": [
                                   "list",
+                                  "folder",
                                   "tag",
                                   "date",
                                   "priority",
@@ -2094,6 +2095,7 @@
                                 "type": "string",
                                 "enum": [
                                   "list",
+                                  "folder",
                                   "tag",
                                   "date",
                                   "priority",
@@ -2200,6 +2202,7 @@
                                 "type": "string",
                                 "enum": [
                                   "list",
+                                  "folder",
                                   "tag",
                                   "date",
                                   "priority",
@@ -2230,7 +2233,12 @@
               "move_to_end": { "type": "boolean" },
               "pin": {
                 "type": "boolean",
-                "description": "Place the filter first in the sidebar (RF-903)."
+                "deprecated": true,
+                "description": "Obsolete alias of pinned. pin true sets pinned true."
+              },
+              "pinned": {
+                "type": "boolean",
+                "description": "Keep the filter in the pinned block (TTD-FIL-11)."
               }
             }
           }
@@ -2242,6 +2250,21 @@
     "method": "DELETE",
     "path": "/api/v1/filters/{id}",
     "summary": "Move a filter to the trash (RF-902)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/filters/{id}/restore",
+    "summary": "Restore a deleted filter (TTD-FIL-03)",
     "parameters": [
       {
         "name": "X-Dev-User-Email",

@@ -1105,11 +1105,27 @@ describe('MCP server', () => {
         title: 'R80 list contract',
       },
     });
+    const filter = await prisma.filter.create({
+      data: {
+        ownerId: owner.id,
+        name: 'R80 list contract',
+        mode: 'normal',
+        rules: {
+          combinator: 'AND',
+          groups: [
+            {
+              combinator: 'AND',
+              conditions: [{ field: 'keyword', op: 'contains', value: 'R80 list contract' }],
+            },
+          ],
+        },
+      },
+    });
     for (const tool of MCP_TOOLS.filter((tool) => tool.name.startsWith('list_'))) {
       const required = tool.inputSchema.required ?? [];
       const candidates: Record<string, unknown> = {
         task_id: task.id,
-        id: task.id,
+        id: tool.name === 'list_filter_tasks' ? filter.id : task.id,
         key: 'today',
         from: '2026-10-22T00:00:00Z',
         to: '2026-10-23T00:00:00Z',
@@ -1121,6 +1137,11 @@ describe('MCP server', () => {
       });
       expect(response.body.result.isError, tool.name).toBe(false);
       const page = JSON.parse(toolText(response.body as unknown)) as Record<string, unknown>;
+      if (tool.name === 'list_filter_tasks') {
+        expect(Array.isArray(page.groups), tool.name).toBe(true);
+        expect(page, tool.name).toHaveProperty('next_cursor');
+        continue;
+      }
       expect(Array.isArray(page.items), tool.name).toBe(true);
       expect(page, tool.name).toHaveProperty('next_cursor');
     }
