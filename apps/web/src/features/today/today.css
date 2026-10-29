@@ -659,6 +659,13 @@ a.task-title {
   background: var(--surface-2);
 }
 
+.tag-picker .popover-row input[type='checkbox'] {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
 .popover-row.is-danger {
   color: var(--danger);
 }
