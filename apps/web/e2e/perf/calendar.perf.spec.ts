@@ -244,22 +244,33 @@ async function swipe(page: Page, selector: string, axis: 'up' | 'left'): Promise
       }
       return null;
     };
+    // The board can be taller than the viewport. Only points on screen can receive the touch.
+    const top = Math.max(rect.top, 0) + 4;
+    const bottom = Math.min(rect.bottom, window.innerHeight) - 4;
+    const left = Math.max(rect.left, 0) + 4;
+    const right = Math.min(rect.right, window.innerWidth) - 4;
     if (direction === 'up') {
-      const x = Math.round(rect.left + rect.width / 2);
-      const ys: number[] = [];
-      for (let y = Math.ceil(rect.top) + 4; y <= rect.bottom - 4; y += 6) {
-        if (hits(x, y)) ys.push(y);
+      for (let x = left; x <= right; x += 24) {
+        const ys: number[] = [];
+        for (let y = top; y <= bottom; y += 6) {
+          if (hits(x, y)) ys.push(y);
+        }
+        const pair = span(ys);
+        if (pair !== null) {
+          return { x: Math.round(x), y: pair.from, endX: Math.round(x), endY: pair.to };
+        }
       }
-      const pair = span(ys);
-      return pair === null ? null : { x, y: pair.from, endX: x, endY: pair.to };
+      return null;
     }
-    const y = Math.round(rect.top + rect.height / 2);
-    const xs: number[] = [];
-    for (let x = Math.ceil(rect.left) + 4; x <= rect.right - 4; x += 6) {
-      if (hits(x, y)) xs.push(x);
+    for (let y = top; y <= bottom; y += 24) {
+      const xs: number[] = [];
+      for (let x = left; x <= right; x += 6) {
+        if (hits(x, y)) xs.push(x);
+      }
+      const pair = span(xs);
+      if (pair !== null) return { x: pair.from, y: Math.round(y), endX: pair.to, endY: Math.round(y) };
     }
-    const pair = span(xs);
-    return pair === null ? null : { x: pair.from, y, endX: pair.to, endY: y };
+    return null;
   }, axis);
   if (segment === null) {
     throw new Error(`No in-board swipe segment for ${selector}`);
