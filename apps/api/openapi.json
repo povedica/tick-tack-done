@@ -17861,6 +17861,26 @@
           "effect"
         ]
       },
+      "FilterTagLabelDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "color",
+          "deleted"
+        ]
+      },
       "FilterConditionDto": {
         "type": "object",
         "properties": {
@@ -17969,6 +17989,12 @@
           "rules": {
             "$ref": "#/components/schemas/FilterRulesDto"
           },
+          "tag_labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          },
           "sort_order": {
             "type": "string"
           },
@@ -17992,6 +18018,7 @@
           "color",
           "mode",
           "rules",
+          "tag_labels",
           "sort_order",
           "pinned",
           "task_count",

@@ -4829,6 +4829,11 @@ export interface components {
             rules?: Record<string, never> | null;
             effect: Record<string, never>;
         };
+        FilterTagLabelDto: {
+            name: string;
+            color: string | null;
+            deleted: boolean;
+        };
         FilterConditionDto: {
             /** @enum {string} */
             field: "list" | "tag" | "date" | "priority" | "keyword" | "status" | "assignee";
@@ -4853,6 +4858,9 @@ export interface components {
             /** @enum {string} */
             mode: "normal" | "advanced";
             rules: components["schemas"]["FilterRulesDto"];
+            tag_labels: {
+                [key: string]: Record<string, never>;
+            };
             sort_order: string;
             pinned: boolean;
             task_count: number;
