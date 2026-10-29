@@ -15,8 +15,15 @@ import {
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
-import { useRef, useState, type CSSProperties, type DragEvent, type RefObject } from 'react';
-import { Link } from 'react-router';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type RefObject,
+} from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { runAction } from '../../../components/run-action';
 import { useLongPress } from '../../../components/useLongPress';
@@ -52,6 +59,23 @@ export function FiltersPage() {
   const anchorRef = useRef<HTMLElement | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const newRef = useRef<HTMLButtonElement>(null);
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const edit = params.get('edit');
+    const creating = params.get('new') === '1';
+    if (!creating && (edit === null || edit.length === 0)) {
+      return;
+    }
+    if (creating) {
+      openCreate();
+    } else if (edit !== null) {
+      openEdit(edit);
+    }
+    const next = new URLSearchParams(params);
+    next.delete('new');
+    next.delete('edit');
+    setParams(next, { replace: true });
+  }, [openCreate, openEdit, params, setParams]);
 
   if (filters.isPending) {
     return (

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import type { FilterPreset } from './draft';
 
-export type FilterPreset = 'high' | 'no_date' | 'overdue';
+export type { FilterPreset };
 
 export type FilterEditorRequest =
   | { readonly kind: 'create'; readonly preset?: FilterPreset }

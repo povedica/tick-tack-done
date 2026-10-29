@@ -4,7 +4,7 @@ import { Button, Modal } from '../../../components/ui';
 import { fill, useMessages } from '../../../i18n';
 import { deleteFilter, restoreFilter } from '../filter-commands';
 import { useFilterUi } from '../filter-ui';
-import { FilterDraftModal } from './FilterDraftModal';
+import { FilterEditor } from './FilterEditor';
 import '../filters.css';
 
 export function FilterChrome() {
@@ -22,7 +22,7 @@ export function FilterChrome() {
       <p className="filter-live" aria-live="polite">
         {notice ?? ''}
       </p>
-      {editor !== null ? <FilterDraftModal request={editor} onClose={closeEditor} /> : null}
+      {editor !== null ? <FilterEditor request={editor} onClose={closeEditor} /> : null}
       {deleting !== null ? (
         <Modal
           role="alertdialog"

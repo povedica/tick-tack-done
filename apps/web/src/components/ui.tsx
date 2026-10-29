@@ -129,12 +129,14 @@ export function Modal({
   onClose,
   danger = false,
   role = 'dialog',
+  className,
 }: {
   readonly title: string;
   readonly children: ReactNode;
   readonly onClose: () => void;
   readonly danger?: boolean;
   readonly role?: 'dialog' | 'alertdialog';
+  readonly className?: string;
 }) {
   return (
     <div
@@ -147,7 +149,7 @@ export function Modal({
       }}
     >
       <div
-        className="ui-modal"
+        className={className === undefined ? 'ui-modal' : `ui-modal ${className}`}
         role={role}
         aria-modal="true"
         aria-label={title}
