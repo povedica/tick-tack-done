@@ -107,6 +107,7 @@ function EditorForm({
     rows: ReturnType<typeof rowsFromView>;
   } | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [previewOn, setPreviewOn] = useState(true);
   const [live, setLive] = useState('');
   const origin = useRef(fingerprint(initial));
   const hintId = useId();
@@ -205,6 +206,12 @@ function EditorForm({
   const previewKey = JSON.stringify(built);
   const ready = completeCount(draft) > 0;
   useEffect(() => {
+    if (!previewOn) {
+      setPreview(null);
+      setPreviewing(false);
+      setLive('');
+      return;
+    }
     if (!ready) {
       setPreview(null);
       setPreviewing(false);
@@ -237,7 +244,7 @@ function EditorForm({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [previewKey, ready, messages]);
+  }, [previewKey, previewOn, ready, messages]);
 
   const save = useMutation({
     mutationFn: () => {
@@ -560,8 +567,10 @@ function EditorForm({
         )}
         <Preview
           messages={messages}
+          enabled={previewOn}
           text={countText}
-          rows={ready ? (preview?.rows ?? []) : []}
+          rows={previewOn && ready ? (preview?.rows ?? []) : []}
+          onToggle={setPreviewOn}
           onSeeAll={seeAll}
         />
         {error !== null ? (
@@ -601,13 +610,16 @@ function EditorForm({
           </Button>
         </div>
       </div>
-      <p className="filter-editor-bar">
-        <span>{countText}</span>
-        <Button type="button" variant="ghost" size="sm" onClick={seeAll}>
-          {messages.filterPreviewOpen}
-          <ChevronRight size={16} aria-hidden="true" />
-        </Button>
-      </p>
+      <div className="filter-editor-bar">
+        <PreviewSwitch label={messages.filterPreview} checked={previewOn} onChange={setPreviewOn} />
+        {previewOn ? <span className="filter-editor-count">{countText}</span> : null}
+        {previewOn ? (
+          <Button type="button" variant="ghost" size="sm" onClick={seeAll}>
+            {messages.filterPreviewOpen}
+            <ChevronRight size={16} aria-hidden="true" />
+          </Button>
+        ) : null}
+      </div>
       <p className="filter-live" aria-live="polite">
         {live}
       </p>
@@ -1087,30 +1099,66 @@ function DateValue({
   );
 }
 
+function PreviewSwitch({
+  label,
+  checked,
+  onChange,
+}: {
+  readonly label: string;
+  readonly checked: boolean;
+  readonly onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="filter-preview-switch">
+      <span className="filter-switch">
+        <input
+          type="checkbox"
+          role="switch"
+          checked={checked}
+          onChange={(event) => {
+            onChange(event.target.checked);
+          }}
+        />
+        <span aria-hidden="true" />
+      </span>
+      {label}
+    </label>
+  );
+}
+
 function Preview({
   messages,
+  enabled,
   text,
   rows,
+  onToggle,
   onSeeAll,
 }: {
   readonly messages: Messages;
+  readonly enabled: boolean;
   readonly text: string;
   readonly rows: ReturnType<typeof rowsFromView>;
+  readonly onToggle: (next: boolean) => void;
   readonly onSeeAll: () => void;
 }) {
   return (
     <section className="filter-preview" aria-label={messages.filterPreview}>
       <header>
         <Eye size={16} aria-hidden="true" />
-        <p>
-          {messages.filterPreview} · <strong>{text}</strong>
-        </p>
-        <Button type="button" variant="ghost" size="sm" onClick={onSeeAll}>
-          {messages.filterSeeAll}
-          <ChevronRight size={16} aria-hidden="true" />
-        </Button>
+        <PreviewSwitch label={messages.filterPreview} checked={enabled} onChange={onToggle} />
+        {enabled ? (
+          <p>
+            <strong>{text}</strong>
+          </p>
+        ) : null}
+        {enabled ? (
+          <Button type="button" variant="ghost" size="sm" onClick={onSeeAll}>
+            {messages.filterSeeAll}
+            <ChevronRight size={16} aria-hidden="true" />
+          </Button>
+        ) : null}
       </header>
-      {rows.length > 0 ? (
+      {enabled && rows.length > 0 ? (
         <ul>
           {rows.map((row) => (
             <li key={row.id}>

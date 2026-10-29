@@ -681,7 +681,77 @@ body:has(.filter-editor) .date-popover {
   margin-top: var(--sp-4);
   padding-top: var(--sp-3);
   border-top: 1px solid var(--border);
-  color: var(--ink-2);
+  color: var(--ink);
+}
+
+.filter-preview-switch {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.filter-switch {
+  position: relative;
+  flex: none;
+  width: 2.25rem;
+  height: 1.25rem;
+}
+
+.filter-switch input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.filter-switch input + span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+}
+
+.filter-switch input + span::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1rem;
+  height: 1rem;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+}
+
+.filter-switch input:checked + span {
+  background: var(--accent);
+}
+
+.filter-switch input:checked + span::after {
+  transform: translateX(1rem);
+}
+
+.filter-switch input:focus-visible + span {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .filter-switch input + span::after {
+    transition: transform var(--dur-fast) var(--ease);
+  }
+}
+
+.filter-editor-count {
+  min-width: 0;
+  color: var(--ink);
+}
+
+.filter-editor-actions {
+  display: flex;
+  gap: 24px;
 }
 
 .filter-preview header {
@@ -826,9 +896,11 @@ body:has(.filter-editor) .date-popover {
     background: var(--surface);
   }
 
-  .filter-editor-bar .filter-text-button {
+  .filter-editor-bar .filter-text-button,
+  .filter-editor-bar .ui-button {
     flex: none;
     width: auto;
+    color: var(--accent-ink);
   }
 
   .filter-editor-actions,
@@ -886,6 +958,72 @@ body:has(.filter-editor) .date-popover {
 
   .filter-editor-bar {
     padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .filter-editor .filter-group {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .filter-editor .filter-group .filter-group-head {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .filter-editor .filter-group .filter-group-head .ui-segmented {
+    flex: 1 1 100%;
+  }
+
+  .filter-editor .filter-group .filter-group-head strong,
+  .filter-editor .filter-group .ui-segmented button,
+  .filter-editor .filter-group .filter-add-condition,
+  .filter-editor .filter-group .ui-input,
+  .filter-editor .filter-group .filter-field-trigger {
+    font-size: var(--fs-xs);
+  }
+
+  .filter-editor .filter-group .ui-segmented {
+    min-height: 28px;
+  }
+
+  .filter-editor .filter-group .ui-segmented button {
+    min-height: 22px;
+    padding: 2px 8px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .filter-editor .filter-group .filter-condition {
+    gap: 6px;
+    padding: 6px;
+    grid-template-columns: minmax(0, 1fr) 32px;
+  }
+
+  .filter-editor .filter-group .ui-input,
+  .filter-editor .filter-group .filter-field-trigger,
+  .filter-editor .filter-group .filter-add-condition {
+    min-height: 32px;
+  }
+
+  .filter-editor .filter-group .filter-multi-open {
+    min-height: 22px;
+  }
+
+  .filter-editor .filter-group .filter-multi-trigger {
+    min-height: 28px;
+    padding: 2px;
+  }
+
+  .filter-editor .filter-group .filter-toggle-chip {
+    min-height: 22px;
+    height: 22px;
+  }
+
+  .filter-editor .filter-group .filter-remove,
+  .filter-editor .filter-group .filter-group-remove {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
   }
 }
 

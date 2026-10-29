@@ -234,7 +234,10 @@ for (const theme of ['light', 'dark'] as const) {
             .evaluate((node) => node.scrollWidth <= node.clientWidth + 1);
           expect(fit).toBe(true);
           await expect(dialog.locator('.filter-editor-actions')).toBeHidden();
-          await expectTap(dialog.getByRole('button', { name: 'Campo: Prioridad' }));
+          const field = dialog.getByRole('button', { name: 'Campo: Prioridad' });
+          const fieldBox = await field.boundingBox();
+          expect(fieldBox?.height ?? 0).toBeLessThanOrEqual(36);
+          expect(fieldBox?.height ?? 0).toBeGreaterThanOrEqual(28);
         }
       });
     });

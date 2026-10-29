@@ -104,6 +104,14 @@ describe('FilterEditor', () => {
     expect(save().disabled).toBe(false);
   });
 
+  it('does not preview while the switch is off', async () => {
+    renderEditor();
+    fireEvent.click(screen.getAllByRole('switch', { name: 'Vista previa' })[0] as HTMLElement);
+    fireEvent.change(screen.getByLabelText('Valor de Palabra'), { target: { value: 'casa' } });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(previewFilter).not.toHaveBeenCalled();
+  });
+
   it('previews only after the debounce and can drop a condition', async () => {
     renderEditor();
     fireEvent.change(screen.getByLabelText('Valor de Palabra'), { target: { value: 'casa' } });
