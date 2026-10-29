@@ -7,6 +7,7 @@ import {
   Trash2,
   type LucideIcon,
 } from 'lucide-react';
+import { Fragment } from 'react';
 import type { Messages } from '../../i18n';
 
 export type FilterMenuActionId = 'conditions' | 'name' | 'pin' | 'duplicate' | 'delete';
@@ -73,7 +74,7 @@ export function FilterMenuButtons({
       {filterMenuItems(messages, pinned).map((item) => {
         const Icon = item.icon;
         return (
-          <span key={item.id} className="filter-menu-slot">
+          <Fragment key={item.id}>
             {item.separatorBefore ? <div className="menu-sep" role="separator" /> : null}
             <button
               type="button"
@@ -86,7 +87,7 @@ export function FilterMenuButtons({
               <Icon size={16} aria-hidden="true" />
               {item.label}
             </button>
-          </span>
+          </Fragment>
         );
       })}
     </>

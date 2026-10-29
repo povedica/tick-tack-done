@@ -304,10 +304,6 @@
   border: 0;
 }
 
-.filter-menu-slot {
-  display: contents;
-}
-
 .filter-editor-head {
   display: flex;
   gap: 8px;

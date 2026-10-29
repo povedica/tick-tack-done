@@ -40,6 +40,7 @@ function renderMenu(pinned: boolean) {
   const anchor = createRef<HTMLButtonElement>();
   const onPin = vi.fn();
   const onClose = vi.fn();
+  const onEdit = vi.fn();
   const view = render(
     <>
       <button ref={anchor} type="button">
@@ -53,14 +54,14 @@ function renderMenu(pinned: boolean) {
         countLabel="1 tarea"
         anchor={anchor}
         onClose={onClose}
-        onEdit={vi.fn()}
+        onEdit={onEdit}
         onPin={onPin}
         onDuplicate={vi.fn()}
         onDelete={vi.fn()}
       />
     </>,
   );
-  return { ...view, onPin, onClose, anchor };
+  return { ...view, onPin, onClose, onEdit, anchor };
 }
 
 describe('FilterMenu', () => {
@@ -81,5 +82,12 @@ describe('FilterMenu', () => {
     fireEvent.keyDown(document.activeElement ?? edit, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
     expect(document.activeElement).toBe(anchor.current);
+  });
+
+  it('closes when an action is chosen', () => {
+    const { onClose, onEdit } = renderMenu(false);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Editar condiciones' }));
+    expect(onClose).toHaveBeenCalled();
+    expect(onEdit).toHaveBeenCalledWith('conditions');
   });
 });

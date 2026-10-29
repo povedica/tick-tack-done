@@ -81,6 +81,7 @@ export function FilterMenu({
   }
 
   function select(id: FilterMenuActionId): void {
+    onClose();
     if (id === 'conditions') {
       onEdit('conditions');
     } else if (id === 'name') {

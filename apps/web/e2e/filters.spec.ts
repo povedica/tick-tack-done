@@ -85,6 +85,7 @@ for (const theme of ['light', 'dark'] as const) {
           .getByRole('button', { name: 'Acciones', exact: true })
           .click();
         await page.getByRole('menuitem', { name: 'Editar condiciones' }).click();
+        await expect(page.getByRole('menuitem', { name: 'Editar condiciones' })).toHaveCount(0);
         const editor = page.getByRole('dialog', { name: 'Editar filtro' });
         await editor.getByRole('button', { name: 'Añadir condición' }).click();
         await page.getByRole('option', { name: 'Prioridad' }).click();
