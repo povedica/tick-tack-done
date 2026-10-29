@@ -11,6 +11,14 @@
   Crear o cambiar las reglas exige al menos una condición; un filtro vacío ya
   guardado sigue leyéndose. El MCP lista, lee, crea, edita, fija, borra y
   restaura filtros.
+- La página de filtros es una lista con menú, fijar, duplicar y borrar con
+  deshacer. La barra lateral usa el mismo menú. `/filters/:id` abre
+  `/filter/:id`.
+- El editor es un modal en escritorio y una pantalla completa en el móvil, con
+  Todas o Alguna, grupos y una vista previa que se calcula sola.
+- La vista del filtro muestra el embudo, las condiciones y las acciones en
+  «…». Un id que no existe lleva a los filtros. La captura rellena la etiqueta,
+  la lista o el día cuando la condición nombra solo uno.
 
 ## Revisión del paquete de listas
 
