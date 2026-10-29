@@ -248,13 +248,12 @@
 }
 
 .today-header:has(.filter-view-rules) {
-  flex-wrap: wrap;
   align-items: center;
 }
 
 .today-header:has(.filter-view-rules) .page-title {
-  flex: 1 1 auto;
-  min-width: 8rem;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .today-header:has(.filter-view-rules) .page-actions {
@@ -262,26 +261,26 @@
 }
 
 .page-title h1.filter-view-title {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
 .filter-view-rules {
   display: flex;
-  flex: 1 0 100%;
+  flex: 0 1 auto;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  order: 3;
-  margin: var(--sp-1) 0 var(--sp-3);
-  padding-inline-start: calc(var(--sp-4) + var(--sp-3) + 4px + 20px + 4px);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.filter-view-rules .filter-chips {
+  margin: 0;
 }
 
 @media (max-width: 1023px) {
-  .filter-view-rules {
-    padding-inline-start: calc(var(--tap) + 4px + 20px + 4px);
-  }
-
   .today-header:has(.filter-view-rules) .view-menu > .icon-button {
     width: var(--tap);
     height: var(--tap);
