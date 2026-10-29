@@ -165,6 +165,11 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
 }
+.year-board .year-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 12rem;
+}
+
 .calendar-page .year-card {
   height: auto;
   align-self: start;
