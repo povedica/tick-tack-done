@@ -58,5 +58,5 @@ _Semilla: 29/10/2026 (hora de Madrid)._
 
 | ID | Pregunta | Opciones | Recomendación | Origen | Issue | Estado | Fecha · decisión |
 |---|---|---|---|---|---|---|---|
-| DEC-001 | Dónde vive el backlog | Fichero en el repo · GitHub Projects | Ambos | repo-publico/HARNESS.md §8-3 | BKL-016 | Decidida | 29/10/2026 · Pablo: los dos. El Project es el estado vivo y BACKLOG.md y DECISIONES.md van versionados en el repo, actualizados con cada cambio (PROTOCOLO-BACKLOG.md) |
+| DEC-001 | Dónde vive el backlog | Fichero en el repo · GitHub Projects | Ambos | repo-publico/HARNESS.md §8-3 | BKL-016 | Decidida | 29/10/2026 · Pablo: los dos. El Project es el estado vivo y BACKLOG.md y DECISIONES.md van versionados en el repo, actualizados con cada cambio (PROTOCOLO-BACKLOG.md); 30/10/2026 · Implementación del backlog en PR #98, con issues y Project privado configurados; se conserva Status nativo de GitHub |
 | DEC-000 | Repo privado mientras se limpia | Privado ya · limpiar en público | Privado ya | repo-publico/HARNESS.md §8-1 | BKL-018 | Decidida | 28/10/2026 · Pablo puso el repo en privado |

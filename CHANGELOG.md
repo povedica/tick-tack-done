@@ -4,7 +4,8 @@
 
 - Plantillas de issues y PR, workflow y scripts de sincronización del backlog.
 - Espejo del backlog, registro de decisiones y protocolo de trabajo.
-- Reglas compartidas en AGENTS.md y skill de backlog para Cursor y Codex.
+- Reglas compartidas en AGENTS.md y skill de backlog para Cursor y Codex, compatibles
+  con el campo nativo Status de GitHub. Espejo regenerado desde las issues reales.
 
 ## Sin publicar
 
