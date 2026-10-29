@@ -112,6 +112,18 @@ jobs:
             exit 0
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
+      - name: Verificar la credencial y el acceso al Project
+        if: steps.ready.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          if ! gh api user --jq .login; then
+            echo "::error::PROJECT_TOKEN no autentica en GitHub. Sustituye el secret por un PAT classic válido con scopes repo y project."
+            exit 1
+          fi
+          gh api graphql -f owner="$OWNER" -F number="$PROJECT_NUMBER" \
+            -f query='query($owner: String!, $number: Int!) { user(login: $owner) { projectV2(number: $number) { title } } }' \
+            --jq '.data.user.projectV2.title'
       - name: Regenerar docs/backlog/BACKLOG.md desde el Project
         if: steps.ready.outputs.enabled == 'true'
         env:
