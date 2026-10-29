@@ -990,6 +990,7 @@ export class TasksService {
         data: {
           startDate: start,
           dueDate: due,
+          timeZone: current.timeZone,
           durationMinutes: this.duration(start, due, current.durationMinutes),
         },
       });
@@ -1305,10 +1306,16 @@ export class TasksService {
           dto.due_date === undefined
             ? null
             : this.nextDate(null, dto.due_date, 'due_date', user.timeZone).date;
-        await tx.task.updateMany({
+        const dated = await tx.task.findMany({
           where: { ownerId: user.id, id: { in: dto.ids } },
-          data: { dueDate: due },
+          select: { id: true, startDate: true, timeZone: true },
         });
+        for (const task of dated) {
+          await tx.task.update({
+            where: { id: task.id },
+            data: { startDate: task.startDate, dueDate: due, timeZone: task.timeZone },
+          });
+        }
         for (const id of dto.ids) {
           await this.emitUpdated(tx, user, id);
         }

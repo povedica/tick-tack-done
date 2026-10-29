@@ -46,6 +46,13 @@ export {
 export type { ParsedRule, RepeatDraft, RuleFailure, Weekday } from './recurrence/rule';
 
 export { instantFromWall, startOfZonedDay } from './dates/zoned';
+export { entryLocalDays } from './calendar/local-days';
+export type {
+  EntryLocalDays,
+  EventLocalInput,
+  LocalDayContext,
+  TaskLocalInput,
+} from './calendar/local-days';
 export { parseTaskInstant } from './dates/parse-instant';
 export type { ParsedTaskInstant } from './dates/parse-instant';
 export { isOverdue, plannedForLater, snoozeDue } from './dates/schedule';

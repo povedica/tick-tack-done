@@ -20,6 +20,7 @@ import {
 } from '../../integrations/google-calendar.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
+import { eventLocalDayColumns } from '../../prisma/local-day-columns.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Tx } from '../../prisma/tx.js';
 
@@ -499,14 +500,25 @@ export class GoogleSyncService {
             subscriptionId_externalUid: { subscriptionId: row.id, externalUid: mapped.uid },
           },
         });
+        const startsAt = new Date(mapped.startsAt);
+        const endsAt = new Date(mapped.endsAt);
         const data = {
           title: mapped.title,
-          startsAt: new Date(mapped.startsAt),
-          endsAt: new Date(mapped.endsAt),
+          startsAt,
+          endsAt,
           isAllDay: mapped.isAllDay,
           timeZone: mapped.timeZone,
           status: mapped.status,
           raw: asJson(item),
+          location: googleText(item, 'location'),
+          description: googleText(item, 'description'),
+          ...eventLocalDayColumns({
+            start: startsAt,
+            end: endsAt,
+            timeZone: mapped.timeZone,
+            allDay: mapped.isAllDay,
+            profileTimeZone: zone,
+          }),
           deletedAt: null,
         };
         if (existing === null) {
@@ -828,4 +840,12 @@ function emptyCounts(): Counts {
 
 function nowWindow(): Date {
   return new Date();
+}
+
+function googleText(item: unknown, key: 'location' | 'description'): string | null {
+  if (typeof item !== 'object' || item === null || !(key in item)) {
+    return null;
+  }
+  const value = (item as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.length > 0 ? value : null;
 }

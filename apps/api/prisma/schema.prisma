@@ -494,6 +494,8 @@ model Task {
   startDate       DateTime?                @map("start_date") @db.Timestamptz(6)
   dueDate         DateTime?                @map("due_date") @db.Timestamptz(6)
   timeZone        String                   @default("Europe/Madrid") @map("time_zone")
+  localStartDay   DateTime?                @map("local_start_day") @db.Date
+  localEndDay     DateTime?                @map("local_end_day") @db.Date
   durationMinutes Int?                     @map("duration_minutes")
   isSomeday       Boolean                  @default(false) @map("is_someday")
   eveningOnly     Boolean                  @default(false) @map("evening_only")
@@ -536,6 +538,7 @@ model Task {
   @@index([ownerId, status, deletedAt, isSomeday], map: "tasks_owner_someday_idx")
   @@index([ownerId, deletedAt, createdAt], map: "tasks_owner_deleted_created_idx")
   @@index([ownerId, parentId, deletedAt], map: "tasks_owner_parent_deleted_idx")
+  @@index([ownerId, localStartDay], map: "tasks_owner_local_start_day_idx")
   @@index([searchVector], type: Gin, map: "tasks_fts_idx")
   @@map("tasks")
 }
@@ -748,6 +751,10 @@ model ExternalEvent {
   endsAt         DateTime?            @map("ends_at") @db.Timestamptz(6)
   isAllDay       Boolean              @default(false) @map("is_all_day")
   timeZone       String               @default("Europe/Madrid") @map("time_zone")
+  localStartDay  DateTime?            @map("local_start_day") @db.Date
+  localEndDay    DateTime?            @map("local_end_day") @db.Date
+  location       String?              @db.Text
+  description    String?              @db.Text
   status         String               @default("confirmed")
   raw            Json                 @default("{}")
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -756,6 +763,7 @@ model ExternalEvent {
 
   @@unique([subscriptionId, externalUid])
   @@index([ownerId, startsAt])
+  @@index([ownerId, localStartDay], map: "external_events_owner_local_start_day_idx")
   @@map("external_events")
 }
 

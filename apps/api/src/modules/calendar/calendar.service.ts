@@ -9,6 +9,7 @@ import { EventRecorder } from '../../events/event-recorder.js';
 import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { ICAL_MAX_BYTES, safeFetch } from '../../security/safe-fetch.js';
+import { eventLocalDayColumns } from '../../prisma/local-day-columns.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { googleConfigured } from '../../integrations/config.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
@@ -388,12 +389,14 @@ export class CalendarService {
             startsAt: new Date(event.startsAt),
             endsAt: event.endsAt === null ? null : new Date(event.endsAt),
             isAllDay: event.isAllDay,
+            ...eventDayColumns(user.timeZone, event),
           },
           update: {
             title: event.title,
             startsAt: new Date(event.startsAt),
             endsAt: event.endsAt === null ? null : new Date(event.endsAt),
             isAllDay: event.isAllDay,
+            ...eventDayColumns(user.timeZone, event),
             deletedAt: null,
           },
         });
@@ -644,11 +647,14 @@ export class CalendarService {
             startsAt: new Date(event.startsAt),
             endsAt: event.endsAt === null ? null : new Date(event.endsAt),
             isAllDay: event.isAllDay,
+            ...eventDayColumns(user.timeZone, event),
           },
           update: {
             title: event.title,
             startsAt: new Date(event.startsAt),
             endsAt: event.endsAt === null ? null : new Date(event.endsAt),
+            isAllDay: event.isAllDay,
+            ...eventDayColumns(user.timeZone, event),
             deletedAt: null,
           },
         });
@@ -816,6 +822,19 @@ function googleEvent(
       isAllDay: typeof item.start?.date === 'string',
     },
   ];
+}
+
+function eventDayColumns(
+  profileTimeZone: string,
+  event: { startsAt: string; endsAt: string | null; isAllDay: boolean },
+) {
+  return eventLocalDayColumns({
+    start: new Date(event.startsAt),
+    end: event.endsAt === null ? null : new Date(event.endsAt),
+    timeZone: event.isAllDay ? 'UTC' : profileTimeZone,
+    allDay: event.isAllDay,
+    profileTimeZone,
+  });
 }
 
 function isoInZone(value: Date, timeZone: string): string {
