@@ -5,6 +5,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './app';
+import { loadMessages } from './i18n/catalog';
+import { readLocaleChoice, resolveLocale } from './i18n/locale';
 import { ScreenBoundary } from './shell/ErrorBoundary';
 import { applyTheme, readThemePreference } from './theme/preference';
 import { applyPreferences, usePreferences } from './theme/preferences';
@@ -13,7 +15,6 @@ import './styles.css';
 import './shell/shell.css';
 import './components/ui.css';
 import './features/today/today.css';
-import './features/countdowns/countdowns.css';
 
 applyTheme(
   readThemePreference(localStorage),
@@ -25,17 +26,27 @@ registerSW({ immediate: true });
 
 const queryClient = createAppQueryClient();
 installActionErrorFallback();
-const root = document.getElementById('root');
-if (root === null) {
+const rootElement = document.getElementById('root');
+if (rootElement === null) {
   throw new Error('root is missing');
 }
+const root = rootElement;
 
-createRoot(root).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <ScreenBoundary>
-        <App />
-      </ScreenBoundary>
-    </QueryClientProvider>
-  </StrictMode>,
-);
+void boot().catch((error: unknown) => {
+  throw error;
+});
+
+async function boot(): Promise<void> {
+  const locale = resolveLocale(readLocaleChoice());
+  document.documentElement.lang = locale;
+  await loadMessages(locale);
+  createRoot(root).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <ScreenBoundary>
+          <App />
+        </ScreenBoundary>
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+}

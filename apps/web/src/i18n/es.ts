@@ -1,4 +1,4 @@
-import { extraEs } from './extra';
+import { extraEs } from './extra.es';
 
 export const es = {
   accountProgressLabel: 'Racha {days}. Control {score}, {state}',

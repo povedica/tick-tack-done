@@ -96,6 +96,21 @@ jobs:
       - name: El OpenAPI generado no debe tener diff sin commitear
         run: git diff --exit-code apps/api/openapi.json apps/api/src/mcp/api-operations.json
 
+  web:
+    # F10. Static graph of the entry plus /calendar/:view (SPEC §5.4).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @reflexionia/domain build
+      - run: pnpm --filter web build
+      - run: node scripts/check-bundle-budget.mjs apps/web/dist
+
   r80-browser-contracts:
     runs-on: ubuntu-latest
     steps:

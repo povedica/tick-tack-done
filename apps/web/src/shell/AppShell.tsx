@@ -1,13 +1,17 @@
 import { composerContextFor } from '../features/capture/context';
 import { runAction } from '../components/run-action';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../api';
 import { dismissPopover } from '../components/popover-stack';
-import { LocationWatch } from '../features/product/ProductPages';
+import { LocationWatch } from '../features/product/LocationWatch';
 import { Popover } from '../components/Popover';
-import { TaskDetail } from '../features/tasks/TaskDetail';
+import { SkeletonRows } from '../components/ui';
+
+const TaskDetail = lazy(() =>
+  import('../features/tasks/TaskDetail').then((module) => ({ default: module.TaskDetail })),
+);
 import { useQueryClient } from '@tanstack/react-query';
 import { useActionToast } from '../components/action-toast';
 import '../components/toast.css';
@@ -230,7 +234,9 @@ export function AppShell() {
                 storeDetailWidth(localStorage, next);
               }}
             />
-            <TaskDetail taskId={taskId} onClose={closeDetail} />
+            <Suspense fallback={<SkeletonRows />}>
+              <TaskDetail taskId={taskId} onClose={closeDetail} />
+            </Suspense>
           </div>
         ) : null}
         {floatingDetail ? (
@@ -241,7 +247,9 @@ export function AppShell() {
               onClose={closeDetail}
               className="task-detail-dialog"
             >
-              <TaskDetail taskId={taskId} onClose={closeDetail} />
+              <Suspense fallback={<SkeletonRows />}>
+                <TaskDetail taskId={taskId} onClose={closeDetail} />
+              </Suspense>
             </Popover>
           </div>
         ) : null}

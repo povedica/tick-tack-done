@@ -1,5 +1,7 @@
 import { createApiClient } from '@reflexionia/sdk';
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { StaleWhileRevalidate } from 'workbox-strategies';
 import { shareTargetRedirect } from './features/capture/share-target';
 
 interface ShareFetchEvent {
@@ -16,11 +18,22 @@ interface WorkerScope {
 const scope = self as unknown as WorkerScope;
 
 // Workbox replaces this exact member in the built worker. Keep the literal.
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 // @ts-expect-error Window has no service-worker manifest; the injection point is required.
-precacheAndRoute(self.__WB_MANIFEST);
-/* eslint-enable @typescript-eslint/no-unsafe-argument */
+const injectedManifest = self.__WB_MANIFEST as WorkerScope['__WB_MANIFEST'];
+const precacheManifest = injectedManifest.filter((entry) => {
+  const url = typeof entry === 'string' ? entry : entry.url;
+  return !url.includes('deferred-');
+});
+precacheAndRoute(precacheManifest);
 cleanupOutdatedCaches();
+
+registerRoute(
+  ({ url }) =>
+    url.origin === self.location.origin &&
+    url.pathname.startsWith('/assets/') &&
+    !/\/assets\/(?:index-|core-)/.test(url.pathname),
+  new StaleWhileRevalidate({ cacheName: 'deferred-chunks' }),
+);
 
 scope.addEventListener('fetch', (event) => {
   if (event.request.method !== 'POST') {

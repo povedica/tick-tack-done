@@ -1,18 +1,13 @@
-import { NotificationsPage } from './features/settings/NotificationsPage';
-import { AboutPage } from './features/settings/AboutPage';
-import { FocusSettingsPage } from './features/settings/FocusSettingsPage';
 import { composerContextFor } from './features/capture/context';
 import { PolicyPage } from './features/auth/PolicyPage';
 import { runAction } from './components/run-action';
+import { SkeletonRows } from './components/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { api } from './api';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
-import { TokensPage } from './features/tokens/components/TokensPage';
 import { CommandPalette } from './features/views/components/CommandPalette';
-import { FiltersPage } from './features/views/components/FiltersPage';
-import { SmartListsPage } from './features/views/components/SmartListsPage';
 import {
   CancelledPage,
   FilterViewPage,
@@ -24,58 +19,104 @@ import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice, openTaskComposer, useCaptureOpen } from './features/capture/notice';
-import { HabitDetailPage } from './features/habits/components/HabitDetailPage';
-import { DayPlanEntry } from './features/planning/DayPlanEntry';
-import { HabitsPage } from './features/habits/components/HabitsPage';
-import { CountdownsPage } from './features/countdowns/CountdownsPage';
-import { TickyPage } from './features/ticky/TickyPage';
-import {
-  AccountPage,
-  CalendarPage,
-  CaptureSettings,
-  ForgotPage,
-  InboxPage,
-  MatrixPage,
-  NoteRoute,
-  SearchPage,
-  SettingsHome,
-  SettingsLayout,
-  TaskRoute,
-} from './features/places/Places';
-import {
-  CalendarSettings,
-  DashboardPage,
-  FocusPage,
-  IntegrationSettings,
-  ReportsPage,
-  ReviewPage,
-} from './features/product/ProductPages';
-import { StatisticsPage } from './features/statistics/StatisticsPage';
-import { ProjectsPage } from './features/projects/ProjectsPage';
-import {
-  AutomationSettings,
-  DataSettings,
-  PluginSettings,
-  SharingSettings,
-  ShortcutSettings,
-  WebhookSettings,
-} from './features/settings/MoreSettings';
-import { AppearancePage } from './features/settings/AppearancePage';
-import { FeaturesPage } from './features/settings/FeaturesPage';
 import { featureFlags, useFeatures, type FeatureFlags } from './features/settings/feature-flags';
 import { ConsentPage } from './features/auth/ConsentPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
-import { RepeatPage } from './features/repeat/RepeatPage';
-import { ShutdownPage } from './features/closing/ShutdownPage';
-import { WontDoPage } from './features/planning/PlanDayPage';
-import { WorkdaySettings } from './features/settings/WorkdaySettings';
 import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
 import { GlobalKeys } from './shell/GlobalKeys';
 import { AppShell } from './shell/AppShell';
 import { NotFoundPage } from './shell/NotFoundPage';
 import { ThemeSync } from './theme/ThemeSync';
+
+const InboxPage = lazyNamed(() => import('./features/places/InboxPage'), 'InboxPage');
+const SearchPage = lazyNamed(() => import('./features/places/SearchPage'), 'SearchPage');
+const NoteRoute = lazyNamed(() => import('./features/places/TaskRoutes'), 'NoteRoute');
+const TaskRoute = lazyNamed(() => import('./features/places/TaskRoutes'), 'TaskRoute');
+const SettingsHome = lazyNamed(() => import('./features/places/SettingsShell'), 'SettingsHome');
+const SettingsLayout = lazyNamed(() => import('./features/places/SettingsShell'), 'SettingsLayout');
+const ForgotPage = lazyNamed(() => import('./features/places/ForgotPage'), 'ForgotPage');
+const AccountPage = lazyNamed(() => import('./features/places/AccountPage'), 'AccountPage');
+const CaptureSettings = lazyNamed(
+  () => import('./features/places/CaptureSettingsPage'),
+  'CaptureSettings',
+);
+const FiltersPage = lazyNamed(() => import('./features/views/components/FiltersPage'), 'FiltersPage');
+const SmartListsPage = lazyNamed(
+  () => import('./features/views/components/SmartListsPage'),
+  'SmartListsPage',
+);
+const CalendarPage = lazyNamed(() => import('./features/places/Places'), 'CalendarPage');
+const MatrixPage = lazyNamed(() => import('./features/matrix/MatrixBoard'), 'MatrixPage');
+const HabitsPage = lazyNamed(() => import('./features/habits/components/HabitsPage'), 'HabitsPage');
+const HabitDetailPage = lazyNamed(
+  () => import('./features/habits/components/HabitDetailPage'),
+  'HabitDetailPage',
+);
+const CountdownsPage = lazyNamed(() => import('./features/countdowns/CountdownsPage'), 'CountdownsPage');
+const TickyPage = lazyNamed(() => import('./features/ticky/TickyPage'), 'TickyPage');
+const TokensPage = lazyNamed(() => import('./features/tokens/components/TokensPage'), 'TokensPage');
+const StatisticsPage = lazyNamed(() => import('./features/statistics/StatisticsPage'), 'StatisticsPage');
+const ProjectsPage = lazyNamed(() => import('./features/projects/ProjectsPage'), 'ProjectsPage');
+const DayPlanEntry = lazyNamed(() => import('./features/planning/DayPlanEntry'), 'DayPlanEntry');
+const WontDoPage = lazyNamed(() => import('./features/planning/WontDoPage'), 'WontDoPage');
+const DayShutdownPage = lazy(async () => {
+  const module = await import('./features/closing/ShutdownPage');
+  return {
+    default: function DayShutdownPage() {
+      return <module.ShutdownPage kind="shutdown" />;
+    },
+  };
+});
+const ReviewPage = lazyNamed(() => import('./features/product/WeeklyPages'), 'ReviewPage');
+const ReportsPage = lazyNamed(() => import('./features/product/WeeklyPages'), 'ReportsPage');
+const FocusPage = lazyNamed(() => import('./features/focus/FocusPage'), 'FocusPage');
+const DashboardPage = lazyNamed(() => import('./features/dashboard/DashboardPage'), 'DashboardPage');
+const RepeatPage = lazyNamed(() => import('./features/repeat/RepeatPage'), 'RepeatPage');
+const CalendarSettings = lazyNamed(
+  () => import('./features/product/ProductPages'),
+  'CalendarSettings',
+);
+const IntegrationSettings = lazyNamed(
+  () => import('./features/product/ProductPages'),
+  'IntegrationSettings',
+);
+const AppearancePage = lazyNamed(() => import('./features/settings/AppearancePage'), 'AppearancePage');
+const FeaturesPage = lazyNamed(() => import('./features/settings/FeaturesPage'), 'FeaturesPage');
+const WorkdaySettings = lazyNamed(() => import('./features/settings/WorkdaySettings'), 'WorkdaySettings');
+const FocusSettingsPage = lazyNamed(
+  () => import('./features/settings/FocusSettingsPage'),
+  'FocusSettingsPage',
+);
+const AboutPage = lazyNamed(() => import('./features/settings/AboutPage'), 'AboutPage');
+const NotificationsPage = lazyNamed(
+  () => import('./features/settings/NotificationsPage'),
+  'NotificationsPage',
+);
+const AutomationSettings = lazyNamed(
+  () => import('./features/settings/MoreSettings'),
+  'AutomationSettings',
+);
+const DataSettings = lazyNamed(() => import('./features/settings/MoreSettings'), 'DataSettings');
+const PluginSettings = lazyNamed(() => import('./features/settings/MoreSettings'), 'PluginSettings');
+const SharingSettings = lazyNamed(() => import('./features/settings/MoreSettings'), 'SharingSettings');
+const ShortcutSettings = lazyNamed(
+  () => import('./features/settings/MoreSettings'),
+  'ShortcutSettings',
+);
+const WebhookSettings = lazyNamed(() => import('./features/settings/MoreSettings'), 'WebhookSettings');
+
+function lazyNamed<Key extends string>(
+  load: () => Promise<Record<Key, ComponentType>>,
+  key: Key,
+) {
+  return lazy(async () => ({ default: (await load())[key] }));
+}
+
+function Suspended({ children }: { readonly children: ReactNode }) {
+  return <Suspense fallback={<SkeletonRows />}>{children}</Suspense>;
+}
 
 export function App() {
   return (
@@ -122,103 +163,111 @@ function Shell() {
         <Route path="/terms" element={<PolicyPage terms />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPage />} />
+        <Route path="/forgot-password" element={<Suspended><ForgotPage /></Suspended>} />
         <Route element={<RequireSession />}>
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/today" replace />} />
             <Route path="/today" element={<TodayPage />} />
             <Route path="/quick-add" element={<QuickAddRoute />} />
-            <Route path="/inbox" element={<InboxPage />} />
+            <Route path="/inbox" element={<Suspended><InboxPage /></Suspended>} />
             <Route path="/list/:id" element={<ProjectListPage />} />
             <Route path="/projects/:id" element={<ProjectListPage />} />
             <Route path="/lists/:id" element={<ProjectListPage />} />
-            <Route path="/list/:id/note/:taskId" element={<NoteRoute />} />
+            <Route path="/list/:id/note/:taskId" element={<Suspended><NoteRoute /></Suspended>} />
             <Route path="/filter/:id" element={<FilterViewPage />} />
-            <Route path="/filters" element={<FiltersPage />} />
+            <Route path="/filters" element={<Suspended><FiltersPage /></Suspended>} />
             <Route path="/filters/:id" element={<FilterViewPage />} />
             <Route path="/tag/:id" element={<TagViewPage />} />
             <Route path="/trash" element={<Navigate to="/smart/trash" replace />} />
             <Route path="/tasks/completed" element={<Navigate to="/smart/completed" replace />} />
             <Route path="/tasks/cancelled" element={<CancelledPage />} />
             <Route path="/smart/:key" element={<SmartListViewPage />} />
-            <Route path="/smart-lists" element={<SmartListsPage />} />
+            <Route path="/smart-lists" element={<Suspended><SmartListsPage /></Suspended>} />
             <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
-            <Route path="/task/:id" element={<TaskRoute />} />
-            <Route path="/habits" element={<HabitsPage />} />
+            <Route path="/task/:id" element={<Suspended><TaskRoute /></Suspended>} />
+            <Route path="/habits" element={<Suspended><HabitsPage /></Suspended>} />
             <Route
               path="/countdowns"
               element={
-                <FeatureRoute flag="countdowns">
-                  <CountdownsPage />
-                </FeatureRoute>
+                <Suspended>
+                  <FeatureRoute flag="countdowns">
+                    <CountdownsPage />
+                  </FeatureRoute>
+                </Suspended>
               }
             />
-            <Route path="/habits/:id" element={<HabitDetailPage />} />
+            <Route path="/habits/:id" element={<Suspended><HabitDetailPage /></Suspended>} />
             <Route path="/calendar" element={<Navigate to="/calendar/month" replace />} />
-            <Route path="/calendar/:view" element={<CalendarPage />} />
+            <Route path="/calendar/:view" element={<Suspended><CalendarPage /></Suspended>} />
             <Route
               path="/matrix"
               element={
-                <FeatureRoute flag="matrix">
-                  <MatrixPage />
-                </FeatureRoute>
+                <Suspended>
+                  <FeatureRoute flag="matrix">
+                    <MatrixPage />
+                  </FeatureRoute>
+                </Suspended>
               }
             />
             <Route
               path="/focus"
               element={
-                <FeatureRoute flag="focus">
-                  <FocusPage />
-                </FeatureRoute>
+                <Suspended>
+                  <FeatureRoute flag="focus">
+                    <FocusPage />
+                  </FeatureRoute>
+                </Suspended>
               }
             />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/dashboard/projects" element={<ProjectsPage />} />
-            <Route path="/statistics" element={<StatisticsPage />} />
-            <Route path="/statistics/:tab" element={<StatisticsPage />} />
-            <Route path="/reports/weekly" element={<ReportsPage />} />
-            <Route path="/reports/weekly/:week" element={<ReportsPage />} />
-            <Route path="/plan/day" element={<DayPlanEntry />} />
-            <Route path="/cierre" element={<ShutdownPage kind="shutdown" />} />
+            <Route path="/dashboard" element={<Suspended><DashboardPage /></Suspended>} />
+            <Route path="/dashboard/projects" element={<Suspended><ProjectsPage /></Suspended>} />
+            <Route path="/statistics" element={<Suspended><StatisticsPage /></Suspended>} />
+            <Route path="/statistics/:tab" element={<Suspended><StatisticsPage /></Suspended>} />
+            <Route path="/reports/weekly" element={<Suspended><ReportsPage /></Suspended>} />
+            <Route path="/reports/weekly/:week" element={<Suspended><ReportsPage /></Suspended>} />
+            <Route path="/plan/day" element={<Suspended><DayPlanEntry /></Suspended>} />
+            <Route path="/cierre" element={<Suspended><DayShutdownPage /></Suspended>} />
             <Route path="/replan" element={<Navigate to="/plan/day" replace />} />
-            <Route path="/wont-do" element={<WontDoPage />} />
-            <Route path="/review" element={<ReviewPage />} />
-            <Route path="/review/daily" element={<ReviewPage />} />
-            <Route path="/review/weekly" element={<ReviewPage />} />
-            <Route path="/search" element={<SearchPage />} />
+            <Route path="/wont-do" element={<Suspended><WontDoPage /></Suspended>} />
+            <Route path="/review" element={<Suspended><ReviewPage /></Suspended>} />
+            <Route path="/review/daily" element={<Suspended><ReviewPage /></Suspended>} />
+            <Route path="/review/weekly" element={<Suspended><ReviewPage /></Suspended>} />
+            <Route path="/search" element={<Suspended><SearchPage /></Suspended>} />
             <Route
               path="/ticky"
               element={
-                <FeatureRoute flag="ticky">
-                  <TickyPage />
-                </FeatureRoute>
+                <Suspended>
+                  <FeatureRoute flag="ticky">
+                    <TickyPage />
+                  </FeatureRoute>
+                </Suspended>
               }
             />
-            <Route path="/sticky" element={<DashboardPage />} />
-            <Route path="/tokens" element={<TokensPage />} />
+            <Route path="/sticky" element={<Suspended><DashboardPage /></Suspended>} />
+            <Route path="/tokens" element={<Suspended><TokensPage /></Suspended>} />
             <Route path="/oauth/consent" element={<ConsentPage />} />
-            <Route path="/settings" element={<SettingsLayout />}>
-              <Route index element={<SettingsHome />} />
-              <Route path="appearance" element={<AppearancePage />} />
-              <Route path="features" element={<FeaturesPage />} />
-              <Route path="account" element={<AccountPage />} />
-              <Route path="workday" element={<WorkdaySettings />} />
-              <Route path="capture" element={<CaptureSettings />} />
-              <Route path="focus" element={<FocusSettingsPage />} />
-              <Route path="about" element={<AboutPage />} />
-              <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="smart-lists" element={<SmartListsPage />} />
-              <Route path="calendar" element={<CalendarSettings />} />
-              <Route path="tokens" element={<TokensPage />} />
-              <Route path="integrations" element={<IntegrationSettings />} />
-              <Route path="automations" element={<AutomationSettings />} />
-              <Route path="webhooks" element={<WebhookSettings />} />
-              <Route path="data" element={<DataSettings />} />
-              <Route path="plugins" element={<PluginSettings />} />
-              <Route path="sharing" element={<SharingSettings />} />
-              <Route path="shortcuts" element={<ShortcutSettings />} />
+            <Route path="/settings" element={<Suspended><SettingsLayout /></Suspended>}>
+              <Route index element={<Suspended><SettingsHome /></Suspended>} />
+              <Route path="appearance" element={<Suspended><AppearancePage /></Suspended>} />
+              <Route path="features" element={<Suspended><FeaturesPage /></Suspended>} />
+              <Route path="account" element={<Suspended><AccountPage /></Suspended>} />
+              <Route path="workday" element={<Suspended><WorkdaySettings /></Suspended>} />
+              <Route path="capture" element={<Suspended><CaptureSettings /></Suspended>} />
+              <Route path="focus" element={<Suspended><FocusSettingsPage /></Suspended>} />
+              <Route path="about" element={<Suspended><AboutPage /></Suspended>} />
+              <Route path="notifications" element={<Suspended><NotificationsPage /></Suspended>} />
+              <Route path="smart-lists" element={<Suspended><SmartListsPage /></Suspended>} />
+              <Route path="calendar" element={<Suspended><CalendarSettings /></Suspended>} />
+              <Route path="tokens" element={<Suspended><TokensPage /></Suspended>} />
+              <Route path="integrations" element={<Suspended><IntegrationSettings /></Suspended>} />
+              <Route path="automations" element={<Suspended><AutomationSettings /></Suspended>} />
+              <Route path="webhooks" element={<Suspended><WebhookSettings /></Suspended>} />
+              <Route path="data" element={<Suspended><DataSettings /></Suspended>} />
+              <Route path="plugins" element={<Suspended><PluginSettings /></Suspended>} />
+              <Route path="sharing" element={<Suspended><SharingSettings /></Suspended>} />
+              <Route path="shortcuts" element={<Suspended><ShortcutSettings /></Suspended>} />
             </Route>
-            <Route path="/repeat" element={<RepeatPage />} />
+            <Route path="/repeat" element={<Suspended><RepeatPage /></Suspended>} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

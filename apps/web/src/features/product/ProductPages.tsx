@@ -1,7 +1,7 @@
 import { GoogleIntegrationCards } from '../settings/DriveCard';
 import { TelegramCard } from '../settings/TelegramCard';
 import { runAction } from '../../components/run-action';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
@@ -321,18 +321,3 @@ function flag(value: unknown, key: string): boolean {
   );
 }
 
-export function LocationWatch() {
-  useEffect(() => {
-    if (!('geolocation' in navigator)) {
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        runAction(api.reportLocation(position.coords.latitude, position.coords.longitude));
-      },
-      () => undefined,
-      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },
-    );
-  }, []);
-  return null;
-}

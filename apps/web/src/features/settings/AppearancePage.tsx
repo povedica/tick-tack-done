@@ -1,4 +1,4 @@
-import { AppearanceExtras } from '../places/Places';
+import { AppearanceExtras } from '../places/AppearanceExtras';
 import { useMessages } from '../../i18n';
 import { useThemePreference } from '../../theme/store';
 import type { ThemePreference } from '../../theme/preference';

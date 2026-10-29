@@ -467,7 +467,8 @@ export { WEEKDAY_CODES, weekdayCodes, weekdayNumbers } from './work/weekdays';
 export type { WeekdayCode } from './work/weekdays';
 export type { NotificationKind, NotificationChannel } from './reminders/preferences';
 
-export { DEFAULT_CAPTURE_SETTINGS, captureSettings, parseCapture } from './nlp/capture-settings';
+export { DEFAULT_CAPTURE_SETTINGS, captureSettings } from './nlp/capture-settings';
+export { parseCapture } from './nlp/parse-capture';
 export type { CaptureSettings } from './nlp/capture-settings';
 
 export {

@@ -21,16 +21,25 @@ import {
   MoreHorizontal,
   X,
 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateTaskBody } from '@reflexionia/sdk';
 import { api } from '../../api';
 import { DatePopover, type DateDraft } from '../../components/DatePopover';
+import { SkeletonRows } from '../../components/ui';
 import { Popover } from '../../components/Popover';
 import { TagIcon } from '../../components/TagIcon';
 import { captureLanguage, fill, useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
-import { quickAddRequest, type ViewDay } from '../capture/quick-add';
+import type { QuickAddInput, QuickAddRequest, ViewDay } from '../capture/quick-add';
 import { textSegments } from '../capture/draft';
 import { noticesFrom, useCaptureNotice, type CaptureNotice } from '../capture/notice';
 import { useSpeech } from '../capture/speech';
@@ -43,7 +52,27 @@ import { refreshTaskSurfaces } from './refresh';
 import './composer.css';
 import { useComposerCopy } from './composer-text';
 
-export function TaskComposer({
+type QuickAddFn = (input: QuickAddInput) => QuickAddRequest;
+let quickAddFn: QuickAddFn | undefined;
+
+function loadQuickAdd(): QuickAddFn {
+  if (quickAddFn !== undefined) return quickAddFn;
+  // React suspends when render throws a thenable.
+  // eslint-disable-next-line @typescript-eslint/only-throw-error -- suspense protocol
+  throw import('../capture/quick-add').then((mod) => {
+    quickAddFn = mod.quickAddRequest;
+  });
+}
+
+export function TaskComposer(props: Parameters<typeof TaskComposerLoaded>[0]) {
+  return (
+    <Suspense fallback={<SkeletonRows />}>
+      <TaskComposerLoaded {...props} />
+    </Suspense>
+  );
+}
+
+function TaskComposerLoaded({
   defaultProjectId: contextProjectId,
   initialDraft,
   calendar = false,
@@ -72,6 +101,7 @@ export function TaskComposer({
   readonly inputRef?: RefObject<HTMLInputElement | null>;
   readonly onCreated?: (() => void) | undefined;
 }) {
+  const quickAddRequest = loadQuickAdd();
   const messages = useMessages();
   const driveConnection = useDriveConnection();
   const viewSlot = initialDraft?.slot;
