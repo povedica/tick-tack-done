@@ -106,7 +106,9 @@ describe('FilterEditor', () => {
 
   it('does not preview while the switch is off', async () => {
     renderEditor();
-    fireEvent.click(screen.getAllByRole('switch', { name: 'Vista previa' })[0] as HTMLElement);
+    expect(
+      (screen.getAllByRole('switch', { name: 'Vista previa' })[0] as HTMLInputElement).checked,
+    ).toBe(false);
     fireEvent.change(screen.getByLabelText('Valor de Palabra'), { target: { value: 'casa' } });
     await vi.advanceTimersByTimeAsync(300);
     expect(previewFilter).not.toHaveBeenCalled();
@@ -114,6 +116,7 @@ describe('FilterEditor', () => {
 
   it('previews only after the debounce and can drop a condition', async () => {
     renderEditor();
+    fireEvent.click(screen.getAllByRole('switch', { name: 'Vista previa' })[0] as HTMLElement);
     fireEvent.change(screen.getByLabelText('Valor de Palabra'), { target: { value: 'casa' } });
     expect(previewFilter).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(300);
@@ -124,6 +127,7 @@ describe('FilterEditor', () => {
 
   it('sends OR when Alguna is chosen', async () => {
     renderEditor();
+    fireEvent.click(screen.getAllByRole('switch', { name: 'Vista previa' })[0] as HTMLElement);
     fireEvent.change(screen.getByLabelText('Valor de Palabra'), { target: { value: 'casa' } });
     fireEvent.click(screen.getByRole('radio', { name: 'Alguna' }));
     await vi.advanceTimersByTimeAsync(300);

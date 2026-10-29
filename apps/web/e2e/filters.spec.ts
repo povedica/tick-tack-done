@@ -36,6 +36,8 @@ for (const theme of ['light', 'dark'] as const) {
         await page.keyboard.press('Escape');
         await dialog.getByRole('button', { name: 'Añadir condición' }).click();
         await page.getByRole('option', { name: 'Fecha' }).click();
+        await expect(previewSwitch(dialog, narrow)).not.toBeChecked();
+        await enablePreview(dialog, narrow);
         if (narrow) {
           const bar = dialog.locator('.filter-editor-bar');
           await expect(bar).toContainText('1 tarea coincide');
@@ -184,6 +186,8 @@ for (const theme of ['light', 'dark'] as const) {
         await page.locator('#content').getByRole('button', { name: 'Nuevo filtro' }).click();
         const dialog = page.getByRole('dialog', { name: 'Nuevo filtro' });
         await expect(dialog.locator('select')).toHaveCount(0);
+        await expect(previewSwitch(dialog, narrow)).not.toBeChecked();
+        await enablePreview(dialog, narrow);
         await dialog.getByLabel('Valor de Palabra').fill('solo-alguna');
         const count = narrow
           ? dialog.locator('.filter-editor-bar')
@@ -249,6 +253,16 @@ for (const theme of ['light', 'dark'] as const) {
       });
     });
   }
+}
+
+function previewSwitch(dialog: Locator, narrow: boolean): Locator {
+  const root = narrow ? dialog.locator('.filter-editor-bar') : dialog.locator('.filter-preview');
+  return root.locator('input[role="switch"]');
+}
+
+async function enablePreview(dialog: Locator, narrow: boolean): Promise<void> {
+  await previewSwitch(dialog, narrow).click({ force: true });
+  await expect(previewSwitch(dialog, narrow)).toBeChecked();
 }
 
 function listsButton(page: Page): Locator {

@@ -107,7 +107,7 @@ function EditorForm({
     rows: ReturnType<typeof rowsFromView>;
   } | null>(null);
   const [previewing, setPreviewing] = useState(false);
-  const [previewOn, setPreviewOn] = useState(true);
+  const [previewOn, setPreviewOn] = useState(false);
   const [live, setLive] = useState('');
   const origin = useRef(fingerprint(initial));
   const hintId = useId();
