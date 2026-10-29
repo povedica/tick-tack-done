@@ -285,7 +285,35 @@
   flex: none;
 }
 
+.filter-view-meta {
+  display: contents;
+}
+
 @media (max-width: 1023px) {
+  .today-header:has(.filter-view-rules) {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .today-header:has(.filter-view-rules) .page-title {
+    flex: 1 1 auto;
+  }
+
+  .today-header:has(.filter-view-rules) .page-title h1.filter-view-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  .today-header:has(.filter-view-rules) .filter-view-meta {
+    display: flex;
+    flex: 1 0 100%;
+    gap: 8px;
+    align-items: center;
+    order: 3;
+  }
+
   .today-header:has(.filter-view-rules) .view-menu > .icon-button {
     width: var(--tap);
     height: var(--tap);

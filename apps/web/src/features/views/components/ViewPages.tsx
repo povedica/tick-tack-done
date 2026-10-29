@@ -453,6 +453,15 @@ export function Board({
     setParams(query, { replace: true });
   }
 
+  const taskCount = page.isPending
+    ? '—'
+    : (() => {
+        const count = page.data?.count ?? rows.length;
+        return count === 1
+          ? messages.taskCountOne
+          : messages.taskCount.replace('{count}', String(count));
+      })();
+  const taskCountBadge = <span className="ui-badge">{taskCount}</span>;
   return (
     <main className="screen-page">
       <header className="today-header">
@@ -467,7 +476,12 @@ export function Board({
             {title}
           </h1>
         </div>
-        {belowTitle}
+        {belowTitle === undefined ? null : (
+          <div className="filter-view-meta">
+            {belowTitle}
+            {taskCountBadge}
+          </div>
+        )}
         {viewKey === 'smart:today' || viewKey === 'smart:next_7_days' ? <WorkHoursLine /> : null}
         <div className="page-actions">
           {headerActions}
@@ -487,16 +501,7 @@ export function Board({
               } else chooseView(next);
             }}
           />
-          <span className="ui-badge">
-            {page.isPending
-              ? '—'
-              : (() => {
-                  const count = page.data?.count ?? rows.length;
-                  return count === 1
-                    ? messages.taskCountOne
-                    : messages.taskCount.replace('{count}', String(count));
-                })()}
-          </span>
+          {belowTitle === undefined ? taskCountBadge : null}
           <SortMenu messages={messages}>
             <label>
               {messages.groupBy}
