@@ -7,7 +7,8 @@ import type { AddTaskLinkDto } from './task-links.dto.js';
 import { reconcileTaskLinks, taskLinkJson } from './task-links.js';
 import { DriveAttachmentsService } from '../../drive/attachments.service.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
-import { annotateWork, workFilterFor } from '../../work/work-context.js';
+import { taskRangeWhere } from '../../reading/task-range.js';
+import { annotateWork, loadWorkRow, workFilterFor, type WorkRow } from '../../work/work-context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
@@ -207,28 +208,17 @@ export class TasksService {
       query.to === undefined ? undefined : this.instant(query.to, 'to', user.timeZone).date;
     if (lower && upper && lower >= upper)
       throw new DomainException(HttpStatus.BAD_REQUEST, 'invalid_range', 'from must precede to');
-    const bounds = {
-      ...(lower === undefined ? {} : { gte: lower }),
-      ...(upper === undefined ? {} : { lt: upper }),
+    const range = taskRangeWhere(lower, upper, query.rangeField ?? 'any');
+    let workRow: WorkRow | undefined;
+    const workRowOnce = async (): Promise<WorkRow> => {
+      workRow ??= await loadWorkRow(this.prisma, user.id);
+      return workRow;
     };
-    const range: Prisma.TaskWhereInput | null =
-      lower === undefined && upper === undefined
+    const context = query.context ?? 'all';
+    const work =
+      context === 'all'
         ? null
-        : query.rangeField === 'due'
-          ? { dueDate: bounds }
-          : query.rangeField === 'start'
-            ? { startDate: bounds }
-            : {
-                OR: [
-                  { dueDate: bounds },
-                  { startDate: bounds },
-                  {
-                    startDate: { not: null, ...(upper === undefined ? {} : { lt: upper }) },
-                    dueDate: { not: null, ...(lower === undefined ? {} : { gte: lower }) },
-                  },
-                ],
-              };
-    const work = await workFilterFor(this.prisma, user.id, query.context ?? 'all');
+        : await workFilterFor(this.prisma, user.id, context, new Date(), await workRowOnce());
     const filters = [work, range].filter((item): item is Prisma.TaskWhereInput => item !== null);
     const rows = await this.prisma.task.findMany({
       where: {
@@ -259,6 +249,7 @@ export class TasksService {
       include: {
         _count: { select: { links: true } },
         tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
+        project: { select: { folderId: true } },
       },
       orderBy: taskOrderBy(query.sort),
       take: query.limit + 1,
@@ -269,7 +260,17 @@ export class TasksService {
     const summaries = page.map((row) =>
       toTaskSummary(row, progress.get(row.id) ?? { completed: 0, total: 0 }),
     );
-    const flags = await annotateWork(this.prisma, user.id, summaries);
+    const flags =
+      page.length === 0
+        ? []
+        : annotateWork(
+            await workRowOnce(),
+            page.map((row) => ({
+              project_id: row.projectId,
+              tag_ids: row.tags.map((tag) => tag.tagId),
+              folder_id: row.project.folderId,
+            })),
+          );
     const last = page.at(-1);
     return {
       items: summaries.map((item, index) => ({ ...item, is_work: flags[index] ?? false })),
