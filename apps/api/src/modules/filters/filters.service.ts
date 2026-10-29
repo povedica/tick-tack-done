@@ -398,7 +398,7 @@ export class FiltersService {
       where: { ownerId, deletedAt: null },
       select: { id: true, name: true },
     });
-    let unknown = false;
+    let unknown: boolean = false;
     const groups = rules.groups.map((group) => ({
       combinator: group.combinator,
       conditions: group.conditions.map((condition) => {
