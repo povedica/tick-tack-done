@@ -1,0 +1,50 @@
+name: Bug
+description: Algo de ttd no funciona como debe
+title: 'BKL-NNN · '
+labels: ['backlog', 'tipo:bug']
+# projects: ["povedica/N"]
+body:
+  - type: markdown
+    attributes:
+      value: Sin capturas de la cuenta real ni datos personales. Usa datos de prueba.
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducir
+      placeholder: "1. Ir a …\n2. Pulsar …"
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperabas y qué pasa
+    validations:
+      required: true
+  - type: dropdown
+    id: entorno
+    attributes:
+      label: Dónde
+      multiple: true
+      options: [Escritorio, Móvil (navegador), PWA instalada, API, MCP]
+  - type: input
+    id: version
+    attributes:
+      label: Commit de producción
+      description: El campo «commit» de /api/v1/health en el momento del fallo.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        [
+          calendario,
+          filtros,
+          correo,
+          infra,
+          repo,
+          hábitos,
+          plan del día,
+          nativo/PWA,
+          MCP/API,
+          proyectos,
+        ]
