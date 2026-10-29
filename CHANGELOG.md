@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+- Un filtro guarda las etiquetas por id. Un nombre sigue valiendo al crear o
+  editar, y se resuelve sin distinguir mayúsculas. Fusionar dos etiquetas
+  reescribe los filtros que citaban la de origen. El paso de datos es
+  `pnpm --filter api exec tsx ../../scripts/backfill-filter-tag-ids.ts --dry-run`
+  antes de aplicarlo; no forma parte de la migración SQL.
 - Un filtro se puede fijar (`pinned`) y restaurar después del borrado lógico.
   Crear o cambiar las reglas exige al menos una condición; un filtro vacío ya
   guardado sigue leyéndose. El MCP lista, lee, crea, edita, fija, borra y
