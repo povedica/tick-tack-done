@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { api } from '../../api';
+import { PublicLinkSettings } from '../public/PublicLinkSettings';
 import { failureMessage } from '../../failure';
 import { Button, Kbd } from '../../components/ui';
 import { useMessages, type Messages } from '../../i18n';
@@ -492,6 +493,9 @@ export function SharingSettings() {
   const [permission, setPermission] = useState<'read' | 'comment' | 'write'>('read');
   const [error, setError] = useState<string | null>(null);
   const projectId = picked.length > 0 ? picked : (lists[0]?.id ?? '');
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const selected = lists.find((list) => list.id === projectId);
+  const isOwner = selected !== undefined && selected.owner_id === me.data?.id;
   const members = useQuery({
     queryKey: ['members', projectId],
     queryFn: () => api.listMembers(projectId),
@@ -603,6 +607,7 @@ export function SharingSettings() {
           </article>
         ))}
       </section>
+      {isOwner && !selected.is_inbox ? <PublicLinkSettings projectId={projectId} /> : null}
     </section>
   );
 }

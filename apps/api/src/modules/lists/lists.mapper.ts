@@ -84,6 +84,7 @@ export function toProjectJson(
     role: 'owner' | 'read' | 'comment' | 'write';
     shared: boolean;
     memberCount: number;
+    publicLinkActive?: boolean;
   } = { role: 'owner', shared: false, memberCount: 0 },
 ): ProjectResponseDto {
   return {
@@ -109,6 +110,7 @@ export function toProjectJson(
     role: access.role,
     shared: access.shared,
     member_count: access.memberCount,
+    public_link_active: access.publicLinkActive === true,
     created_at: iso(row.createdAt) ?? '',
     updated_at: iso(row.updatedAt) ?? '',
   };

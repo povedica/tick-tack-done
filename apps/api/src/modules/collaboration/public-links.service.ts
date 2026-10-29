@@ -49,6 +49,11 @@ export class PublicLinksService {
     const includeNotes = input.include_notes ?? true;
     const token = newPublicListToken();
     const row = await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      await tx.publicListLink.updateMany({
+        where: { projectId, revokedAt: null, expiresAt: { lte: now } },
+        data: { revokedAt: now },
+      });
       const existing = await tx.publicListLink.findFirst({
         where: { projectId, revokedAt: null },
         select: { id: true },

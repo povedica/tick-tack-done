@@ -488,6 +488,18 @@ export interface ResourceClient {
     permission: 'read' | 'comment' | 'write',
   ): Promise<JsonObject>;
   unshareProject(projectId: string, memberId: string): Promise<void>;
+  getPublicLink(projectId: string): Promise<JsonObject>;
+  createPublicLink(
+    projectId: string,
+    input: { readonly expiresAt?: string | null; readonly includeNotes?: boolean },
+  ): Promise<JsonObject>;
+  regeneratePublicLink(projectId: string): Promise<JsonObject>;
+  updatePublicLink(
+    projectId: string,
+    input: { readonly expiresAt?: string | null; readonly includeNotes?: boolean },
+  ): Promise<JsonObject>;
+  revokePublicLink(projectId: string): Promise<void>;
+  getPublicList(token: string): Promise<JsonObject>;
 }
 
 function pageQuery(query: PageQuery | undefined): string {
@@ -503,6 +515,16 @@ function pageQuery(query: PageQuery | undefined): string {
   }
   const text = params.toString();
   return text.length === 0 ? '' : `?${text}`;
+}
+
+function publicLinkBody(input: {
+  readonly expiresAt?: string | null;
+  readonly includeNotes?: boolean;
+}): JsonObject {
+  return {
+    ...(input.expiresAt === undefined ? {} : { expires_at: input.expiresAt }),
+    ...(input.includeNotes === undefined ? {} : { include_notes: input.includeNotes }),
+  };
 }
 
 export function resourceMethods(http: Http): ResourceClient {
@@ -990,6 +1012,57 @@ export function resourceMethods(http: Http): ResourceClient {
         undefined,
         isEmpty,
       );
+    },
+    getPublicLink: (projectId) =>
+      ask('GET', `/api/v1/projects/${projectId}/public-link`, undefined, undefined, isJsonObject),
+    createPublicLink: (projectId, input) =>
+      ask(
+        'POST',
+        `/api/v1/projects/${projectId}/public-link`,
+        publicLinkBody(input),
+        undefined,
+        isJsonObject,
+      ),
+    regeneratePublicLink: (projectId) =>
+      ask(
+        'POST',
+        `/api/v1/projects/${projectId}/public-link/regenerate`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
+    updatePublicLink: (projectId, input) =>
+      ask(
+        'PATCH',
+        `/api/v1/projects/${projectId}/public-link`,
+        publicLinkBody(input),
+        undefined,
+        isJsonObject,
+      ),
+    async revokePublicLink(projectId) {
+      await ask(
+        'DELETE',
+        `/api/v1/projects/${projectId}/public-link`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    async getPublicList(token) {
+      const prefix = http.options.baseUrl.replace(/\/$/, '');
+      const response = await http.call(
+        `${prefix}/api/v1/public/lists/${encodeURIComponent(token)}`,
+        {
+          method: 'GET',
+          credentials: 'omit',
+          headers: { accept: 'application/json' },
+        },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok || !isJsonObject(payload)) {
+        throw new ApiError(response.status, 'request_failed', 'Public list was not found');
+      }
+      return payload;
     },
   };
 }

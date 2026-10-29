@@ -21,6 +21,7 @@ import {
   ListTodo,
   Funnel,
   List,
+  Globe,
   Settings,
   Search,
   X,
@@ -660,6 +661,7 @@ export function Sidebar({
                           menuOpen={menu?.kind === 'list' && menu.id === project.id}
                           inboxLabel={messages.smartInbox}
                           menuLabel={messages.menuLabel}
+                          globeLabel={messages.publicLinkGlobe}
                           onNavigate={() => {
                             setMenu(null);
                             onNavigate();
@@ -706,6 +708,7 @@ export function Sidebar({
                       menuOpen={menu?.kind === 'list' && menu.id === project.id}
                       inboxLabel={messages.smartInbox}
                       menuLabel={messages.menuLabel}
+                      globeLabel={messages.publicLinkGlobe}
                       onNavigate={() => {
                         setMenu(null);
                         onNavigate();
@@ -742,6 +745,7 @@ export function Sidebar({
                           menuOpen={menu?.kind === 'list' && menu.id === project.id}
                           inboxLabel={messages.smartInbox}
                           menuLabel={messages.menuLabel}
+                          globeLabel={messages.publicLinkGlobe}
                           onNavigate={() => {
                             setMenu(null);
                             onNavigate();
@@ -777,6 +781,7 @@ export function Sidebar({
                           menuOpen={menu?.kind === 'list' && menu.id === project.id}
                           inboxLabel={messages.smartInbox}
                           menuLabel={messages.menuLabel}
+                          globeLabel={messages.publicLinkGlobe}
                           onNavigate={() => {
                             setMenu(null);
                             onNavigate();
@@ -1533,6 +1538,13 @@ function filterSummaryText(messages: Messages): SummaryText {
   };
 }
 
+function publicLinkActive(project: Project): boolean {
+  return (
+    'public_link_active' in project &&
+    (project as { public_link_active?: boolean }).public_link_active === true
+  );
+}
+
 function ListRow({
   project,
   showCounters,
@@ -1543,6 +1555,7 @@ function ListRow({
   menuOpen,
   inboxLabel,
   menuLabel,
+  globeLabel,
   onNavigate,
   onOpenMenu,
   onDragStart,
@@ -1558,6 +1571,7 @@ function ListRow({
   readonly menuOpen: boolean;
   readonly inboxLabel: string;
   readonly menuLabel: string;
+  readonly globeLabel: string;
   readonly onNavigate: () => void;
   readonly onOpenMenu: (anchor: HTMLElement) => void;
   readonly onDragStart: (event: DragEvent<HTMLElement>) => void;
@@ -1590,6 +1604,9 @@ function ListRow({
         <SideLink to={`/list/${project.id}`} section style={tint} onNavigate={onNavigate}>
           <Icon className="nav-list-icon" size={16} aria-hidden="true" />
           <span className="nav-label">{project.is_inbox ? inboxLabel : project.name}</span>
+          {publicLinkActive(project) ? (
+            <Globe className="nav-list-icon" size={14} aria-label={globeLabel} />
+          ) : null}
           {showCounters && project.active_task_count > 0 ? (
             <Badge value={project.active_task_count} />
           ) : null}

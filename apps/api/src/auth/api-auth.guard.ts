@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import { DomainException } from '../http/domain.exception.js';
+import { maskPublicListPath } from '../http/api-exception.filter.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser } from './auth-user.js';
 import { missingScopes, SESSION_SCOPES } from './scopes.js';
@@ -106,7 +107,7 @@ export class ApiAuthGuard implements CanActivate {
       requestSource: trustedMcpSource({
         remoteAddress: request.socket.remoteAddress,
         method: request.method,
-        path: request.originalUrl,
+        path: maskPublicListPath(request.originalUrl),
         authorization: request.header('authorization') ?? '',
         source: request.header('x-ttd-source'),
         timestamp: request.header('x-ttd-internal-time'),

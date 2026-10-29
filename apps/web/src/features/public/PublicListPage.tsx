@@ -1,4 +1,5 @@
 import { BrandMark } from '../../components/BrandMark';
+import { useMessages } from '../../i18n';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import './public-list.css';
@@ -20,6 +21,7 @@ interface PublicList {
 
 export function PublicListPage() {
   const { token = '' } = useParams();
+  const messages = useMessages();
   const [state, setState] = useState<'loading' | 'ready' | 'missing' | 'limited' | 'error'>(
     'loading',
   );
@@ -57,7 +59,7 @@ export function PublicListPage() {
           return;
         }
         const body = (await response.json()) as PublicList;
-        document.title = `${body.name} · Lista compartida`;
+        document.title = `${body.name} · ${messages.publicLinkReadonly}`;
         setList(body);
         setState('ready');
       })
@@ -80,11 +82,11 @@ export function PublicListPage() {
         <BrandMark />
       </header>
       <p className="public-list-note" role="note">
-        <strong>Lista compartida en solo lectura.</strong> Quien tenga este enlace puede verla.
+        <strong>{messages.publicLinkReadonly}.</strong> {messages.publicLinkReadonlyBody}
       </p>
       {state === 'loading' ? <p>Cargando…</p> : null}
-      {state === 'missing' ? <p>Este enlace no existe o ya no está disponible.</p> : null}
-      {state === 'limited' ? <p>Demasiadas visitas, prueba en un minuto.</p> : null}
+      {state === 'missing' ? <p>{messages.publicLinkMissing}</p> : null}
+      {state === 'limited' ? <p>{messages.publicLinkLimited}</p> : null}
       {state === 'error' ? (
         <button
           type="button"
@@ -92,7 +94,7 @@ export function PublicListPage() {
             window.location.reload();
           }}
         >
-          Reintentar
+          {messages.publicLinkRetry}
         </button>
       ) : null}
       {state === 'ready' && list !== null ? (
@@ -111,7 +113,7 @@ export function PublicListPage() {
                   setShowDone((value) => !value);
                 }}
               >
-                Completadas ({done.length})
+                {messages.publicLinkCompleted.replace('{count}', String(done.length))}
               </button>
               {showDone ? (
                 <ul>
@@ -125,7 +127,7 @@ export function PublicListPage() {
         </>
       ) : null}
       <p className="public-list-foot">
-        <Link to="/register">Crea tu cuenta en ttd</Link>
+        <Link to="/register">{messages.publicLinkSignup}</Link>
       </p>
     </main>
   );

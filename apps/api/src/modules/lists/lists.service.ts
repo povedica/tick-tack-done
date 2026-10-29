@@ -282,9 +282,14 @@ export class ListsService {
       rows.map((row) => row.id),
     );
     const members = await this.memberCounts(rows.map((row) => row.id));
+    const publicLinks = await this.publicLinkIds(rows.map((row) => row.id));
     return slicePage(
       rows.map((row) =>
-        toProjectJson(row, counts.get(row.id) ?? 0, this.accessOf(user, row, access, members)),
+        toProjectJson(
+          row,
+          counts.get(row.id) ?? 0,
+          this.accessOf(user, row, access, members, publicLinks),
+        ),
       ),
       limit,
     );
@@ -344,10 +349,11 @@ export class ListsService {
     const resolved = await this.access.requireRole(user, id, 'view');
     const counts = await this.activeCounts(null, [id]);
     const members = await this.memberCounts([id]);
+    const publicLinks = await this.publicLinkIds([id]);
     return toProjectJson(
       resolved.project,
       counts.get(id) ?? 0,
-      this.accessOf(user, resolved.project, await this.access.snapshot(user), members),
+      this.accessOf(user, resolved.project, await this.access.snapshot(user), members, publicLinks),
     );
   }
 
@@ -927,20 +933,44 @@ export class ListsService {
     return new Map(grouped.map((row) => [row.projectId, row._count._all]));
   }
 
+  private async publicLinkIds(projectIds: string[]): Promise<ReadonlySet<string>> {
+    if (projectIds.length === 0) {
+      return new Set();
+    }
+    const now = new Date();
+    const rows = await this.prisma.publicListLink.findMany({
+      where: {
+        projectId: { in: projectIds },
+        revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { projectId: true },
+    });
+    return new Set(rows.map((row) => row.projectId));
+  }
+
   private accessOf(
     user: AuthUser,
     row: Project,
     access: { shared: ReadonlyMap<string, 'read' | 'comment' | 'write'> },
     members: Map<string, number>,
-  ): { role: 'owner' | 'read' | 'comment' | 'write'; shared: boolean; memberCount: number } {
+    publicLinks: ReadonlySet<string> = new Set(),
+  ): {
+    role: 'owner' | 'read' | 'comment' | 'write';
+    shared: boolean;
+    memberCount: number;
+    publicLinkActive: boolean;
+  } {
     const memberCount = members.get(row.id) ?? 0;
+    const publicLinkActive = publicLinks.has(row.id);
     if (row.ownerId === user.id) {
-      return { role: 'owner', shared: memberCount > 0, memberCount };
+      return { role: 'owner', shared: memberCount > 0, memberCount, publicLinkActive };
     }
     return {
       role: access.shared.get(row.id) ?? 'read',
       shared: true,
       memberCount,
+      publicLinkActive,
     };
   }
 

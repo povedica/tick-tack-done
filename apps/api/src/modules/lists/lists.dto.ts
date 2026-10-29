@@ -332,6 +332,9 @@ export class ProjectResponseDto {
   @ApiProperty()
   member_count!: number;
 
+  @ApiProperty({ description: 'True when the list has an active public read-only link.' })
+  public_link_active!: boolean;
+
   @ApiProperty()
   created_at!: string;
 
