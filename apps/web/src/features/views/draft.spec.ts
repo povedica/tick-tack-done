@@ -12,7 +12,11 @@ import {
 } from './draft';
 
 function keyword(value: string): ConditionDraft {
-  return { ...blankDraft().groups[0]!.conditions[0]!, field: 'keyword', op: 'contains', value };
+  const base = blankDraft().groups[0]?.conditions[0];
+  if (base === undefined) {
+    throw new Error('blank draft has no condition');
+  }
+  return { ...base, field: 'keyword', op: 'contains', value };
 }
 
 function draft(patch: Partial<FilterDraft> & Pick<FilterDraft, 'groups'>): FilterDraft {

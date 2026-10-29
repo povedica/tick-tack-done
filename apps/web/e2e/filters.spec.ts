@@ -39,9 +39,8 @@ for (const theme of ['light', 'dark'] as const) {
         });
         if (viewport.width < 1024) {
           const box = await page.getByRole('button', { name: 'Acciones' }).boundingBox();
-          expect(box).not.toBeNull();
-          expect(box!.width).toBeGreaterThanOrEqual(44);
-          expect(box!.height).toBeGreaterThanOrEqual(44);
+          expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+          expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
         }
         await page.getByRole('button', { name: 'Acciones' }).click();
         await page.getByRole('menuitem', { name: 'Fijar arriba' }).click();
