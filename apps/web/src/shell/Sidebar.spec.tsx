@@ -296,6 +296,10 @@ function project(id: string, name: string, extra: Partial<Project> = {}): Projec
     updated_at: '2026-01-01T00:00:00Z',
     ...extra,
     owner_id: extra.owner_id ?? 'me',
+    role: extra.role ?? 'owner',
+    shared: extra.shared ?? false,
+    member_count: extra.member_count ?? 0,
+    public_link_active: extra.public_link_active ?? false,
   };
 }
 

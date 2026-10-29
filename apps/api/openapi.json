@@ -3402,6 +3402,645 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/members": {
+      "get": {
+        "operationId": "CollaborationController_members",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List members of a shared list (RF-1801)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "CollaborationController_share",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Share a list with a user or a token (RF-1801, RF-1805)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/members/{memberId}": {
+      "delete": {
+        "operationId": "CollaborationController_unshare",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "memberId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a member (RF-1801)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "CollaborationController_updateMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "memberId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PermissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change a member permission (RF-1801)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/membership": {
+      "delete": {
+        "operationId": "CollaborationController_leave",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Leave a shared list (RF-1801)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/share-invitations": {
+      "get": {
+        "operationId": "CollaborationController_invitations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Pending list invitations (RF-1801)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/share-invitations/{id}/accept": {
+      "post": {
+        "operationId": "CollaborationController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Accept a list invitation (RF-1801)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/share-invitations/{id}/decline": {
+      "post": {
+        "operationId": "CollaborationController_decline",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Decline a list invitation (RF-1801)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/members/{memberId}/resend": {
+      "post": {
+        "operationId": "CollaborationController_resend",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "memberId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Resend a pending invitation (RF-1801)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/presence": {
+      "post": {
+        "operationId": "CollaborationController_presence",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Mark that you are looking at the list (RF-1804)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/activity": {
+      "get": {
+        "operationId": "CollaborationController_activity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Activity of a shared list (RF-1803)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/comments": {
+      "get": {
+        "operationId": "CollaborationController_comments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Comments on a task (RF-1803)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "CollaborationController_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Comment, with @mentions (RF-1803)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/assignee": {
+      "post": {
+        "operationId": "CollaborationController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Assign a task (RF-1802)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/public-link": {
+      "get": {
+        "operationId": "PublicLinksController_state",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Public link status for a list you own (COMP-29)",
+        "tags": [
+          "PublicLinks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "PublicLinksController_create",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicLinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create a read-only public link (COMP-29)",
+        "tags": [
+          "PublicLinks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "PublicLinksController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicLinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Change public link expiry or notes (COMP-29)",
+        "tags": [
+          "PublicLinks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "PublicLinksController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke the public link (COMP-29)",
+        "tags": [
+          "PublicLinks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/public-link/regenerate": {
+      "post": {
+        "operationId": "PublicLinksController_regenerate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Replace the public link (COMP-29)",
+        "tags": [
+          "PublicLinks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/public/lists/{token}": {
+      "get": {
+        "operationId": "PublicListsController_read",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a shared list without signing in (COMP-29)",
+        "tags": [
+          "PublicLists"
+        ],
+        "security": []
+      }
+    },
     "/api/v1/matrix/rules": {
       "get": {
         "operationId": "MatrixController_list",
@@ -7182,272 +7821,6 @@
         "summary": "There is no MCP session to close. Returns 405 with Allow: POST (RF-2001).",
         "tags": [
           "mcp"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/projects/{id}/members": {
-      "get": {
-        "operationId": "CollaborationController_members",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "List members of a shared list (RF-1801)",
-        "tags": [
-          "collaboration"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      },
-      "post": {
-        "operationId": "CollaborationController_share",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ShareDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Share a list with a user or a token (RF-1801, RF-1805)",
-        "tags": [
-          "collaboration"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/projects/{id}/members/{memberId}": {
-      "delete": {
-        "operationId": "CollaborationController_unshare",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "memberId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Remove a member (RF-1801)",
-        "tags": [
-          "collaboration"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/projects/{id}/presence": {
-      "post": {
-        "operationId": "CollaborationController_presence",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Mark that you are looking at the list (RF-1804)",
-        "tags": [
-          "collaboration"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/projects/{id}/activity": {
-      "get": {
-        "operationId": "CollaborationController_activity",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Activity of a shared list (RF-1803)",
-        "tags": [
-          "collaboration"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/tasks/{id}/comments": {
-      "get": {
-        "operationId": "CollaborationController_comments",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Comments on a task (RF-1803)",
-        "tags": [
-          "collaboration"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      },
-      "post": {
-        "operationId": "CollaborationController_comment",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CommentDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Comment, with @mentions (RF-1803)",
-        "tags": [
-          "collaboration"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/tasks/{id}/assignee": {
-      "post": {
-        "operationId": "CollaborationController_assign",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssignDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Assign a task (RF-1802)",
-        "tags": [
-          "collaboration"
         ],
         "security": [
           {
@@ -17527,6 +17900,26 @@
           "active_task_count": {
             "type": "number"
           },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "read",
+              "comment",
+              "write"
+            ]
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "True when the list has an accepted member or belongs to someone else."
+          },
+          "member_count": {
+            "type": "number"
+          },
+          "public_link_active": {
+            "type": "boolean",
+            "description": "True when the list has an active public read-only link."
+          },
           "created_at": {
             "type": "string"
           },
@@ -17554,6 +17947,10 @@
           "default_reminder_trigger",
           "sort_order",
           "active_task_count",
+          "role",
+          "shared",
+          "member_count",
+          "public_link_active",
           "created_at",
           "updated_at"
         ]
@@ -18055,6 +18452,79 @@
             "nullable": true
           },
           "move_to_end": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ShareDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "token_id": {
+            "type": "string"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "read",
+              "comment",
+              "write"
+            ]
+          }
+        },
+        "required": [
+          "permission"
+        ]
+      },
+      "PermissionDto": {
+        "type": "object",
+        "properties": {
+          "permission": {
+            "type": "string",
+            "enum": [
+              "read",
+              "comment",
+              "write"
+            ]
+          }
+        },
+        "required": [
+          "permission"
+        ]
+      },
+      "CommentDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "AssignDto": {
+        "type": "object",
+        "properties": {
+          "assignee_id": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "assignee_id"
+        ]
+      },
+      "PublicLinkDto": {
+        "type": "object",
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "include_notes": {
             "type": "boolean"
           }
         }
@@ -20473,51 +20943,6 @@
         "required": [
           "stamp",
           "confirmation"
-        ]
-      },
-      "ShareDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string"
-          },
-          "token_id": {
-            "type": "string"
-          },
-          "permission": {
-            "type": "string",
-            "enum": [
-              "read",
-              "comment",
-              "write"
-            ]
-          }
-        },
-        "required": [
-          "permission"
-        ]
-      },
-      "CommentDto": {
-        "type": "object",
-        "properties": {
-          "body": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "body"
-        ]
-      },
-      "AssignDto": {
-        "type": "object",
-        "properties": {
-          "assignee_id": {
-            "type": "object",
-            "nullable": true
-          }
-        },
-        "required": [
-          "assignee_id"
         ]
       },
       "StartPlanDto": {

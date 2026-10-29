@@ -1,6 +1,7 @@
 import { BrandMark } from '../../components/BrandMark';
 import { useMessages } from '../../i18n';
 import { useEffect, useState } from 'react';
+import Markdown from 'react-markdown';
 import { Link, useParams } from 'react-router';
 import './public-list.css';
 
@@ -10,6 +11,10 @@ interface PublicTask {
   readonly notes: string | null;
   readonly status: 'active' | 'completed';
   readonly priority: string;
+  readonly start_date: string | null;
+  readonly due_date: string | null;
+  readonly all_day: boolean;
+  readonly tags: readonly { name: string; color: string | null }[];
   readonly checklist: readonly { title: string; done: boolean }[];
   readonly subtasks: readonly { title: string; status: string }[];
 }
@@ -134,10 +139,56 @@ export function PublicListPage() {
 }
 
 function TaskRow({ task }: { readonly task: PublicTask }) {
+  const when = [task.start_date, task.due_date].filter((value) => value !== null);
   return (
     <li>
       <span aria-disabled="true">{task.status === 'completed' ? '☑' : '☐'}</span> {task.title}
-      {task.notes !== null && task.notes.length > 0 ? <p>{task.notes}</p> : null}
+      {task.priority !== 'none' ? <span> {task.priority}</span> : null}
+      {when.length > 0 ? (
+        <p>
+          {when.map((value) => (
+            <time key={value} dateTime={value}>
+              {new Date(value).toLocaleString()}
+            </time>
+          ))}
+        </p>
+      ) : null}
+      {task.tags.length > 0 ? (
+        <p>
+          {task.tags.map((tag) => (
+            <span key={tag.name}>{tag.name}</span>
+          ))}
+        </p>
+      ) : null}
+      {task.notes !== null && task.notes.length > 0 ? (
+        <Markdown
+          components={{
+            a: ({ href, children }) => (
+              <a href={href} rel="noopener noreferrer nofollow" target="_blank">
+                {children}
+              </a>
+            ),
+          }}
+        >
+          {task.notes}
+        </Markdown>
+      ) : null}
+      {task.subtasks.length > 0 ? (
+        <ul>
+          {task.subtasks.map((item) => (
+            <li key={item.title}>{item.title}</li>
+          ))}
+        </ul>
+      ) : null}
+      {task.checklist.length > 0 ? (
+        <ul>
+          {task.checklist.map((item) => (
+            <li key={item.title}>
+              <span aria-disabled="true">{item.done ? '☑' : '☐'}</span> {item.title}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </li>
   );
 }

@@ -108,5 +108,13 @@ describe('public list link', () => {
     expect(revoked.body).toEqual(NOT_FOUND);
     expect(missing.body).toEqual(revoked.body);
     expect(revoked.headers['x-robots-tag']).toBe(missing.headers['x-robots-tag']);
+
+    let limited = missing;
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      limited = await request(server).get('/api/v1/public/lists/not-a-token');
+    }
+    expect(limited.status).toBe(429);
+    expect(limited.body.error.code).toBe('rate_limited');
+    expect(limited.headers['retry-after']).toBeDefined();
   });
 });
