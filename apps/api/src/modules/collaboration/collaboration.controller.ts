@@ -7,6 +7,7 @@ import {
   Inject,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   Res,
@@ -37,6 +38,12 @@ class ShareDto {
   @IsUUID()
   token_id?: string;
 
+  @ApiProperty({ enum: ['read', 'comment', 'write'] })
+  @IsIn(['read', 'comment', 'write'])
+  permission!: SharePermission;
+}
+
+class PermissionDto {
   @ApiProperty({ enum: ['read', 'comment', 'write'] })
   @IsIn(['read', 'comment', 'write'])
   permission!: SharePermission;
@@ -101,6 +108,86 @@ export class CollaborationController {
     @Res() res: Response,
   ): Promise<void> {
     await this.collaboration.unshare(user, id, memberId);
+    res.status(204).end();
+  }
+
+  @Patch('projects/:id/members/:memberId')
+  @Scopes('lists:write')
+  @ApiOperation({ summary: 'Change a member permission (RF-1801)' })
+  async updateMember(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+    @Body() dto: PermissionDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(
+      req,
+      res,
+      200,
+      await this.collaboration.updateMember(user, id, memberId, dto.permission),
+      false,
+    );
+  }
+
+  @Delete('projects/:id/membership')
+  @Scopes('lists:read')
+  @ApiOperation({ summary: 'Leave a shared list (RF-1801)' })
+  async leave(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.collaboration.leave(user, id);
+    res.status(204).end();
+  }
+
+  @Get('me/share-invitations')
+  @Scopes('lists:read')
+  @ApiOperation({ summary: 'Pending list invitations (RF-1801)' })
+  async invitations(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.collaboration.invitations(user), false);
+  }
+
+  @Post('me/share-invitations/:id/accept')
+  @Scopes('lists:read')
+  @ApiOperation({ summary: 'Accept a list invitation (RF-1801)' })
+  async accept(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.collaboration.respond(user, id, true);
+    res.status(204).end();
+  }
+
+  @Post('me/share-invitations/:id/decline')
+  @Scopes('lists:read')
+  @ApiOperation({ summary: 'Decline a list invitation (RF-1801)' })
+  async decline(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.collaboration.respond(user, id, false);
+    res.status(204).end();
+  }
+
+  @Post('projects/:id/members/:memberId/resend')
+  @Scopes('lists:write')
+  @ApiOperation({ summary: 'Resend a pending invitation (RF-1801)' })
+  async resend(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.collaboration.resend(user, id, memberId);
     res.status(204).end();
   }
 

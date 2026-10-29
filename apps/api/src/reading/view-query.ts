@@ -38,9 +38,10 @@ export async function pageViewTasks(
     readonly cursor: { index: number; id: string } | null;
     readonly ranking?: 'completed';
     readonly extra?: Prisma.TaskWhereInput;
+    readonly scope?: Prisma.TaskWhereInput;
   },
 ): Promise<ViewPageJson> {
-  const where = viewWhere(input.ownerId, input.clause, input.clock, input.extra);
+  const where = viewWhere(input.ownerId, input.clause, input.clock, input.extra, input.scope);
   const skip = input.cursor === null ? 0 : input.cursor.index + 1;
   const [count, ids] = await Promise.all([
     db.task.count({ where }),
@@ -78,10 +79,11 @@ function viewWhere(
   clause: FilterClause,
   clock: FilterClock,
   extra?: Prisma.TaskWhereInput,
+  scope?: Prisma.TaskWhereInput,
 ): Prisma.TaskWhereInput {
   return {
     AND: [
-      { ownerId },
+      scope ?? { ownerId },
       { parentId: null },
       clauseWhere(clause, clock),
       ...(extra === undefined ? [] : [extra]),

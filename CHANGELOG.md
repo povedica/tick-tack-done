@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+- Una lista compartida con otra persona aparece en «Compartidas conmigo» cuando
+  acepta la invitación. Leer solo mira, comentar añade comentarios y escribir
+  crea y completa tareas de esa lista. El dueño invita, cambia el permiso o
+  quita el acceso. Quien no es miembro recibe 404.
 - El editor de filtros usa campos, listas y fechas del propio diseño. Todas y
   Alguna se distinguen, Cancelar es secundario y la pista de guardado solo se
   marca al intentar guardar. Editar condiciones está en el menú. Una condición

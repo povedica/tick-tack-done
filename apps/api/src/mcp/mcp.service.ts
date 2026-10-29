@@ -896,7 +896,8 @@ export class McpService {
         }
         const shared = await this.collaboration.share(user, id, { email, permission });
         return {
-          shared: true,
+          shared: shared.body.status === 'accepted',
+          status: shared.body.status,
           member_id: shared.body.id,
           permission: shared.body.permission,
           changed: shared.body.changed,

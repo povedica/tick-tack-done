@@ -203,10 +203,19 @@ export function Sidebar({
   );
   const folderItems = folders.data?.items ?? [];
   const archivedProjects = archivedQuery.data?.items ?? [];
+  const viewerId = me.data?.id;
+  const sharedWithMe = (projects.data?.items ?? []).filter(
+    (project) =>
+      !project.is_inbox &&
+      !project.closed &&
+      viewerId !== undefined &&
+      project.owner_id !== viewerId,
+  );
   const projectItems = (projects.data?.items ?? []).filter(
     (project) =>
       !project.is_inbox &&
       !project.closed &&
+      (viewerId === undefined || project.owner_id === viewerId) &&
       (folderItems.length === 0 || folderId(project) === null),
   );
   const routeFolder = activeFolderId(location.pathname, projects.data?.items ?? []);
@@ -717,6 +726,37 @@ export function Sidebar({
                     />
                   ))}
                 </ul>
+                {sharedWithMe.length > 0 ? (
+                  <>
+                    <p className="nav-section">{messages.sharedWithMe}</p>
+                    <ul className="nav-list">
+                      {sharedWithMe.map((project) => (
+                        <ListRow
+                          key={project.id}
+                          project={project}
+                          showCounters={showCounters}
+                          draggable={false}
+                          dragging={false}
+                          insertBefore={false}
+                          insertAfter={false}
+                          menuOpen={menu?.kind === 'list' && menu.id === project.id}
+                          inboxLabel={messages.smartInbox}
+                          menuLabel={messages.menuLabel}
+                          onNavigate={() => {
+                            setMenu(null);
+                            onNavigate();
+                          }}
+                          onOpenMenu={(anchor) => {
+                            openMenu({ kind: 'list', id: project.id, archived: false }, anchor);
+                          }}
+                          onDragStart={() => undefined}
+                          onDragOver={() => undefined}
+                          onDrop={() => undefined}
+                        />
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
                 {archivedProjects.length > 0 ? (
                   <details className="nav-folder">
                     <summary>

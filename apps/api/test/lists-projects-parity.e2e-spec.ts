@@ -1115,7 +1115,8 @@ describe('lists, projects and work context parity', () => {
     });
     expect(confirmed.isError).toBe(false);
     expect(confirmed.value).toMatchObject({
-      shared: true,
+      shared: false,
+      status: 'pending',
       permission: 'read',
       changed: 'created',
     });
@@ -1137,7 +1138,8 @@ describe('lists, projects and work context parity', () => {
     });
     expect(again.isError).toBe(false);
     expect(again.value).toMatchObject({
-      shared: true,
+      shared: false,
+      status: 'pending',
       member_id: memberId,
       changed: 'unchanged',
     });
@@ -1150,7 +1152,8 @@ describe('lists, projects and work context parity', () => {
     });
     expect(updated.isError).toBe(false);
     expect(updated.value).toMatchObject({
-      shared: true,
+      shared: false,
+      status: 'pending',
       member_id: memberId,
       permission: 'write',
       changed: 'updated',
@@ -1159,7 +1162,9 @@ describe('lists, projects and work context parity', () => {
     expect(removed.isError).toBe(false);
     expect(removed.value).toEqual({ removed: true, member_id: memberId });
     const after = await api().get(`/api/v1/projects/${projectId}/members`).expect(200);
-    expect(after.body.items).toEqual([]);
+    expect(after.body.items).toEqual([
+      expect.objectContaining({ id: null, role: 'owner', status: 'accepted' }),
+    ]);
     const missing = await tool('unshare_project', { id: projectId, member_id: memberId });
     expect(missing.isError).toBe(true);
     expect(missing.text).toContain('member_not_found');

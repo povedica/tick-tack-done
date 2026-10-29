@@ -2,6 +2,8 @@
 
 ## Compartir listas
 
+- Una invitación por email queda `pending` hasta que la persona acepta (`POST /me/share-invitations/{id}/accept`). Un token sigue siendo miembro al momento.
+- `share_project` devuelve `status` (`pending` o `accepted`) además de `changed`.
 - `list_project_members` (`lists:read`) devuelve los miembros igual que `GET /projects/{id}/members`.
 - `share_project` (`lists:write`) comparte por email en dos pasos. Sin `confirm:true` no crea nada y la vista previa no dice si el email tiene cuenta. Con `confirm:true` responde `{shared, member_id, permission, changed}`.
 - `unshare_project` (`lists:write`) quita un miembro. Si no hay fila activa, el error es `member_not_found`.

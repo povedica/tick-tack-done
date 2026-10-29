@@ -46,6 +46,8 @@ export class AttemptLimiter implements OnModuleDestroy {
     this.resetEmailLimit,
     60 * 60 * 1000,
   );
+  private readonly shareUserWindow = new SlidingWindowRateLimit(20, 60 * 60 * 1000);
+  private readonly shareEmailWindow = new SlidingWindowRateLimit(5, 24 * 60 * 60 * 1000);
   private readonly resetConfirmWindow = new SlidingWindowRateLimit(
     this.resetConfirmLimit,
     15 * 60 * 1000,
@@ -169,6 +171,12 @@ export class AttemptLimiter implements OnModuleDestroy {
     }
     if (bucket.startsWith('reset-ip:')) {
       return { window: this.resetIpWindow, limit: this.resetIpLimit, ms: 15 * 60 * 1000 };
+    }
+    if (bucket.startsWith('share-invite-user:')) {
+      return { window: this.shareUserWindow, limit: 20, ms: 60 * 60 * 1000 };
+    }
+    if (bucket.startsWith('share-invite-email:')) {
+      return { window: this.shareEmailWindow, limit: 5, ms: 24 * 60 * 60 * 1000 };
     }
     return { window: this.ipWindow, limit: this.ipLimit, ms: WINDOW_MS };
   }

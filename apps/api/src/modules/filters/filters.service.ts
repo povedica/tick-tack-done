@@ -19,6 +19,7 @@ import { DomainException } from '../../http/domain.exception.js';
 import { asJson, iso } from '../../http/json.js';
 import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint.js';
 import { IdempotencyService } from '../../idempotency/idempotency.service.js';
+import { ListAccessService } from '../collaboration/list-access.js';
 import { placementPlan } from '../../ordering/placement.js';
 import type { SortPlan } from '../../ordering/plan-sort-order.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -40,6 +41,7 @@ export class FiltersService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    @Inject(ListAccessService) private readonly access: ListAccessService,
   ) {}
 
   async list(
@@ -316,6 +318,7 @@ export class FiltersService {
     cursorRaw: string | undefined,
   ): Promise<ViewPageJson> {
     const view = this.view(groupBy, sort);
+    const scope = await this.access.taskVisibility(user);
     return pageViewTasks(this.prisma, {
       ownerId: user.id,
       clause,
@@ -324,6 +327,7 @@ export class FiltersService {
       sort: view.sort,
       limit,
       cursor: this.cursor(cursorRaw),
+      scope,
     });
   }
 
