@@ -1275,6 +1275,8 @@ function tagChoices(
         sectionOrder: 0,
         indent,
         rank: rank++,
+        tone: 'tag',
+        color: tag.color,
         icon: <Tag size={16} aria-hidden="true" />,
       });
       walk(tag.id, indent + 1);
@@ -1286,13 +1288,16 @@ function tagChoices(
       continue;
     }
     const label = labels[id];
+    const deleted = label === undefined || label.deleted;
     choices.push({
       id,
-      label: label === undefined || label.deleted ? messages.filterDeletedTag : label.name,
+      label: deleted ? messages.filterDeletedTag : label.name,
       section: '',
       sectionOrder: 0,
       rank: rank++,
-      deleted: label === undefined || label.deleted,
+      deleted,
+      tone: 'tag',
+      color: deleted ? null : label.color,
       icon: <Tag size={16} aria-hidden="true" />,
     });
   }

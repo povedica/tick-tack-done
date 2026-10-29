@@ -52,8 +52,15 @@ for (const theme of ['light', 'dark'] as const) {
           await expect(dialog.locator('.filter-preview strong')).toHaveText('1 tarea coincide');
         }
         if (phone) {
-          await expectTap(dialog.getByRole('radio', { name: 'Verde' }));
-          await expectTap(dialog.getByRole('button', { name: 'Quitar condición Fecha' }));
+          const swatch = await dialog.getByRole('radio', { name: 'Verde' }).boundingBox();
+          expect(swatch?.width ?? 0).toBeLessThanOrEqual(24);
+          expect(swatch?.height ?? 0).toBeLessThanOrEqual(24);
+          const match = await dialog.getByRole('radio', { name: 'Alguna' }).boundingBox();
+          expect(match?.height ?? 0).toBeLessThanOrEqual(36);
+          const remove = await dialog
+            .getByRole('button', { name: 'Quitar condición Fecha' })
+            .boundingBox();
+          expect(remove?.height ?? 0).toBeLessThanOrEqual(36);
         }
         await expectContrast(dialog.locator('.filter-editor-head h2'));
         await page.screenshot({

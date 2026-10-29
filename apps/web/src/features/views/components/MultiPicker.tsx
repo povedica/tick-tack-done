@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Popover } from '../../../components/Popover';
+import { TagIcon } from '../../../components/TagIcon';
 import { Button } from '../../../components/ui';
 import { fill } from '../../../i18n';
 
@@ -14,6 +15,8 @@ export interface PickerChoice {
   readonly rank?: number;
   readonly deleted?: boolean;
   readonly icon?: ReactNode;
+  readonly tone?: 'tag';
+  readonly color?: string | null;
 }
 
 export function MultiPicker({
@@ -80,6 +83,28 @@ export function MultiPicker({
         {selected.map((id) => {
           const choice = byId.get(id);
           const name = choice?.label ?? id;
+          if (choice?.tone === 'tag' && choice.deleted !== true) {
+            return (
+              <button
+                key={id}
+                type="button"
+                className="ui-tag"
+                style={
+                  choice.color === undefined || choice.color === null
+                    ? undefined
+                    : ({ '--tag': choice.color } as CSSProperties)
+                }
+                aria-label={fill(removeLabel, name)}
+                onClick={() => {
+                  onChange(selected.filter((item) => item !== id));
+                }}
+              >
+                <TagIcon color={choice.color} />
+                {name}
+                <X size={12} aria-hidden="true" />
+              </button>
+            );
+          }
           return (
             <button
               key={id}
@@ -92,7 +117,7 @@ export function MultiPicker({
                 onChange(selected.filter((item) => item !== id));
               }}
             >
-              <span>{choice?.deleted === true ? name : name}</span>
+              <span>{name}</span>
               <X size={12} aria-hidden="true" />
             </button>
           );
