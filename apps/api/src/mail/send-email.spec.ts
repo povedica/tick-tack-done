@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emailConfigured, sendEmail } from './send-email.js';
+import { emailConfigured, sendEmail, smtpRequireTls, smtpSecure } from './send-email.js';
 import { ReminderTransport } from '../scheduler/reminder.transport.js';
 import { sendSecurityNotice } from '../security/security-mail.js';
 
@@ -201,5 +201,40 @@ describe('RF-802 RF-808: shared transactional email', () => {
       telegram: 'rate_limited',
       retry_after_seconds: 7,
     });
+  });
+
+  it('RF-PR-13: sends html and headers on Resend and SMTP', async () => {
+    setup();
+    const fetcher = vi.fn(() => Promise.resolve(Response.json({ id: 'email-id' })));
+    vi.stubGlobal('fetch', fetcher);
+    await sendEmail({
+      ...message,
+      html: '<p>Hola</p>',
+      headers: { 'Auto-Submitted': 'auto-generated' },
+    });
+    const call = fetcher.mock.calls[0] as unknown as [string, { body?: string }] | undefined;
+    const body = JSON.parse(String(call?.[1].body)) as { html?: string; headers?: unknown };
+    expect(body.html).toBe('<p>Hola</p>');
+    expect(body.headers).toEqual({ 'Auto-Submitted': 'auto-generated' });
+    vi.stubEnv('RESEND_API_KEY', '');
+    smtp.createTransport.mockReturnValue({ sendMail: smtp.sendMail });
+    await sendEmail({
+      ...message,
+      html: '<p>Hola</p>',
+      headers: { 'X-Entity-Ref-ID': 'token-id' },
+    });
+    expect(smtp.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ html: '<p>Hola</p>', text: message.text }),
+    );
+  });
+
+  it('RF-PR SMTP_SECURE is explicit and requireTLS stays off for mailpit', () => {
+    vi.stubEnv('SMTP_SECURE', 'true');
+    expect(smtpSecure()).toBe(true);
+    vi.stubEnv('SMTP_SECURE', 'false');
+    expect(smtpSecure()).toBe(false);
+    expect(smtpRequireTls('mailpit')).toBe(false);
+    expect(smtpRequireTls('localhost')).toBe(false);
+    expect(smtpRequireTls('smtp.example.test')).toBe(true);
   });
 });

@@ -2170,6 +2170,12 @@
   font-size: var(--fs-xs);
 }
 
+.totp-status {
+  margin: 0;
+  color: var(--success);
+  font-weight: 600;
+}
+
 .token-actions {
   display: flex;
   flex-wrap: wrap;

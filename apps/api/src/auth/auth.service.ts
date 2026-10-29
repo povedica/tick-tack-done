@@ -6,6 +6,8 @@ import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto.js';
 import { AttemptLimiter } from './attempt-limiter.js';
+import { humanCheckFromEnv } from './human-check.js';
+import { isCommonPassword } from './common-passwords.js';
 import { hashPassword, verifyPresentedPassword } from './passwords.js';
 import { requireBrowserSession } from './session-access.js';
 import { newSessionSecret, SESSION_MAX_AGE_MS } from './session-cookie.js';
@@ -40,6 +42,13 @@ export class AuthService {
         'Registration is closed',
       );
     }
+    if (isCommonPassword(dto.password)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'password_too_common',
+        'Choose a less common password',
+      );
+    }
     const passwordHash = await hashPassword(dto.password);
     try {
       const user = await this.prisma.$transaction(async (tx) => {
@@ -70,6 +79,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, meta: RequestMeta): Promise<IssuedLogin> {
+    await humanCheckFromEnv().assert(dto.captcha_token, 'login', meta.ip ?? undefined);
     const email = normalizeEmail(dto.email);
     const ip = meta.ip ?? 'unknown';
     await this.attempts.assertAllowed(ip, email);

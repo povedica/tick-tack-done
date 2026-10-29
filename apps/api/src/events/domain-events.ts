@@ -71,6 +71,8 @@ export const DomainEvent = {
   sessionRevoked: 'session.revoked@v1',
   accountDeleted: 'account.deleted@v1',
   accountPasswordChanged: 'account.password_changed@v1',
+  /** Catalog §11.1. Payload is `{ user: { id } }` only: no email, token or IP. */
+  accountPasswordReset: 'account.password_reset@v1',
   oauthRefreshReused: 'oauth.refresh_reused@v1',
   oauthTokenIssued: 'oauth.token_issued@v1',
   oauthTokenRefreshed: 'oauth.token_refreshed@v1',

@@ -48,6 +48,12 @@ export class LoginDto {
   @IsString()
   @MaxLength(20)
   recovery_code?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  captcha_token?: string;
 }
 
 export class SessionResponseDto {

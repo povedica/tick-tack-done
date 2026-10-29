@@ -308,6 +308,7 @@ export const en = {
   sessionNetworkError: 'Could not check the session. Check your connection and try again.',
   registerTitle: 'Create account',
   forgotTitle: 'Reset password',
+  resetTitle: 'New password',
   smartListsLink: 'Smart lists',
   filtersLink: 'Filters',
   tokensLink: 'Tokens',
@@ -532,6 +533,7 @@ export const en = {
   email: 'Email',
   password: 'Password',
   loginFailed: 'Email or password is wrong.',
+  captchaFailed: 'We could not confirm that you are a person. Try again.',
   registerFailed: 'The account could not be created.',
   consentTitle: 'App permission',
   consentHint:
