@@ -1,4 +1,4 @@
-"""Pruebas de regresión sin red: python3 -m unittest discover -s scripts/backlog."""
+"""Pruebas de regresión sin red: python3 -B -m unittest discover -s scripts/backlog."""
 
 import json
 import os
@@ -159,6 +159,55 @@ esac
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("::warning::", result.stdout)
         self.assertFalse(self.log.exists())
+
+    def test_deployed_merge_is_labeled_without_marking_done(self):
+        self.stub("curl", "#!/bin/sh\necho '{\"commit\":\"abcdef0123456789\"}'\n")
+        self.stub("gh", r'''#!/usr/bin/env bash
+set -eu
+printf '%s\n' "$*" >> "$CALLS"
+case "$1 $2" in
+  "issue list") echo 12 ;;
+  "issue view") echo 1 ;;
+  "pr view") echo abcdef0 ;;
+  "issue edit"|"issue comment") ;;
+  "api --paginate") echo '' ;;
+  *) exit 99 ;;
+esac
+''')
+        # Git ancestry is stubbed: no network or real production commits.
+        self.stub("git", "#!/bin/sh\nexit 0\n")
+        result = self.run_script("sync.sh", "check-deploy")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = self.log.read_text()
+        self.assertIn("--add-label en-produccion --remove-label pendiente-despliegue", calls)
+        self.assertIn("issue comment", calls)
+        self.assertNotIn("project item-edit", calls)
+        self.assertNotIn("verificado-prod --", calls)
+
+    def test_dry_run_never_writes_labels_comments_or_project(self):
+        self.env["DRY_RUN"] = "1"
+        self.env["MOCK_PR"] = json.dumps({"body": "Closes #12", "mergeCommit": {"oid": "abcdef0"}, "closingIssuesReferences": [{"number": 12}]})
+        result = self.run_script("sync.sh", "pr-merged", "1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("[simulación]", result.stdout)
+        calls = self.log.read_text()
+        self.assertNotIn("issue edit", calls)
+        self.assertNotIn("issue comment", calls)
+        self.assertNotIn("project item-edit", calls)
+
+    def test_auth_errors_are_not_ignored_as_missing_labels(self):
+        self.stub("gh", r'''#!/usr/bin/env bash
+if [ "$1 $2" = "pr view" ]; then
+  printf '%s\n' "$MOCK_PR"
+else
+  echo 'HTTP 403: Resource not accessible' >&2
+  exit 1
+fi
+''')
+        self.env["MOCK_PR"] = json.dumps({"body": "Closes #12", "mergeCommit": {"oid": "abcdef0"}, "closingIssuesReferences": [{"number": 12}]})
+        result = self.run_script("sync.sh", "pr-merged", "1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("403", result.stderr)
 
     def test_invalid_health_commit_never_reaches_git(self):
         self.stub("curl", "#!/bin/sh\necho '{\"commit\":\"--invalid\"}'\n")

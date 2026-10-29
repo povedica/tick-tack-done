@@ -48,6 +48,10 @@ jobs:
       issues: read
     steps:
       - uses: actions/checkout@v7
+      - name: Regresiones del backlog sin red
+        run: |
+          for script in scripts/backlog/*.sh; do bash -n "$script"; done
+          python3 -B -m unittest discover -s scripts/backlog -v
       - name: La PR enlaza issue y actualiza DECISIONES si cambia una decisión
         env:
           GH_TOKEN: ${{ github.token }}

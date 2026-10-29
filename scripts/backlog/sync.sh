@@ -24,10 +24,17 @@ DRY_RUN="${DRY_RUN:-0}"
 
 say() { printf '%s\n' "$*"; }
 run() {
-  if [ "$DRY_RUN" = "1" ]; then printf '[simulación]'; printf ' %q' "$@"; printf '\n'; else "$@"; fi
+  if [ "$DRY_RUN" = "1" ]; then
+    printf '[simulación]'
+    # Bash 3.2 necesita exportar el locale antes de citar texto multibyte.
+    (export LC_ALL=C; printf ' %q' "$@")
+    printf '\n'
+  else
+    "$@"
+  fi
 }
 
-# No creates etiquetas: si falta una del paquete, avisa y continúa.
+# No crea etiquetas: si falta una del paquete, avisa y continúa.
 edit_labels() {
   local num="$1" result
   shift
