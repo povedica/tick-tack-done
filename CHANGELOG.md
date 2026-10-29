@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## Días locales del calendario (F4, sin activar)
+
+- El cambio de zona del perfil encola el recálculo de los eventos con hora.
+  La petición no espera a reescribirlos. Las tareas siguen en su zona de captura.
+- Un backfill rellena, en tandas de 500, los días locales de las tareas y de
+  los eventos de día completo que ya existían. El calendario público sigue
+  leyendo el camino anterior.
+
 ## Medición del calendario (F1)
 
 - Cada respuesta `/api/*` lleva `Server-Timing` (`auth`, `db` con el número de

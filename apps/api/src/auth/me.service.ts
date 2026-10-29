@@ -13,7 +13,7 @@ import {
 } from '../work/work-context.js';
 import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/email-address.js';
 import { DomainException } from '../http/domain.exception.js';
-import { recalcTimedEventLocalDays } from '../modules/calendar/recalc-timed-events.js';
+import { LocalDayQueue } from '../modules/calendar/local-day-queue.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { actorOf, type AuthUser } from './auth-user.js';
 import { featureFlags } from './feature-flags.js';
@@ -33,6 +33,7 @@ export class MeService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(LocalDayQueue) private readonly localDays: LocalDayQueue,
   ) {}
 
   async get(user: AuthUser): Promise<MeResponseDto> {
@@ -204,7 +205,7 @@ export class MeService {
       return this.toJson(row);
     });
     if (dto.time_zone !== undefined && previousZone !== null && previousZone !== dto.time_zone) {
-      await recalcTimedEventLocalDays(this.prisma, user.id, dto.time_zone);
+      await this.localDays.enqueueTimedRecalc(user.id);
     }
     return result;
   }

@@ -2,6 +2,7 @@ import { NotificationsController } from '../notifications/notifications.controll
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ReminderTransport } from '../scheduler/reminder.transport.js';
 import { ViewPreferencesController } from './view-preferences.controller.js';
+import { LocalDayModule } from '../modules/calendar/local-day.module.js';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AccountService } from './account.service.js';
@@ -22,6 +23,7 @@ import { TokensController } from './tokens.controller.js';
 import { TokensService } from './tokens.service.js';
 
 @Module({
+  imports: [LocalDayModule],
   controllers: [
     MeController,
     NotificationsController,
