@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
+import { EventRouter } from '../src/events/event-router.js';
 import { configureApp } from '../src/configure-app.js';
 import { loadRootEnv } from '../src/load-env.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
@@ -650,6 +651,65 @@ describe('filters, smart lists and search', () => {
         code: 'validation_failed',
         details: { reason: 'unknown_tag' },
       });
+    } finally {
+      await removeOwner(user.id);
+    }
+  });
+
+  it('CA-API-05: merging a tag retargets the filters that mentioned it', async () => {
+    const user = await createOwner('filter-merge');
+    try {
+      const api = authed(user.email);
+      const source = await api.post('/api/v1/tags').send({ name: 'hogar' }).expect(201);
+      const target = await api.post('/api/v1/tags').send({ name: 'personal' }).expect(201);
+      const created = await api
+        .post('/api/v1/filters')
+        .send({
+          name: 'Casa',
+          mode: 'normal',
+          rules: {
+            combinator: 'AND',
+            groups: [
+              {
+                combinator: 'AND',
+                conditions: [{ field: 'tag', op: 'any_of', value: ['Hogar'] }],
+              },
+            ],
+          },
+        })
+        .expect(201);
+      expect(created.body.rules.groups[0].conditions[0].value).toEqual([source.body.id]);
+      await api
+        .post('/api/v1/tags/merge')
+        .send({ source_id: source.body.id, target_id: target.body.id })
+        .expect(200);
+      const event = await prisma.outboxEvent.findFirst({
+        where: { ownerId: user.id, type: 'tag.merged@v1' },
+        orderBy: { occurredAt: 'desc' },
+      });
+      expect(event?.data).toMatchObject({
+        source_id: source.body.id,
+        target_id: target.body.id,
+      });
+      const router = app.get(EventRouter);
+      await router.dispatch({
+        id: event?.id ?? '',
+        type: 'tag.merged@v1',
+        ownerId: user.id,
+      });
+      const moved = await api.get(`/api/v1/filters/${created.body.id}`).expect(200);
+      expect(moved.body.rules.groups[0].conditions[0].value).toEqual([target.body.id]);
+      expect(moved.body.tag_labels[target.body.id]).toMatchObject({
+        name: 'personal',
+        deleted: false,
+      });
+      await router.dispatch({
+        id: event?.id ?? '',
+        type: 'tag.merged@v1',
+        ownerId: user.id,
+      });
+      const again = await api.get(`/api/v1/filters/${created.body.id}`).expect(200);
+      expect(again.body.rules.groups[0].conditions[0].value).toEqual([target.body.id]);
     } finally {
       await removeOwner(user.id);
     }

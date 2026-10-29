@@ -216,7 +216,12 @@ export class TagsService {
           entityType: 'tag',
           entityId: target.id,
           action: 'updated',
-          data: { tag: asJson(body), source_id: source.id, source_name: source.name },
+          data: {
+            tag: asJson(body),
+            source_id: source.id,
+            target_id: target.id,
+            source_name: source.name,
+          },
           previous: { name: target.name },
         });
         return body;
