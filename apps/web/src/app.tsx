@@ -6,7 +6,15 @@ import { PolicyPage } from './features/auth/PolicyPage';
 import { runAction } from './components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router';
 import { api } from './api';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
 import { TokensPage } from './features/tokens/components/TokensPage';
@@ -135,7 +143,7 @@ function Shell() {
             <Route path="/list/:id/note/:taskId" element={<NoteRoute />} />
             <Route path="/filter/:id" element={<FilterViewPage />} />
             <Route path="/filters" element={<FiltersPage />} />
-            <Route path="/filters/:id" element={<FilterViewPage />} />
+            <Route path="/filters/:id" element={<FilterLegacyRedirect />} />
             <Route path="/tag/:id" element={<TagViewPage />} />
             <Route path="/trash" element={<Navigate to="/smart/trash" replace />} />
             <Route path="/tasks/completed" element={<Navigate to="/smart/completed" replace />} />
@@ -248,6 +256,11 @@ function FeatureRoute({
     return <Navigate to="/today?disabled=1" replace />;
   }
   return children;
+}
+
+function FilterLegacyRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/filter/${id ?? ''}`} replace />;
 }
 
 function QuickAddRoute() {

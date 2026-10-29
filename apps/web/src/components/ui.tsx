@@ -128,11 +128,13 @@ export function Modal({
   children,
   onClose,
   danger = false,
+  role = 'dialog',
 }: {
   readonly title: string;
   readonly children: ReactNode;
   readonly onClose: () => void;
   readonly danger?: boolean;
+  readonly role?: 'dialog' | 'alertdialog';
 }) {
   return (
     <div
@@ -146,7 +148,7 @@ export function Modal({
     >
       <div
         className="ui-modal"
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-label={title}
         onMouseDown={(event) => {

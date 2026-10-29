@@ -24,6 +24,7 @@ import { DetailResizer, readDetailWidth, storeDetailWidth } from './DetailResize
 import { FocusCloser, formatClock, useActiveFocus } from './useActiveFocus';
 import { ScreenBoundary } from './ErrorBoundary';
 import { sectionOf, sectionShowsDetailPane, sectionShowsSidebar } from './section-of';
+import { FilterChrome } from '../features/views/components/FilterChrome';
 import { Sidebar } from './Sidebar';
 import { isSidebarShortcut, isTypingTarget } from './shortcuts';
 import { AccountPreferenceSync } from '../theme/AccountPreferenceSync';
@@ -219,6 +220,7 @@ export function AppShell() {
             <ScreenBoundary resetKey={location.pathname}>
               <Outlet />
             </ScreenBoundary>
+            <FilterChrome />
           </div>
         </div>
         {detailOpen ? (

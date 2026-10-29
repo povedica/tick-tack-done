@@ -5,7 +5,7 @@ import { MODULES, moduleEnabled } from './modules';
 import { useTickyFlags } from '../features/ticky/useTickyFlags';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeTagName, FIXED_SMART_LIST_KEYS } from '@reflexionia/domain';
-import { ApiError, type Folder, type Project } from '@reflexionia/sdk';
+import { ApiError, type Filter, type Folder, type Project } from '@reflexionia/sdk';
 import {
   CalendarDays,
   CalendarRange,
@@ -19,6 +19,7 @@ import {
   Inbox,
   Hourglass,
   ListTodo,
+  Funnel,
   List,
   Settings,
   Search,
@@ -48,7 +49,7 @@ import { UndoToastStack } from '../components/UndoToast';
 import { useLongPress } from '../components/useLongPress';
 import { Badge, Button } from '../components/ui';
 import { TagIcon } from '../components/TagIcon';
-import { useMessages, type Messages } from '../i18n';
+import { fill, useMessages, type Messages } from '../i18n';
 import { useFeatures } from '../features/settings/feature-flags';
 import { usePreferences } from '../theme/preferences';
 import { collectProjects, collectTags } from '../features/tasks/collect';
@@ -62,6 +63,11 @@ import { countdownsApi } from '../features/countdowns/api';
 import { dragHasList, listDragId, setListDrag } from './list-drag';
 import { activeFolderId, ListModal } from './ListModal';
 import { openListModal } from './list-modal-store';
+import { FilterMenu } from '../features/views/components/FilterMenu';
+import { duplicateFilter, pinFilter } from '../features/views/filter-commands';
+import { useFilterUi } from '../features/views/filter-ui';
+import { filterTagLabels, summarizeRules, type SummaryText } from '../features/views/summarize';
+import '../features/views/filters.css';
 import { FolderMenu, ListMenu } from './ListMenu';
 import { useListsText } from './lists-text';
 import { patchProject, sameName, type ProjectWrite } from './project-write';
@@ -129,6 +135,8 @@ export function Sidebar({
   const [menu, setMenu] = useState<
     { kind: 'list'; id: string; archived: boolean } | { kind: 'folder'; id: string } | null
   >(null);
+  const [filterMenuId, setFilterMenuId] = useState<string | null>(null);
+  const filterAnchor = useRef<HTMLElement | null>(null);
   const [folderUndo, setFolderUndo] = useState<{
     id: string;
     name: string;
@@ -432,7 +440,7 @@ export function Sidebar({
                 })}
               <li>
                 <SideLink to="/filters" onNavigate={onNavigate}>
-                  <List size={22} aria-hidden="true" />
+                  <Funnel size={22} aria-hidden="true" />
                   <span className="nav-label">{messages.filtersTitle}</span>
                 </SideLink>
               </li>
@@ -487,14 +495,16 @@ export function Sidebar({
                 title={messages.filtersTitle}
                 actions={
                   <>
-                    <Link
+                    <button
+                      type="button"
                       className="nav-add"
-                      to="/filters"
                       aria-label={messages.newFilter}
-                      onClick={onNavigate}
+                      onClick={() => {
+                        useFilterUi.getState().openCreate();
+                      }}
                     >
                       <Plus size={16} aria-hidden="true" />
-                    </Link>
+                    </button>
                   </>
                 }
               >
@@ -503,18 +513,18 @@ export function Sidebar({
                 ) : null}
                 <ul className="nav-list">
                   {filterItems.map((filter) => (
-                    <li key={filter.id}>
-                      <SideLink to={`/filter/${filter.id}`} section onNavigate={onNavigate}>
-                        <span
-                          className="color-dot"
-                          style={filter.color === null ? undefined : { background: filter.color }}
-                        />
-                        <span className="nav-label">{filter.name}</span>
-                        {showCounters && filter.task_count > 0 ? (
-                          <Badge value={filter.task_count} />
-                        ) : null}
-                      </SideLink>
-                    </li>
+                    <FilterNavRow
+                      key={filter.id}
+                      filter={filter}
+                      showCounters={showCounters}
+                      menuOpen={filterMenuId === filter.id}
+                      menuLabel={fill(messages.filterActions, filter.name)}
+                      onNavigate={onNavigate}
+                      onOpenMenu={(anchor) => {
+                        filterAnchor.current = anchor;
+                        setFilterMenuId(filter.id);
+                      }}
+                    />
                   ))}
                 </ul>
               </NavGroup>
@@ -1047,6 +1057,63 @@ export function Sidebar({
           </div>
         )}
       </aside>
+      {filterMenuId !== null
+        ? (() => {
+            const filter = filterItems.find((item) => item.id === filterMenuId);
+            if (filter === undefined) {
+              return null;
+            }
+            const text = filterSummaryText(messages);
+            const summary = summarizeRules(filter.rules, {
+              tagLabels: filterTagLabels('tag_labels' in filter ? filter.tag_labels : undefined),
+              listNames: new Map(
+                (projects.data?.items ?? []).map((project) => [project.id, project.name]),
+              ),
+              text,
+            })
+              .slice(0, 3)
+              .map((chip) => chip.text)
+              .join(', ');
+            return (
+              <FilterMenu
+                name={filter.name}
+                color={filter.color}
+                pinned={filter.pinned}
+                summary={summary}
+                countLabel={
+                  filter.task_count === 1
+                    ? messages.filterTaskOne
+                    : messages.filterTasks.replace('{count}', String(filter.task_count))
+                }
+                anchor={filterAnchor}
+                onClose={() => {
+                  setFilterMenuId(null);
+                }}
+                onEdit={() => {
+                  setFilterMenuId(null);
+                  useFilterUi.getState().openEdit(filter.id);
+                }}
+                onPin={() => {
+                  setFilterMenuId(null);
+                  pinFilter(
+                    queryClient,
+                    filter,
+                    messages.filterPinnedLive,
+                    messages.filterUnpinnedLive,
+                  );
+                }}
+                onDuplicate={() => {
+                  setFilterMenuId(null);
+                  duplicateFilter(queryClient, filter, messages.filterDuplicated);
+                }}
+                onDelete={() => {
+                  setFilterMenuId(null);
+                  useFilterUi.getState().askDelete({ id: filter.id, name: filter.name });
+                }}
+              />
+            );
+          })()
+        : null}
       {menu?.kind === 'list'
         ? (() => {
             const project = [...(projects.data?.items ?? []), ...archivedProjects].find(
@@ -1343,6 +1410,71 @@ function FolderBlock({
       {open ? <ul className="nav-list">{children}</ul> : null}
     </div>
   );
+}
+
+function FilterNavRow({
+  filter,
+  showCounters,
+  menuOpen,
+  menuLabel,
+  onNavigate,
+  onOpenMenu,
+}: {
+  readonly filter: Filter;
+  readonly showCounters: boolean;
+  readonly menuOpen: boolean;
+  readonly menuLabel: string;
+  readonly onNavigate: () => void;
+  readonly onOpenMenu: (anchor: HTMLElement) => void;
+}) {
+  const rowRef = useRef<HTMLLIElement>(null);
+  const press = useLongPress(() => {
+    const row = rowRef.current?.querySelector<HTMLElement>('.nav-more-btn');
+    if (row !== undefined && row !== null) {
+      onOpenMenu(row);
+    }
+  });
+  const tint =
+    filter.color === null ? undefined : ({ '--list-tint': filter.color } as CSSProperties);
+  return (
+    <li ref={rowRef} className="nav-row" {...press}>
+      <SideLink to={`/filter/${filter.id}`} section style={tint} onNavigate={onNavigate}>
+        <Funnel className="nav-list-icon nav-filter-icon" size={16} aria-hidden="true" />
+        <span className="nav-label">{filter.name}</span>
+        {showCounters && filter.task_count > 0 ? <Badge value={filter.task_count} /> : null}
+      </SideLink>
+      <button
+        type="button"
+        className="nav-more-btn"
+        aria-label={menuLabel}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={(event) => {
+          onOpenMenu(event.currentTarget);
+        }}
+      >
+        <MoreHorizontal size={16} aria-hidden="true" />
+      </button>
+    </li>
+  );
+}
+
+function filterSummaryText(messages: Messages): SummaryText {
+  return {
+    today: messages.dateToday,
+    tomorrow: messages.dateTomorrow,
+    next7: messages.dateNext7,
+    overdue: messages.dateOverdue,
+    noDate: messages.dateNoDate,
+    between: messages.dateBetween,
+    priorityHigh: messages.filterPriorityHigh,
+    priorityMedium: messages.filterPriorityMedium,
+    priorityLow: messages.filterPriorityLow,
+    priorityAny: messages.filterPriorityAny,
+    statusActive: messages.statusActive,
+    statusCompleted: messages.statusCompleted,
+    deletedTag: messages.filterDeletedTag,
+  };
 }
 
 function ListRow({

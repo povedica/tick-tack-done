@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { completeBody } from '../../tasks/complete-body';
+import { Button, EmptyState } from '../../../components/ui';
 import { SortMenu } from '../../../components/SortMenu';
 import { ViewMenu } from '../../../components/ViewMenu';
 import { useMessages, type Messages } from '../../../i18n';
@@ -36,6 +37,7 @@ import {
   type ViewSort,
 } from '../view-prefs';
 import { viewsApi } from '../api';
+import { useFilterUi } from '../filter-ui';
 import { WorkHoursLine } from '../../settings/WorkHoursLine';
 
 type GroupBy = ViewPage['group_by'];
@@ -82,6 +84,21 @@ export function FilterViewPage() {
       load={(groupBy, sort) => collectFilterTasks(filterId, { groupBy, sort })}
       enabled={filterId.length > 0}
       viewKey={`filter:${filterId}`}
+      empty={
+        <EmptyState
+          title={messages.filterNoMatchTitle}
+          body={messages.filterNoMatchBody}
+          action={
+            <Button
+              onClick={() => {
+                useFilterUi.getState().openEdit(filterId);
+              }}
+            >
+              {messages.filterEditConditions}
+            </Button>
+          }
+        />
+      }
     />
   );
 }
@@ -158,6 +175,7 @@ export function Board({
   initialGroup = 'section',
   matrixListId,
   headerActions,
+  empty,
 }: {
   readonly messages: Messages;
   readonly title: string;
@@ -176,6 +194,7 @@ export function Board({
   readonly initialGroup?: GroupBy | undefined;
   readonly matrixListId?: string | undefined;
   readonly headerActions?: ReactNode;
+  readonly empty?: ReactNode;
 }) {
   const queryClient = useQueryClient();
   const locale = useAppLocale();
@@ -403,6 +422,7 @@ export function Board({
         </div>
       </header>
       {notice !== undefined ? <p>{notice}</p> : null}
+      {empty !== undefined && page.isSuccess && rows.length === 0 ? empty : null}
       {note && rows.length === 0 ? <p>{messages.noteEmpty}</p> : null}
       {page.isError ? <p className="error">{messages.previewFailed}</p> : null}
       {flags.matrix && matrixScope !== undefined && matrixLayout === 'matrix' ? (
