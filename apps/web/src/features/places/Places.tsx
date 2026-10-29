@@ -10,7 +10,8 @@ import { useCalendarTaskChange, type CalendarTaskChange } from './use-calendar-t
 import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
 import { DayWeekStrip } from '../calendar/DayWeekStrip';
 import { CalendarSources } from '../calendar/CalendarSources';
-import { sourceSelected } from '../calendar/source-selection';
+import { sourceSet } from '../calendar/source-selection';
+import { calendarTaskQuery, uniqueById } from '../calendar/calendar-task-query';
 import { useCalendarSources } from '../calendar/use-calendar-sources';
 import { PeriodNavigator } from '../../components/period/PeriodNavigator';
 import { useVerticalCalendarNavigation } from '../calendar/useVerticalCalendarNavigation';
@@ -512,16 +513,9 @@ export function CalendarPage() {
   const range = current === 'year' ? yearQueryRange(cursor) : monthQueryRange(cells);
   const rangedTasks = useQuery<Task[]>({
     enabled: current !== 'agenda',
-    queryKey: ['calendar-tasks', 'auto', range.dueAfter, range.dueBefore],
+    queryKey: ['calendar-tasks', 'auto', 'any', range.from, range.to],
     queryFn: () =>
-      collectTasks((query) => api.listTasks(query), {
-        status: 'active',
-        limit: 100,
-        sort: 'due',
-        dueAfter: range.dueAfter,
-        dueBefore: range.dueBefore,
-        context: 'auto',
-      }),
+      collectTasks((query) => api.listTasks(query), calendarTaskQuery(range.from, range.to)),
   });
   const tasks =
     current === 'agenda'
@@ -530,7 +524,7 @@ export function CalendarPage() {
   const rangedEvents = useQuery<Awaited<ReturnType<typeof api.calendarEvents>>>({
     enabled: current !== 'agenda',
     queryKey: ['calendar-events', 'auto', range.dueAfter, range.dueBefore],
-    queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore, 'auto'),
+    queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore, 'auto', 'external'),
   });
   const externalQuery =
     current === 'agenda'
@@ -538,9 +532,6 @@ export function CalendarPage() {
           ...agendaQuery,
           data: agendaQuery.data
             ? {
-                tasks: agendaQuery.data.pages.flatMap((page) =>
-                  Array.isArray(page.events.tasks) ? (page.events.tasks as unknown[]) : [],
-                ),
                 external: agendaQuery.data.pages.flatMap((page) =>
                   Array.isArray(page.events.external) ? (page.events.external as unknown[]) : [],
                 ),
@@ -548,23 +539,6 @@ export function CalendarPage() {
             : undefined,
         }
       : rangedEvents;
-  const loadedTaskIds = new Set((tasks.data ?? []).map((task) => task.id));
-  const startTaskIds = Array.isArray(externalQuery.data?.tasks)
-    ? externalQuery.data.tasks.flatMap((value: unknown) => {
-        if (typeof value !== 'object' || value === null) return [];
-        const row = value as { id?: unknown; start_date?: unknown; due_date?: unknown };
-        return typeof row.id === 'string' &&
-          typeof row.start_date === 'string' &&
-          !loadedTaskIds.has(row.id)
-          ? [row.id]
-          : [];
-      })
-    : [];
-  const startTasks = useQuery({
-    queryKey: ['calendar-start-tasks', ...startTaskIds],
-    queryFn: () => Promise.all(startTaskIds.map((id) => api.getTask(id))),
-    enabled: startTaskIds.length > 0,
-  });
   useLayoutEffect(() => {
     const node = agendaScroll.current;
     if (current !== 'agenda') {
@@ -615,14 +589,16 @@ export function CalendarPage() {
   const [openEvent, setOpenEvent] = useState<ExternalEventView | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const pickedAnchor = useRef<HTMLElement | null>(null);
-  const seenEventIds = new Set<string>();
-  const external = (Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : [])
-    .filter(isExternalEvent)
-    .filter((event) => {
-      if (seenEventIds.has(event.id)) return false;
-      seenEventIds.add(event.id);
-      return sourceSelected(sourceParams.get('cals'), event.subscription_id ?? '');
-    });
+  const calSources = sourceSet(sourceParams.get('cals'));
+  const listSources = sourceSet(sourceParams.get('lists'));
+  const tagSources = sourceSet(sourceParams.get('tags'));
+  const sourceAllows = (selected: Set<string> | null, id: string): boolean =>
+    selected === null || selected.has(id);
+  const external = uniqueById(
+    (Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : []).filter(
+      isExternalEvent,
+    ),
+  ).filter((event) => sourceAllows(calSources, event.subscription_id ?? ''));
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const colors = useMemo(() => {
     const map = new Map<string, string>();
@@ -633,20 +609,16 @@ export function CalendarPage() {
     }
     return map;
   }, [projects.data]);
-  const seenTaskIds = new Set<string>();
-  const dated = [...(tasks.data ?? []), ...(startTasks.data ?? [])]
+  const dated = uniqueById(tasks.data ?? [])
     .filter((task) => {
-      if (seenTaskIds.has(task.id)) return false;
-      seenTaskIds.add(task.id);
       return (
         (task.start_date ?? task.due_date) !== null &&
         (contextProject === undefined || task.project_id === contextProject) &&
         (!tagId || task.tag_ids.includes(tagId)) &&
         (!filterTaskIds || filterTaskIds.has(task.id)) &&
         (!selectedTaskIds || selectedTaskIds.has(task.id)) &&
-        sourceSelected(sourceParams.get('lists'), task.project_id) &&
-        (sourceParams.get('tags') === null ||
-          task.tag_ids.some((id) => sourceSelected(sourceParams.get('tags'), id))) &&
+        sourceAllows(listSources, task.project_id) &&
+        (tagSources === null || task.tag_ids.some((id) => tagSources.has(id))) &&
         task.kind === 'task'
       );
     })
@@ -822,12 +794,8 @@ export function CalendarPage() {
           }}
         />
       ) : null}
-      {tasks.isPending ||
-      externalQuery.isPending ||
-      (startTaskIds.length > 0 && startTasks.isPending) ? (
-        <SkeletonRows />
-      ) : null}
-      {tasks.isError || externalQuery.isError || startTasks.isError ? (
+      {tasks.isPending || externalQuery.isPending ? <SkeletonRows /> : null}
+      {tasks.isError || externalQuery.isError ? (
         <ErrorState
           title={fill(messages.loadFailed, messages.calendarTitle)}
           retryLabel={messages.retry}
@@ -837,7 +805,6 @@ export function CalendarPage() {
               runAction(rangedTasks.refetch());
               runAction(rangedEvents.refetch());
             }
-            if (startTaskIds.length) runAction(startTasks.refetch());
           }}
         />
       ) : null}
@@ -851,12 +818,7 @@ export function CalendarPage() {
           }}
         />
       ) : null}
-      {!tasks.isPending &&
-      !externalQuery.isPending &&
-      !(startTaskIds.length > 0 && startTasks.isPending) &&
-      !startTasks.isError &&
-      !tasks.isError &&
-      !externalQuery.isError ? (
+      {!tasks.isPending && !externalQuery.isPending && !tasks.isError && !externalQuery.isError ? (
         <>
           {current === 'quarter' ? (
             <YearBoard

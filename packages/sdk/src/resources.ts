@@ -393,6 +393,7 @@ export interface ResourceClient {
     from: string,
     to: string,
     context?: 'all' | 'work' | 'personal' | 'auto',
+    include?: 'external' | 'tasks' | 'all',
   ): Promise<JsonObject>;
   listGoogleCalendars(): Promise<readonly JsonObject[]>;
   listCalendarSubscriptions(): Promise<JsonObject>;
@@ -727,10 +728,10 @@ export function resourceMethods(http: Http): ResourceClient {
         undefined,
         isJsonObject,
       ),
-    calendarEvents: (from, to, context) =>
+    calendarEvents: (from, to, context, include) =>
       ask(
         'GET',
-        `/api/v1/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${context === undefined ? '' : `&context=${encodeURIComponent(context)}`}`,
+        `/api/v1/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${context === undefined ? '' : `&context=${encodeURIComponent(context)}`}${include === undefined ? '' : `&include=${encodeURIComponent(include)}`}`,
         undefined,
         undefined,
         isJsonObject,
