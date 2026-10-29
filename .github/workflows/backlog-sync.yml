@@ -109,12 +109,12 @@ jobs:
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
       - name: Regenerar docs/backlog/BACKLOG.md desde el Project
-        if: steps.ready.outputs.enabled == 'true' 
+        if: steps.ready.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
         run: scripts/backlog/generar-backlog.sh --out docs/backlog/BACKLOG.md
       - name: Abrir o actualizar la PR chore/backlog-sync si hay cambios
-        if: steps.ready.outputs.enabled == 'true' 
+        if: steps.ready.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
