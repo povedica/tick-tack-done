@@ -32,6 +32,7 @@ import { fill, useMessages, type Messages } from '../../../i18n';
 import { SidebarFoldButton } from '../../../shell/SidebarFoldButton';
 import { viewsApi } from '../api';
 import { duplicateFilter, pinFilter } from '../filter-commands';
+import { isFilterMenuShortcut } from '../filter-menu-key';
 import { filterMove } from '../filter-order';
 import { useFilterUi } from '../filter-ui';
 import { filterTagLabels, summarizeRules, type ChipIcon, type SummaryText } from '../summarize';
@@ -342,6 +343,16 @@ function FilterRow({
         const rect = event.currentTarget.getBoundingClientRect();
         onDrop(id, event.clientY > rect.top + rect.height / 2);
       }}
+      onKeyDown={(event) => {
+        if (!isFilterMenuShortcut(event)) {
+          return;
+        }
+        event.preventDefault();
+        const more = rowRef.current?.querySelector<HTMLElement>('.filter-more') ?? null;
+        if (more !== null) {
+          onOpenMenu(more);
+        }
+      }}
       {...press}
     >
       <button
@@ -357,7 +368,21 @@ function FilterRow({
       >
         <GripVertical size={14} aria-hidden="true" />
       </button>
-      <Link className="filter-link" to={`/filter/${filter.id}`}>
+      <Link
+        className="filter-link"
+        to={`/filter/${filter.id}`}
+        onKeyDown={(event) => {
+          if (!isFilterMenuShortcut(event)) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          const more = rowRef.current?.querySelector<HTMLElement>('.filter-more') ?? null;
+          if (more !== null) {
+            onOpenMenu(more);
+          }
+        }}
+      >
         <Funnel className="filter-funnel" size={18} aria-hidden="true" />
         <span className="filter-copy">
           <span className="filter-name">
@@ -400,12 +425,6 @@ function FilterRow({
           event.preventDefault();
           event.stopPropagation();
           onOpenMenu(event.currentTarget);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'F10' && event.shiftKey) {
-            event.preventDefault();
-            onOpenMenu(event.currentTarget);
-          }
         }}
       >
         <MoreHorizontal size={16} aria-hidden="true" />

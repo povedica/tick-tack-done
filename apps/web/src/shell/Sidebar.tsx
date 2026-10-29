@@ -65,6 +65,7 @@ import { activeFolderId, ListModal } from './ListModal';
 import { openListModal } from './list-modal-store';
 import { FilterMenu } from '../features/views/components/FilterMenu';
 import { duplicateFilter, pinFilter } from '../features/views/filter-commands';
+import { isFilterMenuShortcut } from '../features/views/filter-menu-key';
 import { useFilterUi } from '../features/views/filter-ui';
 import { filterTagLabels, summarizeRules, type SummaryText } from '../features/views/summarize';
 import '../features/views/filters.css';
@@ -1437,7 +1438,21 @@ function FilterNavRow({
   const tint =
     filter.color === null ? undefined : ({ '--list-tint': filter.color } as CSSProperties);
   return (
-    <li ref={rowRef} className="nav-row" {...press}>
+    <li
+      ref={rowRef}
+      className="nav-row"
+      onKeyDown={(event) => {
+        if (!isFilterMenuShortcut(event)) {
+          return;
+        }
+        event.preventDefault();
+        const more = rowRef.current?.querySelector<HTMLElement>('.nav-more-btn') ?? null;
+        if (more !== null) {
+          onOpenMenu(more);
+        }
+      }}
+      {...press}
+    >
       <SideLink to={`/filter/${filter.id}`} section style={tint} onNavigate={onNavigate}>
         <Funnel className="nav-list-icon nav-filter-icon" size={16} aria-hidden="true" />
         <span className="nav-label">{filter.name}</span>
