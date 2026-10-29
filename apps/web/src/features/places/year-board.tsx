@@ -1,3 +1,4 @@
+import { dateTimeFormat } from '../../lib/dates/formatters';
 import { memo, useMemo, Fragment } from 'react';
 import { Link } from 'react-router';
 import type { Task } from '@reflexionia/sdk';
@@ -41,13 +42,13 @@ export function YearBoard({
   const verticalNavigation = useVerticalCalendarNavigation(onMove);
   const shown = months ?? FULL_YEAR;
   const showWeekNumbers = shown.length === 3;
-  const monthName = useMemo(() => new Intl.DateTimeFormat(locale, { month: 'long' }), [locale]);
+  const monthName = useMemo(() => dateTimeFormat(locale, { month: 'long' }), [locale]);
   const whenFormat = useMemo(
-    () => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }),
+    () => dateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }),
     [locale],
   );
   const heads = useMemo(() => {
-    const weekday = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
+    const weekday = dateTimeFormat(locale, { weekday: 'narrow' });
     return monthCells(new Date(year, 0, 1), weekStart)
       .slice(0, 7)
       .map((day) => weekday.format(day));

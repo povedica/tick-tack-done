@@ -1,3 +1,4 @@
+import { dateTimeFormat } from '../../lib/dates/formatters';
 import { useRef, useState, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router';
@@ -61,7 +62,7 @@ export function DayDetails({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const attempt = useRef<{ text: string; key: string } | null>(null);
-  const heading = new Intl.DateTimeFormat(locale, {
+  const heading = dateTimeFormat(locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -72,7 +73,7 @@ export function DayDetails({
     .map((part) => part.value)
     .join(' ');
   const clock = (iso: string) =>
-    new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }).format(
+    dateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }).format(
       new Date(iso),
     );
   const items = [
@@ -183,7 +184,7 @@ export function DayDetails({
         <aside className="calendar-day-identity" aria-hidden="true">
           <strong>{Number(dayKey.slice(8))}</strong>
           <span>
-            {new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(
+            {dateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(
               new Date(`${dayKey}T12:00Z`),
             )}
           </span>

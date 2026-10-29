@@ -1,3 +1,4 @@
+import { dateTimeFormat } from '../../lib/dates/formatters';
 import { DayDetails } from '../calendar/DayDetails';
 import { WorkHoursLine } from '../settings/WorkHoursLine';
 import { CaptureDefaults } from '../settings/CaptureDefaults';
@@ -632,7 +633,7 @@ export function CalendarPage() {
     subscriptionItems(subscriptions.data).filter((subscription) => !subscription.visible).length;
   const title =
     current === 'day' && mobile
-      ? new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(cursor)
+      ? dateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(cursor)
       : calendarTitle(locale, current ?? 'month', cursor, cells);
   const move = (delta: number): void => {
     const next = shiftView(cursor, current ?? 'month', delta, weekStart);
@@ -681,7 +682,7 @@ export function CalendarPage() {
             <CalendarPeriod
               title={
                 mobile && (current === 'year' || current === 'week')
-                  ? new Intl.DateTimeFormat(
+                  ? dateTimeFormat(
                       locale,
                       current === 'year' ? { year: 'numeric' } : { month: 'long' },
                     ).format(cursor)
@@ -922,7 +923,7 @@ export function CalendarPage() {
               >
                 <ChevronUp size={16} aria-hidden="true" />
                 <span>
-                  {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
+                  {dateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
                     new Date(agendaStart.getFullYear(), agendaStart.getMonth() - 1, 1),
                   )}
                 </span>
@@ -949,7 +950,7 @@ export function CalendarPage() {
                 disabled={tasks.isFetching || externalQuery.isFetching}
               >
                 <span>
-                  {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
+                  {dateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
                     agendaEnd,
                   )}
                 </span>
@@ -1083,12 +1084,12 @@ function calendarTitle(locale: string, view: string, cursor: Date, cells: readon
     const months = quarterMonths(cursor);
     const first = months[0] ?? cursor;
     const last = months[2] ?? cursor;
-    const start = new Intl.DateTimeFormat(locale, { month: 'long' }).format(first);
-    const end = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(last);
+    const start = dateTimeFormat(locale, { month: 'long' }).format(first);
+    const end = dateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(last);
     return `${start} – ${end}`;
   }
   if (view === 'day') {
-    return new Intl.DateTimeFormat(locale, {
+    return dateTimeFormat(locale, {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -1098,14 +1099,14 @@ function calendarTitle(locale: string, view: string, cursor: Date, cells: readon
   const last = cells.at(-1) ?? cursor;
   if (view === 'week' || view === 'multi-day' || view === 'two-weeks' || view === 'agenda') {
     const sameMonth = first.getMonth() === last.getMonth();
-    const start = new Intl.DateTimeFormat(
+    const start = dateTimeFormat(
       locale,
       sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' },
     ).format(first);
-    const end = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(last);
+    const end = dateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(last);
     return `${start} – ${end}`;
   }
-  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor);
+  return dateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor);
 }
 
 function DayGrid({
@@ -1267,7 +1268,7 @@ function DayGrid({
     };
   }, [days, tasks, events, monthView]);
   const todayKey = useCalendarToday();
-  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+  const weekday = dateTimeFormat(locale, { weekday: 'short' });
   const heads = Array.from({ length: columns }, (_, index) =>
     weekday.format(days[index] ?? cursor),
   );
@@ -1604,7 +1605,7 @@ function MobileWeekBoard({
   const suppressClick = useRef(0);
   const mini = monthCells(cursor, weekStart);
   const selected = new Set(days.map(localKey));
-  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
+  const time = dateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
   return (
     <div
       ref={board}
@@ -1848,10 +1849,10 @@ function Agenda({
   const forward = [...groups.entries()]
     .filter(([key]) => !visibleKeys || visibleKeys.has(key))
     .sort(([left], [right]) => left.localeCompare(right));
-  const weekday = new Intl.DateTimeFormat(locale, {
+  const weekday = dateTimeFormat(locale, {
     weekday: 'short',
   });
-  const monthName = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
+  const monthName = dateTimeFormat(locale, { month: 'long', year: 'numeric' });
   if (forward.length === 0)
     return <EmptyState title={messages.calendarTitle} body={messages.calEmpty} />;
   return (
@@ -2032,7 +2033,7 @@ function mixChips(
 }
 
 function clockLabel(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(
+  return dateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(
     new Date(iso),
   );
 }
@@ -3160,7 +3161,7 @@ export { smartApiKey };
 
 function timeZoneLabel(zone: string): string {
   try {
-    const parts = new Intl.DateTimeFormat('es-ES', {
+    const parts = dateTimeFormat('es-ES', {
       timeZone: zone,
       timeZoneName: 'longOffset',
     }).formatToParts(new Date());

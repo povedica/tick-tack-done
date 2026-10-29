@@ -40,6 +40,24 @@ export default tseslint.config(
     },
   },
   {
+    files: [
+      'apps/web/src/features/places/**/*.{ts,tsx}',
+      'apps/web/src/features/calendar/**/*.{ts,tsx}',
+      'apps/web/src/shell/CalendarSidebar.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "NewExpression[callee.object.name='Intl'][callee.property.name='DateTimeFormat']",
+          message:
+            'Use dateTimeFormat() from apps/web/src/lib/dates/formatters.ts. The calendar keeps one formatter per locale and options.',
+        },
+      ],
+    },
+  },
+  {
     files: ['packages/domain/**/*.ts'],
     rules: {
       'no-restricted-imports': [
