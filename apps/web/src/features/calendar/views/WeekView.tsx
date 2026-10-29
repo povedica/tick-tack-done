@@ -1,6 +1,6 @@
 import { CalendarDays } from 'lucide-react';
 import { dateTimeFormat } from '../../../lib/dates/formatters';
-import { memo, useMemo, useRef } from 'react';
+import { memo, useMemo, useRef, type PointerEvent } from 'react';
 import { Link, useLocation } from 'react-router';
 import type { Task } from '@reflexionia/sdk';
 import { TodayMark } from '../../../components/period/TodayMark';
@@ -53,6 +53,21 @@ export const WeekView = memo(function WeekView({
   const drag = useCalendarDrag(board, timeZone, onTaskChange);
   const gesture = useRef<{ x: number; y: number; at: number } | null>(null);
   const suppressClick = useRef(0);
+  const finishWeekSwipe = (event: PointerEvent<HTMLDivElement>) => {
+    const start = gesture.current;
+    gesture.current = null;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (
+      Date.now() - start.at < 700 &&
+      Math.abs(dx) >= 65 &&
+      Math.abs(dx) > Math.abs(dy) * 1.5
+    ) {
+      suppressClick.current = Date.now() + 400;
+      onMove(dx < 0 ? 1 : -1);
+    }
+  };
   const mini = monthCells(cursor, weekStart);
   const selected = new Set(days.map(localKey));
   const time = dateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
@@ -81,24 +96,17 @@ export const WeekView = memo(function WeekView({
           return;
         }
         gesture.current = { x: event.clientX, y: event.clientY, at: Date.now() };
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {
+          // Capture is optional. pointerup or pointercancel still carries the distance.
+        }
       }}
-      onPointerCancel={() => {
-        gesture.current = null;
+      onPointerCancel={(event) => {
+        finishWeekSwipe(event);
       }}
       onPointerUp={(event) => {
-        const start = gesture.current;
-        gesture.current = null;
-        if (!start) return;
-        const dx = event.clientX - start.x;
-        const dy = event.clientY - start.y;
-        if (
-          Date.now() - start.at < 700 &&
-          Math.abs(dx) >= 65 &&
-          Math.abs(dx) > Math.abs(dy) * 1.5
-        ) {
-          suppressClick.current = Date.now() + 400;
-          onMove(dx < 0 ? 1 : -1);
-        }
+        finishWeekSwipe(event);
       }}
       onClickCapture={(event) => {
         if (Date.now() < suppressClick.current) {
