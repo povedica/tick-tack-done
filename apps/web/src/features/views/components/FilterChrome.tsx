@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router';
 import { UndoToastStack } from '../../../components/UndoToast';
 import { Button, Modal } from '../../../components/ui';
 import { fill, useMessages } from '../../../i18n';
@@ -10,6 +11,8 @@ import '../filters.css';
 export function FilterChrome() {
   const messages = useMessages();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const editor = useFilterUi((state) => state.editor);
   const deleting = useFilterUi((state) => state.deleting);
   const toasts = useFilterUi((state) => state.toasts);
@@ -38,6 +41,9 @@ export function FilterChrome() {
               variant="danger"
               onClick={() => {
                 deleteFilter(queryClient, deleting, messages.filterDeleteFailed);
+                if (location.pathname === `/filter/${deleting.id}`) {
+                  void Promise.resolve(navigate('/filters')).catch(() => undefined);
+                }
               }}
             >
               {messages.filterDelete}

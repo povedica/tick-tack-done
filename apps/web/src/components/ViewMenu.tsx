@@ -26,6 +26,7 @@ export function ViewMenu({
   hideCompleted,
   onHideCompleted,
   onPrint,
+  extraItems,
 }: {
   readonly messages: Messages;
   readonly view?: BoardView | undefined;
@@ -38,6 +39,7 @@ export function ViewMenu({
   readonly hideCompleted: boolean;
   readonly onHideCompleted: (value: boolean) => void;
   readonly onPrint: () => void;
+  readonly extraItems?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);
@@ -154,6 +156,12 @@ export function ViewMenu({
             <Printer size={16} aria-hidden="true" />
             {messages.printView}
           </button>
+          {extraItems !== undefined ? (
+            <>
+              <div className="menu-sep" role="separator" />
+              {extraItems}
+            </>
+          ) : null}
         </div>
       </Popover>
     </div>

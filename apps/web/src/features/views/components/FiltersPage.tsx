@@ -278,6 +278,7 @@ function FiltersHeader({
       <Button
         {...(buttonRef === undefined ? {} : { ref: buttonRef })}
         variant="primary"
+        aria-label={messages.newFilter}
         onClick={onCreate}
       >
         <Plus size={16} aria-hidden="true" />

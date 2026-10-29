@@ -217,6 +217,14 @@
   }
 }
 
+.filter-view-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 var(--sp-3);
+}
+
 .filter-editor {
   width: min(680px, 92vw);
   max-width: 680px;

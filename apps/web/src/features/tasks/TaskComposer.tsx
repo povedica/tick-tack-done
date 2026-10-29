@@ -57,6 +57,7 @@ export function TaskComposer({
   onCaptured,
   autoFocus = false,
   onDismiss,
+  placeholder,
 }: {
   readonly initialDraft?: CaptureDraft | undefined;
   readonly calendar?: boolean;
@@ -71,6 +72,7 @@ export function TaskComposer({
   readonly viewDay?: ViewDay | null | undefined;
   readonly inputRef?: RefObject<HTMLInputElement | null>;
   readonly onCreated?: (() => void) | undefined;
+  readonly placeholder?: string | undefined;
 }) {
   const messages = useMessages();
   const driveConnection = useDriveConnection();
@@ -420,7 +422,8 @@ export function TaskComposer({
               value={text}
               disabled={frozen}
               placeholder={
-                calendar ? messages.calendarQuickTitle : fill(messages.addTaskTo, listLabel)
+                placeholder ??
+                (calendar ? messages.calendarQuickTitle : fill(messages.addTaskTo, listLabel))
               }
               autoComplete="off"
               onChange={(event) => {

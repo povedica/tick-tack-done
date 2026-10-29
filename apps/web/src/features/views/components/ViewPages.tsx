@@ -2,14 +2,15 @@ import { captureSettings } from '@reflexionia/domain';
 import { runAction } from '../../../components/run-action';
 import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Funnel } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { completeBody } from '../../tasks/complete-body';
 import { Button, EmptyState } from '../../../components/ui';
 import { SortMenu } from '../../../components/SortMenu';
 import { ViewMenu } from '../../../components/ViewMenu';
-import { useMessages, type Messages } from '../../../i18n';
+import { fill, useMessages, type Messages } from '../../../i18n';
 import { useAppLocale } from '../../../i18n/locale';
 import { SidebarFoldButton } from '../../../shell/SidebarFoldButton';
 import { MatrixBoard, MatrixViewToggle } from '../../matrix/MatrixBoard';
@@ -36,8 +37,13 @@ import {
   type ViewGroupBy,
   type ViewSort,
 } from '../view-prefs';
+import type { CaptureDraft } from '../../capture/notice';
 import { viewsApi } from '../api';
+import { captureSeed } from '../capture-seed';
+import { duplicateFilter, pinFilter } from '../filter-commands';
 import { useFilterUi } from '../filter-ui';
+import { filterTagLabels, summarizeRules } from '../summarize';
+import '../filters.css';
 import { WorkHoursLine } from '../../settings/WorkHoursLine';
 
 type GroupBy = ViewPage['group_by'];
@@ -72,17 +78,161 @@ export function SmartListViewPage() {
 
 export function FilterViewPage() {
   const messages = useMessages();
+  const queryClient = useQueryClient();
   const { id } = useParams();
   const filterId = id ?? '';
   const filters = useQuery({ queryKey: ['filters'], queryFn: () => viewsApi.listFilters() });
+  const projects = useQuery({ queryKey: ['projects'], queryFn: () => viewsApi.listProjects() });
   const filter = filters.data?.items.find((item) => item.id === filterId);
+  useEffect(() => {
+    if (filter === undefined) {
+      return;
+    }
+    document.getElementById('filter-view-title')?.focus();
+  }, [filter]);
+  if (filters.isSuccess && filterId.length > 0 && filter === undefined) {
+    return (
+      <main className="screen-page">
+        <h1>{messages.notFoundTitle}</h1>
+        <p>{messages.notFoundBody}</p>
+        <Link to="/filters">{messages.filterSeeFilters}</Link>
+      </main>
+    );
+  }
+  const labels = filterTagLabels(
+    filter !== undefined && 'tag_labels' in filter ? filter.tag_labels : undefined,
+  );
+  const listNames = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
+  const chips =
+    filter === undefined
+      ? []
+      : summarizeRules(filter.rules, {
+          tagLabels: labels,
+          listNames,
+          text: {
+            today: messages.dateToday,
+            tomorrow: messages.dateTomorrow,
+            next7: messages.dateNext7,
+            overdue: messages.dateOverdue,
+            noDate: messages.dateNoDate,
+            between: messages.filterDateBetween,
+            priorityHigh: messages.filterPriorityHigh,
+            priorityMedium: messages.filterPriorityMedium,
+            priorityLow: messages.filterPriorityLow,
+            priorityAny: messages.filterPriorityAny,
+            statusActive: messages.statusActive,
+            statusCompleted: messages.statusCompleted,
+            deletedTag: messages.filterDeletedTag,
+          },
+        });
+  const shown = chips.slice(0, 4);
+  const extra = chips.length - shown.length;
+  const summary = chips.map((chip) => chip.text).join(' · ');
+  const seed = filter === undefined ? null : captureSeed(filter.rules);
+  const capture: CaptureDraft | undefined =
+    seed === null || (seed.tagIds.length === 0 && seed.projectId === undefined)
+      ? undefined
+      : {
+          text: '',
+          ...(seed.tagIds.length === 0 ? {} : { tags: [...seed.tagIds] }),
+          ...(seed.projectId === undefined ? {} : { project: seed.projectId }),
+        };
   return (
     <Board
       messages={messages}
       title={filter?.name ?? messages.filtersTitle}
+      titleId="filter-view-title"
+      titleIcon={
+        <Funnel
+          size={20}
+          aria-hidden="true"
+          style={{ color: filter?.color ?? 'var(--ink-2)' }}
+        />
+      }
+      belowTitle={
+        <div className="filter-view-rules">
+          {shown.map((chip, index) => (
+            <span key={`${chip.icon}-${String(index)}`} className="filter-chip">
+              {chip.text}
+            </span>
+          ))}
+          {extra > 0 ? (
+            <span className="filter-chip">
+              {messages.filterMoreChips.replace('{count}', String(extra))}
+            </span>
+          ) : null}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              useFilterUi.getState().openEdit(filterId);
+            }}
+          >
+            {messages.filterEditConditions}
+          </Button>
+        </div>
+      }
+      {...(filter === undefined
+        ? {}
+        : {
+            menuExtra: (
+              <>
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    useFilterUi.getState().openEdit(filter.id);
+                  }}
+                >
+                  {messages.filterEdit}
+                </button>
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    pinFilter(
+                      queryClient,
+                      filter,
+                      messages.filterPinnedLive,
+                      messages.filterUnpinnedLive,
+                    );
+                  }}
+                >
+                  {filter.pinned ? messages.filterUnpin : messages.filterPinTop}
+                </button>
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    duplicateFilter(queryClient, filter, messages.filterDuplicated);
+                  }}
+                >
+                  {messages.duplicateFilter}
+                </button>
+                <button
+                  type="button"
+                  className="menu-item is-danger"
+                  role="menuitem"
+                  onClick={() => {
+                    useFilterUi.getState().askDelete({ id: filter.id, name: filter.name });
+                  }}
+                >
+                  {messages.filterDelete}
+                </button>
+              </>
+            ),
+          })}
+      {...(capture === undefined ? {} : { captureDraft: capture })}
+      {...(seed?.projectId === undefined ? {} : { createProjectId: seed.projectId })}
+      {...(seed?.viewDay == null ? {} : { createViewDay: seed.viewDay })}
+      {...(summary.length === 0
+        ? {}
+        : { capturePlaceholder: fill(messages.filterCaptureWith, summary) })}
       queryKey={['filter-tasks', filterId]}
       load={(groupBy, sort) => collectFilterTasks(filterId, { groupBy, sort })}
-      enabled={filterId.length > 0}
+      enabled={filterId.length > 0 && filter !== undefined}
       viewKey={`filter:${filterId}`}
       empty={
         <EmptyState
@@ -176,6 +326,12 @@ export function Board({
   matrixListId,
   headerActions,
   empty,
+  titleIcon,
+  belowTitle,
+  menuExtra,
+  titleId,
+  captureDraft,
+  capturePlaceholder,
 }: {
   readonly messages: Messages;
   readonly title: string;
@@ -195,6 +351,12 @@ export function Board({
   readonly matrixListId?: string | undefined;
   readonly headerActions?: ReactNode;
   readonly empty?: ReactNode;
+  readonly titleIcon?: ReactNode;
+  readonly belowTitle?: ReactNode;
+  readonly menuExtra?: ReactNode;
+  readonly titleId?: string;
+  readonly captureDraft?: CaptureDraft | undefined;
+  readonly capturePlaceholder?: string | undefined;
 }) {
   const queryClient = useQueryClient();
   const locale = useAppLocale();
@@ -331,8 +493,12 @@ export function Board({
       <header className="today-header">
         <div className="page-title">
           <SidebarFoldButton />
-          <h1>{title}</h1>
+          {titleIcon}
+          <h1 id={titleId} tabIndex={titleId === undefined ? undefined : -1}>
+            {title}
+          </h1>
         </div>
+        {belowTitle}
         {viewKey === 'smart:today' || viewKey === 'smart:next_7_days' ? <WorkHoursLine /> : null}
         <div className="page-actions">
           {headerActions}
@@ -418,6 +584,7 @@ export function Board({
             onPrint={() => {
               window.print();
             }}
+            {...(menuExtra === undefined ? {} : { extraItems: menuExtra })}
           />
         </div>
       </header>
@@ -442,6 +609,8 @@ export function Board({
             canCapture ? (createProjectId ?? preferredList?.id ?? inboxId) : undefined
           }
           createViewDay={createViewDay}
+          {...(captureDraft === undefined ? {} : { captureDraft })}
+          {...(capturePlaceholder === undefined ? {} : { capturePlaceholder })}
           onComplete={(row) => {
             if (row.status === 'completed') {
               runAction(
