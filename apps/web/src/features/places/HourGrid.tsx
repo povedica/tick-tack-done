@@ -30,7 +30,8 @@ import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
 import type { Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { taskQueryHref } from '../../shell/use-open-task';
-import { calendarTaskLabel, isCalendarOverdue, tasksOnCell, isoWeek } from './month';
+import { buildCalendarDayIndex, eventsForDay, tasksForDay } from '../calendar/data/day-index';
+import { calendarTaskLabel, isCalendarOverdue, isoWeek } from './month';
 import {
   GRID_END_HOUR,
   GRID_START_HOUR,
@@ -189,22 +190,18 @@ export function HourGrid({
   const axis = (iso: string) => calendarAxisMinute(iso, timeZone, repeatedHour);
   const block = (start: number, end: number) => hourBlock(start, end, hours.length * 60);
   const today = useCalendarToday(timeZone);
+  const dayIndex = useMemo(() => buildCalendarDayIndex(tasks, events), [tasks, events]);
   const widths = days.map((day) => {
     const key = localKey(day);
     const intervals = [
-      ...tasksOnCell(tasks, day)
+      ...tasksForDay(dayIndex, key)
         .filter((task) => !task.is_all_day && (task.start_date ?? task.due_date))
         .map((task) => {
           const start = axis(task.start_date ?? task.due_date ?? '');
           return { id: task.id, start, end: start + (task.duration_minutes ?? 30) };
         }),
-      ...events
-        .filter(
-          (event) =>
-            !event.is_all_day &&
-            key >= eventDayRange(event).start &&
-            key <= eventDayRange(event).end,
-        )
+      ...eventsForDay(dayIndex, key)
+        .filter((event) => !event.is_all_day)
         .map((event) => {
           const range = eventDayRange(event);
           const start = key > range.start ? 0 : axis(event.starts_at);
@@ -227,14 +224,10 @@ export function HourGrid({
     '--hour-mobile-columns': `var(--calendar-hour-gutter-width) ${widths.map((width) => `minmax(${String(width)}px,1fr)`).join(' ')}`,
     '--hour-mobile-width': `calc(var(--calendar-hour-gutter-width) + ${String(widths.reduce((sum, width) => sum + width, 0))}px)`,
   } as CSSProperties;
-  const allDayTasks = (day: Date) => tasksOnCell(tasks, day).filter((task) => task.is_all_day);
+  const allDayTasks = (day: Date) =>
+    tasksForDay(dayIndex, localKey(day)).filter((task) => task.is_all_day);
   const allDayEvents = (day: Date) =>
-    events.filter(
-      (event) =>
-        event.is_all_day &&
-        localKey(day) >= eventDayRange(event).start &&
-        localKey(day) <= eventDayRange(event).end,
-    );
+    eventsForDay(dayIndex, localKey(day)).filter((event) => event.is_all_day);
   return (
     <div
       ref={board}
@@ -436,13 +429,10 @@ export function HourGrid({
           </div>
           {days.map((day) => {
             const key = localKey(day);
-            const dayTasks = tasksOnCell(tasks, day).filter(
+            const dayTasks = tasksForDay(dayIndex, key).filter(
               (task) => !task.is_all_day && (task.start_date ?? task.due_date) !== null,
             );
-            const dayEvents = events.filter((event) => {
-              const range = eventDayRange(event);
-              return !event.is_all_day && key >= range.start && key <= range.end;
-            });
+            const dayEvents = eventsForDay(dayIndex, key).filter((event) => !event.is_all_day);
             const timed = [
               ...dayTasks.map((task) => {
                 const start = axis(task.start_date ?? task.due_date ?? '');

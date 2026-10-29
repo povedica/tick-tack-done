@@ -13,6 +13,7 @@ import { DayWeekStrip } from '../calendar/DayWeekStrip';
 import { CalendarSources } from '../calendar/CalendarSources';
 import { sourceSet } from '../calendar/source-selection';
 import { calendarTaskQuery, uniqueById } from '../calendar/calendar-task-query';
+import { buildCalendarDayIndex, eventsForDay, tasksForDay } from '../calendar/data/day-index';
 import { useCalendarSources } from '../calendar/use-calendar-sources';
 import { PeriodNavigator } from '../../components/period/PeriodNavigator';
 import { useVerticalCalendarNavigation } from '../calendar/useVerticalCalendarNavigation';
@@ -1268,6 +1269,7 @@ function DayGrid({
     };
   }, [days, tasks, events, monthView]);
   const todayKey = useCalendarToday();
+  const dayIndex = useMemo(() => buildCalendarDayIndex(tasks, events), [tasks, events]);
   const weekday = dateTimeFormat(locale, { weekday: 'short' });
   const heads = Array.from({ length: columns }, (_, index) =>
     weekday.format(days[index] ?? cursor),
@@ -1315,10 +1317,10 @@ function DayGrid({
         </div>
       ))}
       {days.map((day, index) => {
-        const items = tasksOnCell(tasks, day);
-        const dayEvents = eventsOnDay(events, day);
-        const chips = mixChips(items, dayEvents);
         const key = localKey(day);
+        const items = tasksForDay(dayIndex, key);
+        const dayEvents = eventsForDay(dayIndex, key);
+        const chips = mixChips(items, dayEvents);
         const weekend = day.getDay() === 0 || day.getDay() === 6;
         const outside = outsideMonth && day.getMonth() !== cursor.getMonth();
         const href = overflowHref(day);
@@ -1606,6 +1608,10 @@ function MobileWeekBoard({
   const mini = monthCells(cursor, weekStart);
   const selected = new Set(days.map(localKey));
   const time = dateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
+  const dayIndex = useMemo(
+    () => buildCalendarDayIndex(tasks, events, timeZone, timeZone),
+    [tasks, events, timeZone],
+  );
   return (
     <div
       ref={board}
@@ -1683,11 +1689,8 @@ function MobileWeekBoard({
       {days.map((day, index) => {
         const key = localKey(day);
         const chips = mixChips(
-          tasksOnCell(tasks, day, timeZone),
-          events.filter((event) => {
-            const range = eventDayRange(event, timeZone);
-            return key >= range.start && key <= range.end;
-          }),
+          tasksForDay(dayIndex, key),
+          eventsForDay(dayIndex, key),
         );
         return (
           <section
