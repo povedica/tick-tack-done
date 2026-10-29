@@ -9,3 +9,6 @@ test-artifacts/
 # Local private inputs and user-supplied reference assets are preserved verbatim.
 docs/private/
 docs/spec/
+
+# Backlog: bloque generado por scripts/backlog/generar-backlog.sh y tablas largas.
+docs/backlog/

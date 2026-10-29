@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## Backlog en GitHub Projects
+
+- Plantillas de issues y PR, workflow y scripts de sincronización del backlog.
+- Espejo del backlog, registro de decisiones y protocolo de trabajo.
+- Reglas compartidas en AGENTS.md y skill de backlog para Cursor y Codex.
+
 ## Sin publicar
 
 - El editor de filtros usa campos, listas y fechas del propio diseño. Todas y
