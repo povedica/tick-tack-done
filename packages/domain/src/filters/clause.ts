@@ -2,6 +2,7 @@ import { isOverdue } from '../dates/schedule';
 import { addCalendarDays, instantFromWall, wallClock, type WallClock } from '../dates/zoned';
 import { isPriority } from '../priority/priority';
 import type { DateFilterOp, FilterCondition, FilterGroup, FilterRules, Priority } from '../types';
+import { partitionTagValues } from './tags';
 
 /** Clock is injected. Relative dates are not resolved without it. */
 export interface FilterClock {
@@ -11,6 +12,7 @@ export interface FilterClock {
 
 export interface FilterSubject {
   readonly listId: string | null;
+  readonly tagIds: readonly string[];
   readonly tagNames: readonly string[];
   readonly dueDate: string | null;
   readonly startDate?: string | null;
@@ -29,7 +31,11 @@ export interface FilterSubject {
 export type FilterClause =
   | { readonly op: 'and' | 'or'; readonly items: readonly FilterClause[] }
   | { readonly op: 'list_in'; readonly ids: readonly string[] }
-  | { readonly op: 'tag_any'; readonly names: readonly string[] }
+  | {
+      readonly op: 'tag_any';
+      readonly ids: readonly string[];
+      readonly legacyNames: readonly string[];
+    }
   | { readonly op: 'due_range'; readonly from: string; readonly to: string }
   | { readonly op: 'no_date' }
   | { readonly op: 'overdue' }
@@ -99,7 +105,9 @@ export function matchesClause(
     case 'list_in':
       return subject.listId !== null && clause.ids.includes(subject.listId);
     case 'tag_any':
-      return overlaps(subject.tagNames, clause.names);
+      return (
+        idsOverlap(subject.tagIds, clause.ids) || overlaps(subject.tagNames, clause.legacyNames)
+      );
     case 'due_range': {
       const effective = subject.startDate ?? subject.dueDate;
       return effective !== null && effective >= clause.from && effective < clause.to;
@@ -191,10 +199,13 @@ function compileCondition(condition: FilterCondition, clock: FilterClock): Filte
       return condition.value.length === 0
         ? { op: 'never' }
         : { op: 'list_in', ids: condition.value };
-    case 'tag':
-      return condition.value.length === 0
-        ? { op: 'never' }
-        : { op: 'tag_any', names: condition.value };
+    case 'tag': {
+      if (condition.value.length === 0) {
+        return { op: 'never' };
+      }
+      const parts = partitionTagValues(condition.value);
+      return { op: 'tag_any', ids: parts.ids, legacyNames: parts.legacyNames };
+    }
     case 'date':
       return compileDate(condition, clock);
     case 'priority':
@@ -291,6 +302,11 @@ function nextCalendarDay(day: string): string {
 function overlaps(left: readonly string[], right: readonly string[]): boolean {
   const wanted = new Set(right.map((name) => name.toLocaleLowerCase()));
   return left.some((name) => wanted.has(name.toLocaleLowerCase()));
+}
+
+function idsOverlap(left: readonly string[], right: readonly string[]): boolean {
+  const wanted = new Set(right.map((id) => id.toLowerCase()));
+  return left.some((id) => wanted.has(id.toLowerCase()));
 }
 
 function contains(haystack: string, needle: string): boolean {

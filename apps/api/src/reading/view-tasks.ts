@@ -167,6 +167,7 @@ function toViewTask(row: TaskRow): ViewTask {
     sortOrder: row.sortOrder.toString(),
     subject: {
       listId: row.projectId,
+      tagIds: tags.map((tag) => tag.id),
       tagNames: tags.map((tag) => tag.name),
       dueDate,
       startDate: iso(row.startDate),

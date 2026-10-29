@@ -23,6 +23,7 @@ describe('domain entry points', () => {
   it('RF-904: an empty AND matches every subject', () => {
     const subject: FilterSubject = {
       listId: null,
+      tagIds: [],
       tagNames: [],
       dueDate: null,
       isAllDay: false,

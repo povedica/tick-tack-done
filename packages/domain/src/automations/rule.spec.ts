@@ -4,6 +4,7 @@ import { automationMatches, parseAutomationAction, renderTemplate } from './rule
 const clock = { now: '2026-10-18T12:00:00.000Z', timeZone: 'Europe/Madrid' };
 const subject = {
   listId: 'list-1',
+  tagIds: [],
   tagNames: ['casa'],
   dueDate: '2026-10-17T00:00:00.000Z',
   isAllDay: false,

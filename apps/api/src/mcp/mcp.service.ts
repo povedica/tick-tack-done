@@ -1137,7 +1137,7 @@ export class McpService {
           where: { ownerId: user.id, deletedAt: null, status: 'active' },
           include: {
             project: { select: { name: true } },
-            tags: { select: { tag: { select: { name: true } } } },
+            tags: { select: { tagId: true, tag: { select: { name: true } } } },
           },
           take: 100,
         });
@@ -1152,6 +1152,7 @@ export class McpService {
             listName: task.project.name,
             status: task.status,
             updatedAt: task.updatedAt.toISOString(),
+            tagIds: task.tags.map((link) => link.tagId),
             tagNames: task.tags.map((link) => link.tag.name),
             assigneeId: task.assigneeId,
             content: task.content,

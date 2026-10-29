@@ -8,6 +8,8 @@ import {
   pageTaskGroups,
   parseFilterRules,
   requireConditions,
+  resolveTagReference,
+  rewriteMergedTag,
   parseSearchQuery,
   parseTaskView,
   savedFilterClause,
@@ -25,6 +27,7 @@ const clock: FilterClock = {
 function subject(overrides: Partial<FilterSubject> = {}): FilterSubject {
   return {
     listId: 'list-1',
+    tagIds: [],
     tagNames: ['casa'],
     dueDate: '2026-10-17T16:00:00.000Z',
     isAllDay: false,
@@ -469,6 +472,59 @@ describe('list view', () => {
     expect(second.groups[0]?.tasks.map((item) => item.id)).toEqual(['c']);
     expect(second.next).toBeNull();
     expect(pageTaskGroups(groups, 2, { index: 5, id: 'missing' }).groups[0]?.tasks).toHaveLength(2);
+  });
+});
+
+describe('tag references', () => {
+  const casa = '11111111-1111-4111-8111-111111111111';
+  const hogar = '22222222-2222-4222-8222-222222222222';
+
+  it('CA-DOM-05: tag_any matches an id, a leftover name, and a mix of both', () => {
+    const rules = {
+      combinator: 'AND' as const,
+      groups: [
+        {
+          combinator: 'AND' as const,
+          conditions: [{ field: 'tag' as const, op: 'any_of' as const, value: [casa, 'Casa'] }],
+        },
+      ],
+    };
+    expect(compileRules(rules, clock)).toMatchObject({
+      items: [{ items: [{ op: 'tag_any', ids: [casa], legacyNames: ['Casa'] }] }],
+    });
+    expect(matchesFilter(rules, subject({ tagIds: [casa], tagNames: [] }), clock)).toBe(true);
+    expect(matchesFilter(rules, subject({ tagIds: [], tagNames: ['casa'] }), clock)).toBe(true);
+    expect(matchesFilter(rules, subject({ tagIds: [hogar], tagNames: ['trabajo'] }), clock)).toBe(
+      false,
+    );
+  });
+
+  it('CA-DOM-05: resolves a tag name without regard to case and rejects an unknown id', () => {
+    const tags = [{ id: casa, name: 'casa' }];
+    expect(resolveTagReference('Casa', tags)).toBe(casa);
+    expect(resolveTagReference(casa.toUpperCase(), tags)).toBe(casa);
+    expect(resolveTagReference('hogar', tags)).toBeNull();
+    expect(resolveTagReference(hogar, tags)).toBeNull();
+  });
+
+  it('CA-DOM-05: a merge replaces the source id and drops a duplicate', () => {
+    const rules = {
+      combinator: 'AND' as const,
+      groups: [
+        {
+          combinator: 'AND' as const,
+          conditions: [{ field: 'tag' as const, op: 'any_of' as const, value: [casa, hogar] }],
+        },
+      ],
+    };
+    const rewritten = rewriteMergedTag(rules, casa, hogar);
+    expect(rewritten.changed).toBe(true);
+    expect(rewritten.rules.groups[0]?.conditions[0]).toEqual({
+      field: 'tag',
+      op: 'any_of',
+      value: [hogar],
+    });
+    expect(rewriteMergedTag(rewritten.rules, casa, hogar).changed).toBe(false);
   });
 });
 
