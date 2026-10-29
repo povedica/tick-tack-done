@@ -67,10 +67,7 @@ export function whereFromClause(clause: FilterClause, clock?: FilterClock): Pris
   }
 }
 
-function tagWhere(
-  ids: readonly string[],
-  legacyNames: readonly string[],
-): Prisma.TaskWhereInput {
+function tagWhere(ids: readonly string[], legacyNames: readonly string[]): Prisma.TaskWhereInput {
   const links: Prisma.TaskTagWhereInput[] = [];
   if (ids.length > 0) {
     links.push({ tagId: { in: [...ids] }, tag: { deletedAt: null } });

@@ -14,7 +14,7 @@ for (const theme of ['light', 'dark'] as const) {
         await page.goto('/filters');
         await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible();
         await page.screenshot({
-          path: `e2e/__screens__/filters-list-${theme}-${String(viewport.width)}.png`,
+          path: `e2e/__screenshots__/filters-list-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
         });
         await page.locator('#content').getByRole('button', { name: 'Nuevo filtro' }).click();
@@ -28,18 +28,20 @@ for (const theme of ['light', 'dark'] as const) {
         const fields = dialog.getByLabel('Campo');
         await fields.nth(1).selectOption('date');
         await page.screenshot({
-          path: `e2e/__screens__/filters-editor-${theme}-${String(viewport.width)}.png`,
+          path: `e2e/__screenshots__/filters-editor-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
         });
         await dialog.getByRole('button', { name: 'Guardar filtro' }).first().click();
         await expect(page).toHaveURL(/\/filter\//);
         await expect(page.getByRole('heading', { name: 'Casa · hoy' })).toBeVisible();
         await page.screenshot({
-          path: `e2e/__screens__/filters-view-${theme}-${String(viewport.width)}.png`,
+          path: `e2e/__screenshots__/filters-view-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
         });
         if (viewport.width < 1024) {
-          const box = await page.getByRole('button', { name: 'Acciones', exact: true }).boundingBox();
+          const box = await page
+            .getByRole('button', { name: 'Acciones', exact: true })
+            .boundingBox();
           expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
           expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
         }

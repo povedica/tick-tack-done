@@ -22,7 +22,10 @@ export function captureSeed(rules: FilterRules): CaptureSeed {
         lists.push(...values);
       } else if (condition.field === 'tag') {
         tags.push(...values);
-      } else if (condition.field === 'date' && (condition.op === 'today' || condition.op === 'tomorrow')) {
+      } else if (
+        condition.field === 'date' &&
+        (condition.op === 'today' || condition.op === 'tomorrow')
+      ) {
         days.push(condition.op);
       } else if (condition.field === 'date') {
         days.push('today');

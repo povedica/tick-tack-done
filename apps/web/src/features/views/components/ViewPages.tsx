@@ -102,7 +102,9 @@ export function FilterViewPage() {
   const labels = filterTagLabels(
     filter !== undefined && 'tag_labels' in filter ? filter.tag_labels : undefined,
   );
-  const listNames = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
+  const listNames = new Map(
+    (projects.data?.items ?? []).map((project) => [project.id, project.name]),
+  );
   const chips =
     filter === undefined
       ? []
@@ -143,11 +145,7 @@ export function FilterViewPage() {
       title={filter?.name ?? messages.filtersTitle}
       titleId="filter-view-title"
       titleIcon={
-        <Funnel
-          size={20}
-          aria-hidden="true"
-          style={{ color: filter?.color ?? 'var(--ink-2)' }}
-        />
+        <Funnel size={20} aria-hidden="true" style={{ color: filter?.color ?? 'var(--ink-2)' }} />
       }
       belowTitle={
         <div className="filter-view-rules">
