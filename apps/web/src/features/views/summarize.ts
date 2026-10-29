@@ -10,6 +10,8 @@ export interface FolderLabel {
 export interface ChipSummary {
   readonly icon: ChipIcon;
   readonly text: string;
+  readonly color?: string | null;
+  readonly deleted?: boolean;
 }
 
 export interface TagLabel {
@@ -129,9 +131,9 @@ function chipsFor(condition: Condition, options: SummaryOptions): ChipSummary[] 
       return values.map((id) => {
         const label = options.tagLabels[id];
         if (label === undefined || label.deleted) {
-          return { icon: 'tag' as const, text: options.text.deletedTag };
+          return { icon: 'tag' as const, text: options.text.deletedTag, deleted: true };
         }
-        return { icon: 'tag' as const, text: label.name };
+        return { icon: 'tag' as const, text: label.name, color: label.color };
       });
     case 'date':
       return [{ icon: 'calendar', text: dateText(condition.op, values, options.text) }];

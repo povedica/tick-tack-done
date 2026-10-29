@@ -52,5 +52,8 @@ describe('summarizeRules', () => {
       'informe',
     ]);
     expect(chips.map((chip) => chip.icon)).toEqual(['tag', 'tag', 'calendar', 'flag', 'type']);
+    expect(chips[0]?.color).toBe('#1F9D55');
+    expect(chips[0]?.deleted).toBeUndefined();
+    expect(chips[1]?.deleted).toBe(true);
   });
 });

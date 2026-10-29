@@ -70,10 +70,14 @@ for (const theme of ['light', 'dark'] as const) {
           path: `e2e/__screenshots__/filters-view-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
         });
-        const chip = page.locator('.filter-view-rules .filter-summary-chip').first();
-        await expect(chip).toBeVisible();
-        const border = await chip.evaluate((node) => getComputedStyle(node).borderTopWidth);
-        expect(Number.parseFloat(border)).toBeGreaterThanOrEqual(1);
+        const tag = page.locator('.filter-view-rules .ui-tag').first();
+        await expect(tag).toHaveText('casa');
+        const tagStyle = await tag.evaluate((node) => {
+          const computed = getComputedStyle(node);
+          return { border: computed.borderTopWidth, background: computed.backgroundColor };
+        });
+        expect(Number.parseFloat(tagStyle.border)).toBe(0);
+        expect(tagStyle.background).not.toBe('rgba(0, 0, 0, 0)');
         await page.screenshot({
           path: `e2e/__screenshots__/filters-view-chips-${theme}-${String(viewport.width)}.png`,
         });

@@ -280,6 +280,11 @@
   margin: 0;
 }
 
+.filter-view-rules .ui-tag,
+.filter-copy .ui-tag {
+  flex: none;
+}
+
 @media (max-width: 1023px) {
   .today-header:has(.filter-view-rules) .view-menu > .icon-button {
     width: var(--tap);
