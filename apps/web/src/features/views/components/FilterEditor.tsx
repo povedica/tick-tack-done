@@ -308,223 +308,229 @@ function EditorForm({
           {messages.filterSave}
         </Button>
       </div>
-      <label className="filter-field">
-        {messages.filterName}
-        <input
-          value={draft.name}
-          maxLength={80}
-          autoFocus={request.kind === 'create'}
-          aria-invalid={issue === 'name' && tried}
-          onFocus={centerOnMobile}
-          onChange={(event) => {
-            setDraft({ ...draft, name: event.target.value });
-          }}
-        />
-      </label>
-      <div className="filter-field">
-        <span>{messages.listColor}</span>
-        <div className="list-colors" role="radiogroup" aria-label={messages.listColor}>
-          <button
-            type="button"
-            role="radio"
-            className="list-color is-none"
-            aria-checked={draft.color === null}
-            aria-label={messages.filterNoColor}
-            onClick={() => {
-              setDraft({ ...draft, color: null });
+      <div className="filter-editor-body">
+        <label className="filter-field">
+          {messages.filterName}
+          <input
+            value={draft.name}
+            maxLength={80}
+            autoFocus={request.kind === 'create'}
+            aria-invalid={issue === 'name' && tried}
+            onFocus={centerOnMobile}
+            onChange={(event) => {
+              setDraft({ ...draft, name: event.target.value });
             }}
           />
-          {LIST_COLORS.map((swatch) => (
+        </label>
+        <div className="filter-field">
+          <span>{messages.listColor}</span>
+          <div className="list-colors" role="radiogroup" aria-label={messages.listColor}>
             <button
-              key={swatch}
               type="button"
               role="radio"
-              className="list-color"
-              style={{ '--swatch': swatch } as CSSProperties}
-              aria-checked={draft.color?.toLowerCase() === swatch.toLowerCase()}
-              aria-label={colorLabel(messages, swatch)}
+              className="list-color is-none"
+              aria-checked={draft.color === null}
+              aria-label={messages.filterNoColor}
               onClick={() => {
-                setDraft({ ...draft, color: swatch });
+                setDraft({ ...draft, color: null });
               }}
             />
-          ))}
+            {LIST_COLORS.map((swatch) => (
+              <button
+                key={swatch}
+                type="button"
+                role="radio"
+                className="list-color"
+                style={{ '--swatch': swatch } as CSSProperties}
+                aria-checked={draft.color?.toLowerCase() === swatch.toLowerCase()}
+                aria-label={colorLabel(messages, swatch)}
+                onClick={() => {
+                  setDraft({ ...draft, color: swatch });
+                }}
+              />
+            ))}
+          </div>
         </div>
-      </div>
-      {draft.advanced ? (
-        <div className="filter-groups">
-          {draft.groups.map((group, index) => (
-            <section
-              key={group.id}
-              className="filter-group"
-              aria-label={messages.filterGroupLabel.replace('{count}', String(index + 1))}
-            >
-              {index > 0 ? (
-                <div className="segmented" role="radiogroup" aria-label={messages.filterCombine}>
+        {draft.advanced ? (
+          <div className="filter-groups">
+            {draft.groups.map((group, index) => (
+              <section
+                key={group.id}
+                className="filter-group"
+                aria-label={messages.filterGroupLabel.replace('{count}', String(index + 1))}
+              >
+                {index > 0 ? (
+                  <div className="segmented" role="radiogroup" aria-label={messages.filterCombine}>
+                    <MatchButton
+                      pressed={draft.outer === 'AND'}
+                      label={messages.combinatorAnd}
+                      onClick={() => {
+                        setDraft({ ...draft, outer: 'AND' });
+                      }}
+                    />
+                    <MatchButton
+                      pressed={draft.outer === 'OR'}
+                      label={messages.combinatorOr}
+                      onClick={() => {
+                        setDraft({ ...draft, outer: 'OR' });
+                      }}
+                    />
+                  </div>
+                ) : null}
+                <div
+                  className="segmented"
+                  role="radiogroup"
+                  aria-label={messages.filterMatchPrompt}
+                >
                   <MatchButton
-                    pressed={draft.outer === 'AND'}
-                    label={messages.combinatorAnd}
+                    pressed={group.combinator === 'AND'}
+                    label={messages.filterMatchAll}
                     onClick={() => {
-                      setDraft({ ...draft, outer: 'AND' });
+                      setDraft(mapGroup(draft, group.id, { ...group, combinator: 'AND' }));
                     }}
                   />
                   <MatchButton
-                    pressed={draft.outer === 'OR'}
-                    label={messages.combinatorOr}
+                    pressed={group.combinator === 'OR'}
+                    label={messages.filterMatchAny}
                     onClick={() => {
-                      setDraft({ ...draft, outer: 'OR' });
+                      setDraft(mapGroup(draft, group.id, { ...group, combinator: 'OR' }));
                     }}
                   />
                 </div>
-              ) : null}
-              <div className="segmented" role="radiogroup" aria-label={messages.filterMatchPrompt}>
-                <MatchButton
-                  pressed={group.combinator === 'AND'}
-                  label={messages.filterMatchAll}
-                  onClick={() => {
-                    setDraft(mapGroup(draft, group.id, { ...group, combinator: 'AND' }));
+                <ConditionList
+                  group={group}
+                  messages={messages}
+                  lists={openLists}
+                  tags={tagOptions}
+                  labels={labels}
+                  missing={missing}
+                  picker={picker}
+                  onPicker={setPicker}
+                  onChange={(next) => {
+                    setDraft(mapGroup(draft, group.id, next));
                   }}
+                  onFocusNew={setFocusId}
                 />
-                <MatchButton
-                  pressed={group.combinator === 'OR'}
-                  label={messages.filterMatchAny}
-                  onClick={() => {
-                    setDraft(mapGroup(draft, group.id, { ...group, combinator: 'OR' }));
-                  }}
-                />
-              </div>
-              <ConditionList
-                group={group}
-                messages={messages}
-                lists={openLists}
-                tags={tagOptions}
-                labels={labels}
-                missing={missing}
-                picker={picker}
-                onPicker={setPicker}
-                onChange={(next) => {
-                  setDraft(mapGroup(draft, group.id, next));
+                {draft.groups.length > 1 ? (
+                  <button
+                    type="button"
+                    className="filter-text-button"
+                    onClick={() => {
+                      setDraft({
+                        ...draft,
+                        groups: draft.groups.filter((item) => item.id !== group.id),
+                      });
+                    }}
+                  >
+                    {messages.filterRemoveGroup}
+                  </button>
+                ) : null}
+              </section>
+            ))}
+            <button
+              type="button"
+              className="filter-text-button"
+              onClick={() => {
+                setDraft({ ...draft, groups: [...draft.groups, emptyGroup('AND')] });
+              }}
+            >
+              {messages.filterAddGroup}
+            </button>
+          </div>
+        ) : (
+          <div className="filter-field">
+            <span id="filter-match-label">{messages.filterMatchPrompt}</span>
+            <div className="segmented" role="radiogroup" aria-labelledby="filter-match-label">
+              <MatchButton
+                pressed={draft.match === 'all'}
+                label={messages.filterMatchAll}
+                onClick={() => {
+                  setDraft({ ...draft, match: 'all' });
                 }}
-                onFocusNew={setFocusId}
               />
-              {draft.groups.length > 1 ? (
-                <button
-                  type="button"
-                  className="filter-text-button"
-                  onClick={() => {
-                    setDraft({
-                      ...draft,
-                      groups: draft.groups.filter((item) => item.id !== group.id),
-                    });
-                  }}
-                >
-                  {messages.filterRemoveGroup}
-                </button>
-              ) : null}
-            </section>
-          ))}
-          <button
-            type="button"
-            className="filter-text-button"
-            onClick={() => {
-              setDraft({ ...draft, groups: [...draft.groups, emptyGroup('AND')] });
-            }}
-          >
-            {messages.filterAddGroup}
-          </button>
-        </div>
-      ) : (
-        <div className="filter-field">
-          <span id="filter-match-label">{messages.filterMatchPrompt}</span>
-          <div className="segmented" role="radiogroup" aria-labelledby="filter-match-label">
-            <MatchButton
-              pressed={draft.match === 'all'}
-              label={messages.filterMatchAll}
-              onClick={() => {
-                setDraft({ ...draft, match: 'all' });
+              <MatchButton
+                pressed={draft.match === 'any'}
+                label={messages.filterMatchAny}
+                onClick={() => {
+                  setDraft({ ...draft, match: 'any' });
+                }}
+              />
+            </div>
+            <ConditionList
+              group={draft.groups[0] ?? emptyGroup('AND')}
+              messages={messages}
+              lists={openLists}
+              tags={tagOptions}
+              labels={labels}
+              missing={missing}
+              picker={picker}
+              onPicker={setPicker}
+              onChange={(next) => {
+                setDraft({ ...draft, groups: [next, ...draft.groups.slice(1)] });
               }}
-            />
-            <MatchButton
-              pressed={draft.match === 'any'}
-              label={messages.filterMatchAny}
-              onClick={() => {
-                setDraft({ ...draft, match: 'any' });
-              }}
+              onFocusNew={setFocusId}
             />
           </div>
-          <ConditionList
-            group={draft.groups[0] ?? emptyGroup('AND')}
-            messages={messages}
-            lists={openLists}
-            tags={tagOptions}
-            labels={labels}
-            missing={missing}
-            picker={picker}
-            onPicker={setPicker}
-            onChange={(next) => {
-              setDraft({ ...draft, groups: [next, ...draft.groups.slice(1)] });
-            }}
-            onFocusNew={setFocusId}
-          />
-        </div>
-      )}
-      <Preview
-        messages={messages}
-        text={countText}
-        live={live}
-        rows={ready ? (preview?.rows ?? []) : []}
-        onSeeAll={seeAll}
-      />
-      {error !== null ? (
-        <p className="filter-save-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <div className="filter-editor-foot">
-        {draft.advanced ? (
-          <button type="button" className="filter-text-button" onClick={leaveAdvanced}>
-            <Layers size={16} aria-hidden="true" />
-            {messages.filterSimpleLink}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="filter-text-button"
-            onClick={() => {
-              const first = draft.groups[0];
-              setDraft({
-                ...draft,
-                advanced: true,
-                groups: draft.groups.map((group, index) =>
-                  index === 0
-                    ? { ...group, combinator: draft.match === 'any' ? 'OR' : 'AND' }
-                    : group,
-                ),
-                ...(first === undefined ? { groups: [emptyGroup('AND')] } : {}),
-              });
-            }}
-          >
-            <Layers size={16} aria-hidden="true" />
-            {messages.filterAdvancedLink}
-          </button>
         )}
-        <p id={hintId} className="filter-hint">
-          {hint ?? ''}
-        </p>
-        <div className="actions">
-          <Button type="button" onClick={requestClose}>
-            {messages.cancel}
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            className="filter-editor-save"
-            disabled={issue !== null || save.isPending}
-            loading={save.isPending}
-            aria-describedby={hintId}
-            onClick={submit}
-          >
-            {messages.filterSave}
-          </Button>
+        <Preview
+          messages={messages}
+          text={countText}
+          live={live}
+          rows={ready ? (preview?.rows ?? []) : []}
+          onSeeAll={seeAll}
+        />
+        {error !== null ? (
+          <p className="filter-save-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="filter-editor-foot">
+          {draft.advanced ? (
+            <button type="button" className="filter-text-button" onClick={leaveAdvanced}>
+              <Layers size={16} aria-hidden="true" />
+              {messages.filterSimpleLink}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="filter-text-button"
+              onClick={() => {
+                const first = draft.groups[0];
+                setDraft({
+                  ...draft,
+                  advanced: true,
+                  groups: draft.groups.map((group, index) =>
+                    index === 0
+                      ? { ...group, combinator: draft.match === 'any' ? 'OR' : 'AND' }
+                      : group,
+                  ),
+                  ...(first === undefined ? { groups: [emptyGroup('AND')] } : {}),
+                });
+              }}
+            >
+              <Layers size={16} aria-hidden="true" />
+              {messages.filterAdvancedLink}
+            </button>
+          )}
+          <p id={hintId} className="filter-hint">
+            {hint ?? ''}
+          </p>
+          <div className="actions">
+            <Button type="button" onClick={requestClose}>
+              {messages.cancel}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              className="filter-editor-save"
+              disabled={issue !== null || save.isPending}
+              loading={save.isPending}
+              aria-describedby={hintId}
+              onClick={submit}
+            >
+              {messages.filterSave}
+            </Button>
+          </div>
         </div>
       </div>
       <p className="filter-editor-bar">

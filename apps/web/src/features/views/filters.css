@@ -10,6 +10,10 @@
   display: block;
 }
 
+.filters-page .filter-new-label {
+  display: none;
+}
+
 @media (min-width: 768px) {
   .filters-page .lede-long {
     display: block;
@@ -407,6 +411,15 @@
   margin-top: var(--sp-4);
 }
 
+@media (max-width: 767px) {
+  .filters-page .page-header > .ui-button {
+    width: var(--tap);
+    min-width: var(--tap);
+    height: var(--tap);
+    padding: 0;
+  }
+}
+
 @media (max-width: 1023px) {
   .ui-scrim:has(.filter-editor) {
     align-items: stretch;
@@ -414,25 +427,46 @@
   }
 
   .filter-editor {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: none;
     height: 100%;
     max-height: none;
+    overflow: hidden;
     border-radius: 0;
+    padding-bottom: 0;
+  }
+
+  .filter-editor-head,
+  .filter-editor-bar {
+    flex: none;
+  }
+
+  .filter-editor-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 
   .filter-editor-save-header,
   .filter-editor-bar {
-    display: inline-flex;
+    display: flex;
   }
 
   .filter-editor-bar {
-    position: sticky;
-    bottom: 0;
+    align-items: center;
     justify-content: space-between;
-    margin: 0 calc(var(--sp-5) * -1) calc(var(--sp-5) * -1);
+    gap: 12px;
+    margin: 0 calc(var(--sp-5) * -1) 0;
     padding: 12px var(--sp-5);
+    border-top: 1px solid var(--border);
     background: var(--surface);
+  }
+
+  .filter-editor-bar .filter-text-button {
+    flex: none;
+    width: auto;
   }
 
   .filter-editor-foot .filter-editor-save,

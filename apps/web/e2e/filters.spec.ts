@@ -13,6 +13,13 @@ for (const theme of ['light', 'dark'] as const) {
         await boot(page);
         await page.goto('/filters');
         await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible();
+        if (viewport.width < 768) {
+          const create = page.locator('#content').getByRole('button', { name: 'Nuevo filtro' });
+          const createBox = await create.boundingBox();
+          expect(createBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+          expect(createBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+          await expect(create.getByText('Nuevo filtro')).toBeHidden();
+        }
         await page.screenshot({
           path: `e2e/__screenshots__/filters-list-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
@@ -27,6 +34,17 @@ for (const theme of ['light', 'dark'] as const) {
         await dialog.getByRole('button', { name: 'Añadir condición' }).click();
         const fields = dialog.getByLabel('Campo');
         await fields.nth(1).selectOption('date');
+        if (viewport.width < 1024) {
+          const bar = dialog.locator('.filter-editor-bar');
+          await expect(bar).toContainText('1 tarea coincide');
+          await expect(bar.getByRole('button', { name: 'Ver' })).toBeVisible();
+          const barBox = await bar.boundingBox();
+          const seeBox = await bar.getByRole('button', { name: 'Ver' }).boundingBox();
+          expect(barBox?.width ?? 0).toBeGreaterThan(200);
+          expect((seeBox?.y ?? 0) - (barBox?.y ?? 0)).toBeLessThan(20);
+        } else {
+          await expect(dialog.locator('.filter-preview strong')).toHaveText('1 tarea coincide');
+        }
         await page.screenshot({
           path: `e2e/__screenshots__/filters-editor-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
