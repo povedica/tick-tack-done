@@ -185,7 +185,8 @@ async function gestureUntil(
   const started = Date.now();
   await act();
   const outcome = await periodOutcome(page, period);
-  if (outcome === 'missed') {
+  const week = String(period) === String(/date=2026-01-12/);
+  if (outcome === 'missed' || (week && !period.test(page.url()))) {
     throw new Error(`Gesture missed ${period}. The page kept painting and the period did not change.`);
   }
   await ready();
@@ -277,7 +278,7 @@ async function swipe(page: Page, selector: string, axis: 'up' | 'left'): Promise
   }
   const client = await page.context().newCDPSession(page);
   await client.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
-  const steps = 4;
+  const steps = 1;
   await client.send('Input.dispatchTouchEvent', {
     type: 'touchStart',
     touchPoints: [{ x: segment.x, y: segment.y }],

@@ -358,11 +358,9 @@ export function CalendarPage() {
   const move = (delta: number): void => {
     const next = shiftView(cursor, current ?? 'month', delta, weekStart);
     setCursor(next);
-    {
-      const query = new URLSearchParams(params);
-      query.set('date', localDateParam(next));
-      setParams(query);
-    }
+    const query = new URLSearchParams(params);
+    query.set('date', localDateParam(next));
+    setParams(query);
   };
   return (
     <section className={`screen-page is-wide calendar-page calendar-${current ?? 'month'}`}>

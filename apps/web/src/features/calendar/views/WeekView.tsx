@@ -1,6 +1,6 @@
 import { CalendarDays } from 'lucide-react';
 import { dateTimeFormat } from '../../../lib/dates/formatters';
-import { memo, useMemo, useRef, type PointerEvent } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router';
 import type { Task } from '@reflexionia/sdk';
 import { TodayMark } from '../../../components/period/TodayMark';
@@ -52,18 +52,18 @@ export const WeekView = memo(function WeekView({
   const board = useRef<HTMLDivElement>(null);
   const drag = useCalendarDrag(board, timeZone, onTaskChange);
   const gesture = useRef<{ x: number; y: number; at: number } | null>(null);
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const suppressClick = useRef(0);
-  const finishWeekSwipe = (event: PointerEvent<HTMLDivElement>) => {
+  const finishWeekSwipe = (clientX: number, clientY: number) => {
     const start = gesture.current;
     gesture.current = null;
+    lastPoint.current = null;
     if (!start) return;
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    if (
-      Date.now() - start.at < 700 &&
-      Math.abs(dx) >= 65 &&
-      Math.abs(dx) > Math.abs(dy) * 1.5
-    ) {
+    const dx = clientX - start.x;
+    const dy = clientY - start.y;
+    const elapsed = Date.now() - start.at;
+    const accepted = elapsed < 700 && Math.abs(dx) >= 65 && Math.abs(dx) > Math.abs(dy) * 1.5;
+    if (accepted) {
       suppressClick.current = Date.now() + 400;
       onMove(dx < 0 ? 1 : -1);
     }
@@ -96,17 +96,23 @@ export const WeekView = memo(function WeekView({
           return;
         }
         gesture.current = { x: event.clientX, y: event.clientY, at: Date.now() };
+        lastPoint.current = { x: event.clientX, y: event.clientY };
         try {
           event.currentTarget.setPointerCapture(event.pointerId);
         } catch {
           // Capture is optional. pointerup or pointercancel still carries the distance.
         }
       }}
+      onPointerMove={(event) => {
+        if (!gesture.current || event.pointerType !== 'touch' || !event.isPrimary) return;
+        lastPoint.current = { x: event.clientX, y: event.clientY };
+      }}
       onPointerCancel={(event) => {
-        finishWeekSwipe(event);
+        const point = lastPoint.current ?? { x: event.clientX, y: event.clientY };
+        finishWeekSwipe(point.x, point.y);
       }}
       onPointerUp={(event) => {
-        finishWeekSwipe(event);
+        finishWeekSwipe(event.clientX, event.clientY);
       }}
       onClickCapture={(event) => {
         if (Date.now() < suppressClick.current) {
