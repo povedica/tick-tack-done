@@ -585,6 +585,76 @@ describe('filters, smart lists and search', () => {
     }
   });
 
+  it('CA-API-05: a tag name is stored as an id and an unknown tag is rejected', async () => {
+    const user = await createOwner('filter-tags');
+    try {
+      const api = authed(user.email);
+      const tag = await api
+        .post('/api/v1/tags')
+        .send({ name: 'casa', color: '#1F9D55' })
+        .expect(201);
+      const inbox = await prisma.project.create({
+        data: { ownerId: user.id, name: 'Bandeja', isInbox: true },
+      });
+      await api
+        .post('/api/v1/tasks')
+        .send({ project_id: inbox.id, title: 'Regar', tag_ids: [tag.body.id] })
+        .expect(201);
+      const rules = {
+        combinator: 'AND',
+        groups: [
+          { combinator: 'AND', conditions: [{ field: 'tag', op: 'any_of', value: ['Casa'] }] },
+        ],
+      };
+      const created = await api
+        .post('/api/v1/filters')
+        .send({ name: 'Casa', mode: 'normal', rules })
+        .expect(201);
+      expect(created.body.rules.groups[0].conditions[0].value).toEqual([tag.body.id]);
+      expect(created.body.tag_labels[tag.body.id]).toMatchObject({
+        name: 'casa',
+        color: '#1F9D55',
+        deleted: false,
+      });
+      expect(created.body.task_count).toBe(1);
+
+      await api.patch(`/api/v1/tags/${tag.body.id}`).send({ name: 'hogar' }).expect(200);
+      const renamed = await api.get(`/api/v1/filters/${created.body.id}`).expect(200);
+      expect(renamed.body.rules.groups[0].conditions[0].value).toEqual([tag.body.id]);
+      expect(renamed.body.tag_labels[tag.body.id].name).toBe('hogar');
+      expect(renamed.body.task_count).toBe(1);
+
+      await api.delete(`/api/v1/tags/${tag.body.id}`).expect(204);
+      const afterDelete = await api.get(`/api/v1/filters/${created.body.id}`).expect(200);
+      expect(afterDelete.body.rules.groups[0].conditions[0].value).toEqual([tag.body.id]);
+      expect(afterDelete.body.tag_labels[tag.body.id].deleted).toBe(true);
+      expect(afterDelete.body.task_count).toBe(0);
+
+      const missing = await api
+        .post('/api/v1/filters')
+        .send({
+          name: 'Nadie',
+          mode: 'normal',
+          rules: {
+            combinator: 'AND',
+            groups: [
+              {
+                combinator: 'AND',
+                conditions: [{ field: 'tag', op: 'any_of', value: ['no-existe'] }],
+              },
+            ],
+          },
+        })
+        .expect(400);
+      expect(missing.body.error).toMatchObject({
+        code: 'validation_failed',
+        details: { reason: 'unknown_tag' },
+      });
+    } finally {
+      await removeOwner(user.id);
+    }
+  });
+
   it('TTD-FIL-19: GET /filters with 10 filters keeps a fixed query count', async () => {
     const user = await createOwner('filter-queries');
     try {

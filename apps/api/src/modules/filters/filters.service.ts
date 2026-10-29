@@ -1,9 +1,11 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { Filter, FilterMode } from '@prisma/client';
 import {
+  isFilterTagId,
   parseFilterRules,
   parseTaskView,
   requireConditions,
+  resolveTagReference,
   savedFilterClause,
   type FilterClock,
   type FilterClause,
@@ -26,6 +28,7 @@ import { countViewTasks, pageViewTasks } from '../../reading/view-query.js';
 import type {
   CreateFilterDto,
   FilterResponseDto,
+  FilterTagLabelDto,
   PreviewFilterDto,
   UpdateFilterDto,
 } from './filters.dto.js';
@@ -55,11 +58,14 @@ export class FiltersService {
       take: limit + 1,
     });
     const clock = this.clock(user);
-    const counts = await Promise.all(
-      rows.map((row) => countViewTasks(this.prisma, user.id, this.clause(row, clock), clock)),
-    );
+    const [counts, labels] = await Promise.all([
+      Promise.all(
+        rows.map((row) => countViewTasks(this.prisma, user.id, this.clause(row, clock), clock)),
+      ),
+      this.tagLabels(this.prisma, user.id, rows),
+    ]);
     return pageFilters(
-      rows.map((row, index) => this.toJson(row, counts[index] ?? 0)),
+      rows.map((row, index) => this.toJson(row, counts[index] ?? 0, labels)),
       limit,
     );
   }
@@ -89,7 +95,7 @@ export class FiltersService {
     limit: number,
     cursorRaw: string | undefined,
   ): Promise<ViewPageJson> {
-    const rules = this.parse(dto.mode, dto.rules);
+    const rules = await this.resolveTags(this.prisma, user.id, this.parse(dto.mode, dto.rules));
     const clock = this.clock(user);
     return this.page(user, savedFilterClause(rules, clock), clock, groupBy, sort, limit, cursorRaw);
   }
@@ -97,9 +103,11 @@ export class FiltersService {
   async get(user: AuthUser, id: string): Promise<FilterResponseDto> {
     const row = await this.require(this.prisma, user.id, id);
     const clock = this.clock(user);
+    const labels = await this.tagLabels(this.prisma, user.id, [row]);
     return this.toJson(
       row,
       await countViewTasks(this.prisma, user.id, this.clause(row, clock), clock),
+      labels,
     );
   }
 
@@ -131,11 +139,14 @@ export class FiltersService {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id);
       const mode = dto.mode ?? current.mode;
-      const rules = dto.rules === undefined ? this.readRules(current) : this.parse(mode, dto.rules);
+      const incoming =
+        dto.rules === undefined ? this.readRules(current) : this.parse(mode, dto.rules);
       if (dto.rules === undefined && dto.mode !== undefined && dto.mode !== current.mode) {
-        this.parse(dto.mode, rules);
+        this.parse(dto.mode, incoming);
       }
-      if (dto.rules !== undefined || dto.mode !== undefined) {
+      const writingRules = dto.rules !== undefined || dto.mode !== undefined;
+      const rules = writingRules ? await this.resolveTags(tx, user.id, incoming) : incoming;
+      if (writingRules) {
         this.assertConditions(rules);
       }
       const rows = await tx.filter.findMany({
@@ -166,9 +177,11 @@ export class FiltersService {
         },
       });
       const clock = this.clock(user);
+      const labels = await this.tagLabels(tx, user.id, [current, row]);
       const body = this.toJson(
         row,
         await countViewTasks(tx, user.id, this.clause(row, clock), clock),
+        labels,
       );
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.filterUpdated,
@@ -176,7 +189,7 @@ export class FiltersService {
         entityId: id,
         action: 'updated',
         data: { filter: asJson(body) },
-        previous: asJson(this.toJson(current, 0)),
+        previous: asJson(this.toJson(current, 0, labels)),
       });
       return body;
     });
@@ -195,9 +208,11 @@ export class FiltersService {
         data: { deletedAt: null },
       });
       const clock = this.clock(user);
+      const labels = await this.tagLabels(tx, user.id, [row]);
       const body = this.toJson(
         row,
         await countViewTasks(tx, user.id, this.clause(row, clock), clock),
+        labels,
       );
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.filterRestored,
@@ -235,6 +250,7 @@ export class FiltersService {
     dto: CreateFilterDto,
     rules: FilterRules,
   ): Promise<FilterResponseDto> {
+    const resolved = await this.resolveTags(tx, user.id, rules);
     const rows = await tx.filter.findMany({
       where: { ownerId: user.id, deletedAt: null },
       select: { id: true, sortOrder: true },
@@ -250,14 +266,16 @@ export class FiltersService {
         icon: blankToNull(dto.icon),
         color: dto.color ?? null,
         mode: dto.mode,
-        rules: asJson(rules),
+        rules: asJson(resolved),
         sortOrder: plan.movingSortOrder,
       },
     });
     const clock = this.clock(user);
+    const labels = await this.tagLabels(tx, user.id, [row]);
     const body = this.toJson(
       row,
-      await countViewTasks(tx, user.id, savedFilterClause(rules, clock), clock),
+      await countViewTasks(tx, user.id, savedFilterClause(resolved, clock), clock),
+      labels,
     );
     await this.events.record(tx, actorOf(user), {
       type: DomainEvent.filterCreated,
@@ -365,14 +383,103 @@ export class FiltersService {
     return { now: new Date().toISOString(), timeZone: user.timeZone };
   }
 
-  private toJson(row: Filter, taskCount: number): FilterResponseDto {
+  private async resolveTags(
+    db: PrismaService | Tx,
+    ownerId: string,
+    rules: FilterRules,
+  ): Promise<FilterRules> {
+    const mentionsTag = rules.groups.some((group) =>
+      group.conditions.some((condition) => condition.field === 'tag'),
+    );
+    if (!mentionsTag) {
+      return rules;
+    }
+    const tags = await db.tag.findMany({
+      where: { ownerId, deletedAt: null },
+      select: { id: true, name: true },
+    });
+    let unknown = false;
+    const groups = rules.groups.map((group) => ({
+      combinator: group.combinator,
+      conditions: group.conditions.map((condition) => {
+        if (condition.field !== 'tag') {
+          return condition;
+        }
+        return {
+          field: 'tag' as const,
+          op: 'any_of' as const,
+          value: condition.value.map((item) => {
+            const id = resolveTagReference(item, tags);
+            if (id === null) {
+              unknown = true;
+              return item;
+            }
+            return id;
+          }),
+        };
+      }),
+    }));
+    if (unknown) {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Unknown tag', {
+        reason: 'unknown_tag',
+      });
+    }
+    return { combinator: rules.combinator, groups };
+  }
+
+  private async tagLabels(
+    db: PrismaService | Tx,
+    ownerId: string,
+    rows: readonly Filter[],
+  ): Promise<Map<string, FilterTagLabelDto>> {
+    const ids = new Set<string>();
+    for (const row of rows) {
+      const parsed = parseFilterRules(row.rules, row.mode);
+      if (!parsed.ok) {
+        continue;
+      }
+      for (const group of parsed.rules.groups) {
+        for (const condition of group.conditions) {
+          if (condition.field !== 'tag') {
+            continue;
+          }
+          for (const value of condition.value) {
+            if (isFilterTagId(value)) {
+              ids.add(value);
+            }
+          }
+        }
+      }
+    }
+    if (ids.size === 0) {
+      return new Map();
+    }
+    const tags = await db.tag.findMany({
+      where: { ownerId, id: { in: [...ids] } },
+      select: { id: true, name: true, color: true, deletedAt: true },
+    });
+    return new Map(
+      tags.map((tag) => [
+        tag.id,
+        { name: tag.name, color: tag.color, deleted: tag.deletedAt !== null },
+      ]),
+    );
+  }
+
+  private toJson(
+    row: Filter,
+    taskCount: number,
+    labels: ReadonlyMap<string, FilterTagLabelDto>,
+  ): FilterResponseDto {
+    const rules = this.readRules(row);
     return {
       id: row.id,
       name: row.name,
       icon: row.icon,
       color: row.color,
       mode: row.mode,
-      rules: this.readRules(row) as FilterResponseDto['rules'],
+      rules: rules as FilterResponseDto['rules'],
+      tag_labels: labelsFor(rules, labels),
       sort_order: row.sortOrder.toString(),
       pinned: row.pinned,
       task_count: taskCount,
@@ -380,6 +487,27 @@ export class FiltersService {
       updated_at: iso(row.updatedAt) ?? '',
     };
   }
+}
+
+function labelsFor(
+  rules: FilterRules,
+  labels: ReadonlyMap<string, FilterTagLabelDto>,
+): Record<string, FilterTagLabelDto> {
+  const out: Record<string, FilterTagLabelDto> = {};
+  for (const group of rules.groups) {
+    for (const condition of group.conditions) {
+      if (condition.field !== 'tag') {
+        continue;
+      }
+      for (const value of condition.value) {
+        const label = labels.get(value);
+        if (label !== undefined) {
+          out[value] = label;
+        }
+      }
+    }
+  }
+  return out;
 }
 
 function pinnedValue(dto: UpdateFilterDto): boolean | undefined {

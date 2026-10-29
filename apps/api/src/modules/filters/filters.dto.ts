@@ -289,6 +289,17 @@ export class ViewPageDto {
   next_cursor!: string | null;
 }
 
+export class FilterTagLabelDto {
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  color!: string | null;
+
+  @ApiProperty()
+  deleted!: boolean;
+}
+
 export class FilterResponseDto {
   @ApiProperty()
   id!: string;
@@ -307,6 +318,9 @@ export class FilterResponseDto {
 
   @ApiProperty({ type: FilterRulesDto })
   rules!: FilterRulesDto;
+
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'object' } })
+  tag_labels!: Record<string, FilterTagLabelDto>;
 
   @ApiProperty()
   sort_order!: string;

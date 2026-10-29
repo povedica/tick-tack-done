@@ -13,7 +13,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiExtraModels, ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -24,6 +24,7 @@ import {
   CreateFilterDto,
   FilterPageDto,
   FilterResponseDto,
+  FilterTagLabelDto,
   PreviewFilterDto,
   UpdateFilterDto,
   ViewPageDto,
@@ -31,6 +32,7 @@ import {
 import { FiltersService } from './filters.service.js';
 
 @ApiTags('filters')
+@ApiExtraModels(FilterTagLabelDto)
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })
 @Controller('filters')
 export class FiltersController {
