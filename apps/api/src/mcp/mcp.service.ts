@@ -1154,17 +1154,14 @@ export class McpService {
         return { ...subscriptions, available };
       }
       case 'list_calendar_events': {
-        const page = await this.calendars.range(
+        return this.calendars.range(
           user,
           requiredString(args, 'from', 40),
           requiredString(args, 'to', 40),
           typeof args.subscription_id === 'string' ? args.subscription_id : undefined,
           args.context === 'work' || args.context === 'personal' ? args.context : 'all',
+          calendarInclude(args),
         );
-        if (args.include_external === false) {
-          return { ...page, external: [] };
-        }
-        return page;
       }
       case 'add_external_calendar': {
         const provider = requiredString(args, 'provider', 16);
@@ -1833,6 +1830,20 @@ function projectFields(args: Record<string, unknown>): {
     ...(outcome === undefined ? {} : { outcome }),
     ...(reminder === undefined ? {} : { default_reminder_trigger: reminder }),
   };
+}
+
+function calendarInclude(args: Record<string, unknown>): 'external' | 'tasks' | 'all' {
+  if (args.include === 'external' || args.include === 'tasks' || args.include === 'all') {
+    return args.include;
+  }
+  if (args.include !== undefined) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'include must be external, tasks or all',
+    );
+  }
+  return args.include_external === false ? 'tasks' : 'all';
 }
 
 function requiredString(args: Record<string, unknown>, key: string, max: number): string {

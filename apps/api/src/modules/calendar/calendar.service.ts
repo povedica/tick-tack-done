@@ -2,7 +2,7 @@ import { GOOGLE_ACCESS_SELECT } from '../../integrations/google-access.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { formatInTimeZone } from 'date-fns-tz';
-import { parseIcal, tasksToIcal, type IcalTask } from '@reflexionia/domain';
+import { parseIcal, projectConstraint, tasksToIcal, type IcalTask } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
@@ -14,7 +14,19 @@ import { googleConfigured } from '../../integrations/config.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 import { GoogleSyncService, type SubscriptionJson } from './google-sync.service.js';
+import { taskRangeWhere } from '../../reading/task-range.js';
 import { workFilterFor, type WorkContextMode } from '../../work/work-context.js';
+
+export type CalendarInclude = 'external' | 'tasks' | 'all';
+
+const TASK_RANGE_SELECT = {
+  id: true,
+  title: true,
+  projectId: true,
+  startDate: true,
+  dueDate: true,
+  isAllDay: true,
+} as const;
 
 @Injectable()
 export class CalendarService {
@@ -30,35 +42,29 @@ export class CalendarService {
     toIso: string,
     subscriptionId?: string,
     context: WorkContextMode = 'all',
+    include: CalendarInclude = 'all',
   ) {
     const from = this.instant(fromIso, 'from');
     const to = this.instant(toIso, 'to');
-    const work = await workFilterFor(this.prisma, user.id, context);
-    const tasks = await this.prisma.task.findMany({
-      where: {
-        ownerId: user.id,
-        deletedAt: null,
-        status: 'active',
-        ...(work === null ? {} : { AND: [work] }),
-        OR: [{ dueDate: { gte: from, lt: to } }, { startDate: { gte: from, lt: to } }],
-      },
-      orderBy: { dueDate: 'asc' },
-    });
-    const external = await this.prisma.externalEvent.findMany({
-      where: {
-        ownerId: user.id,
-        deletedAt: null,
-        ...(subscriptionId === undefined ? {} : { subscriptionId }),
-        startsAt: { lt: to },
-        OR: [{ endsAt: { gte: from } }, { endsAt: null, startsAt: { gte: from } }],
-        subscription: { deletedAt: null, visible: true },
-      },
-      include: {
-        subscription: {
-          select: { color: true, provider: true, calendarId: true, summary: true },
-        },
-      },
-    });
+    const tasks = include === 'external' ? [] : await this.tasksInRange(user, from, to, context);
+    const external =
+      include === 'tasks'
+        ? []
+        : await this.prisma.externalEvent.findMany({
+            where: {
+              ownerId: user.id,
+              deletedAt: null,
+              ...(subscriptionId === undefined ? {} : { subscriptionId }),
+              startsAt: { lt: to },
+              OR: [{ endsAt: { gte: from } }, { endsAt: null, startsAt: { gte: from } }],
+              subscription: { deletedAt: null, visible: true },
+            },
+            include: {
+              subscription: {
+                select: { color: true, provider: true, calendarId: true, summary: true },
+              },
+            },
+          });
     return {
       tasks: tasks.map((task) => ({
         id: task.id,
@@ -88,6 +94,27 @@ export class CalendarService {
         editable: false,
       })),
     };
+  }
+
+  private async tasksInRange(user: AuthUser, from: Date, to: Date, context: WorkContextMode) {
+    const lists = projectConstraint(user.listIds);
+    if (lists.id !== undefined) {
+      return [];
+    }
+    const work = await workFilterFor(this.prisma, user.id, context);
+    const range = taskRangeWhere(from, to, 'any');
+    return this.prisma.task.findMany({
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        status: 'active',
+        ...(lists.projectId === undefined ? {} : { projectId: lists.projectId }),
+        ...(work === null ? {} : { AND: [work] }),
+        ...(range ?? {}),
+      },
+      select: TASK_RANGE_SELECT,
+      orderBy: { dueDate: 'asc' },
+    });
   }
 
   listGoogleCalendars(user: AuthUser) {

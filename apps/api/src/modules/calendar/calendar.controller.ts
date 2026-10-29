@@ -12,6 +12,7 @@ import {
   Query,
   Req,
   Res,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -20,7 +21,8 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { respondJson } from '../../http/respond.js';
 import { FeedDto, SubscribeDto, UpdateSubscriptionDto } from './calendar.dto.js';
-import { CalendarService } from './calendar.service.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { CalendarService, type CalendarInclude } from './calendar.service.js';
 import { parseWorkContext } from '../../work/work-context.js';
 
 @ApiTags('calendar')
@@ -37,11 +39,18 @@ export class CalendarController {
     enum: ['all', 'work', 'personal', 'auto'],
     description: 'Filters tasks only. External events stay visible. Default all.',
   })
+  @ApiQuery({
+    name: 'include',
+    required: false,
+    enum: ['external', 'tasks', 'all'],
+    description: 'external omits tasks, tasks omits external events. Default all.',
+  })
   async events(
     @CurrentUser() user: AuthUser,
     @Query('from') from: string,
     @Query('to') to: string,
     @Query('context') context: string | undefined,
+    @Query('include') include: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
@@ -49,7 +58,14 @@ export class CalendarController {
       req,
       res,
       200,
-      await this.calendar.range(user, from, to, undefined, parseWorkContext(context)),
+      await this.calendar.range(
+        user,
+        from,
+        to,
+        undefined,
+        parseWorkContext(context),
+        parseCalendarInclude(include),
+      ),
       false,
     );
   }
@@ -220,4 +236,18 @@ export class FeedsController {
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.status(200).send(body);
   }
+}
+
+function parseCalendarInclude(raw: string | undefined): CalendarInclude {
+  if (raw === undefined || raw.length === 0 || raw === 'all') {
+    return 'all';
+  }
+  if (raw === 'external' || raw === 'tasks') {
+    return raw;
+  }
+  throw new DomainException(
+    HttpStatus.BAD_REQUEST,
+    'validation_failed',
+    'include must be external, tasks or all',
+  );
 }

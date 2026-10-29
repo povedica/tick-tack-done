@@ -7776,6 +7776,20 @@
             }
           },
           {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "description": "external omits tasks, tasks omits external events. Default all.",
+            "schema": {
+              "enum": [
+                "external",
+                "tasks",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "name": "context",
             "required": false,
             "in": "query",

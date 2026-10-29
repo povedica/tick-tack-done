@@ -1188,12 +1188,13 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'list_calendar_events',
     description:
-      'List tasks and read-only external events in a range. External events cannot be edited. Times are ISO 8601 with an offset, in the user time zone when the event is all-day.',
+      'List tasks and read-only external events in a range. include=external|tasks|all (default all). include_external=false is the older way to omit external events. External events cannot be edited. Times are ISO 8601 with an offset, in the user time zone when the event is all-day. Task rows respect the token list restriction.',
     scopes: ['calendar:read'],
     inputSchema: objectSchema(
       {
         from: { type: 'string', format: 'date-time' },
         to: { type: 'string', format: 'date-time' },
+        include: { type: 'string', enum: ['external', 'tasks', 'all'] },
         include_external: { type: 'boolean' },
         subscription_id: id,
         context: workContext,
