@@ -34,10 +34,22 @@ export class AttemptLimiter implements OnModuleDestroy {
   private readonly oauthIpLimit = envLimit('AUTH_OAUTH_IP_LIMIT', DEFAULT_OAUTH_IP_LIMIT);
   private readonly failureLimit = envLimit('AUTH_FAILURE_LIMIT', DEFAULT_FAILURE_LIMIT);
   private readonly registerLimit = envLimit('AUTH_REGISTER_LIMIT', DEFAULT_REGISTER_LIMIT);
+  private readonly resetIpLimit = envLimit('AUTH_RESET_IP_LIMIT', 5);
+  private readonly resetEmailLimit = envLimit('AUTH_RESET_EMAIL_LIMIT', 3);
+  private readonly resetConfirmLimit = envLimit('AUTH_RESET_CONFIRM_IP_LIMIT', 20);
   private readonly ipWindow = new SlidingWindowRateLimit(this.ipLimit, WINDOW_MS);
   private readonly oauthIpWindow = new SlidingWindowRateLimit(this.oauthIpLimit, WINDOW_MS);
   private readonly failureWindow = new SlidingWindowRateLimit(this.failureLimit, WINDOW_MS);
   private readonly registerWindow = new SlidingWindowRateLimit(this.registerLimit, WINDOW_MS);
+  private readonly resetIpWindow = new SlidingWindowRateLimit(this.resetIpLimit, 15 * 60 * 1000);
+  private readonly resetEmailWindow = new SlidingWindowRateLimit(
+    this.resetEmailLimit,
+    60 * 60 * 1000,
+  );
+  private readonly resetConfirmWindow = new SlidingWindowRateLimit(
+    this.resetConfirmLimit,
+    15 * 60 * 1000,
+  );
   private redis: Redis | null = null;
 
   constructor() {
@@ -88,6 +100,22 @@ export class AttemptLimiter implements OnModuleDestroy {
     await this.hit(`oauth-ip:${ip}`);
   }
 
+  async assertNamed(bucket: string): Promise<void> {
+    await this.assertBuckets([bucket]);
+  }
+
+  async consumeNamed(bucket: string): Promise<void> {
+    await this.hit(bucket);
+  }
+
+  async allowed(bucket: string): Promise<boolean> {
+    return (await this.peek(bucket)).allowed;
+  }
+
+  windowMs(bucket: string): number {
+    return this.windowFor(bucket).ms;
+  }
+
   async clearSubject(subject: string): Promise<void> {
     this.failureWindow.reset(`fail:${subject}`);
     if (this.redis !== null) {
@@ -114,17 +142,35 @@ export class AttemptLimiter implements OnModuleDestroy {
   private windowFor(bucket: string): {
     readonly window: SlidingWindowRateLimit;
     readonly limit: number;
+    readonly ms: number;
   } {
     if (bucket.startsWith('register:')) {
-      return { window: this.registerWindow, limit: this.registerLimit };
+      return { window: this.registerWindow, limit: this.registerLimit, ms: WINDOW_MS };
     }
     if (bucket.startsWith('fail:')) {
-      return { window: this.failureWindow, limit: this.failureLimit };
+      return { window: this.failureWindow, limit: this.failureLimit, ms: WINDOW_MS };
     }
     if (bucket.startsWith('oauth-ip:')) {
-      return { window: this.oauthIpWindow, limit: this.oauthIpLimit };
+      return { window: this.oauthIpWindow, limit: this.oauthIpLimit, ms: WINDOW_MS };
     }
-    return { window: this.ipWindow, limit: this.ipLimit };
+    if (bucket.startsWith('reset-email:')) {
+      return {
+        window: this.resetEmailWindow,
+        limit: this.resetEmailLimit,
+        ms: 60 * 60 * 1000,
+      };
+    }
+    if (bucket.startsWith('reset-confirm-ip:')) {
+      return {
+        window: this.resetConfirmWindow,
+        limit: this.resetConfirmLimit,
+        ms: 15 * 60 * 1000,
+      };
+    }
+    if (bucket.startsWith('reset-ip:')) {
+      return { window: this.resetIpWindow, limit: this.resetIpLimit, ms: 15 * 60 * 1000 };
+    }
+    return { window: this.ipWindow, limit: this.ipLimit, ms: WINDOW_MS };
   }
 
   private async peek(bucket: string): Promise<RateLimitDecision> {
@@ -134,7 +180,7 @@ export class AttemptLimiter implements OnModuleDestroy {
     }
     const count = await this.redis.llen(this.key(bucket));
     const ttl = await this.redis.ttl(this.key(bucket));
-    const retryAfter = ttl > 0 ? ttl : Math.ceil(WINDOW_MS / 1000);
+    const retryAfter = ttl > 0 ? ttl : Math.ceil(selected.ms / 1000);
     return {
       allowed: count < selected.limit,
       limit: selected.limit,
@@ -152,10 +198,10 @@ export class AttemptLimiter implements OnModuleDestroy {
     const key = this.key(bucket);
     const count = await this.redis.rpush(key, String(Date.now()));
     if (count === 1) {
-      await this.redis.pexpire(key, WINDOW_MS);
+      await this.redis.pexpire(key, selected.ms);
     }
     const ttl = await this.redis.pttl(key);
-    const retryAfter = Math.max(1, Math.ceil((ttl > 0 ? ttl : WINDOW_MS) / 1000));
+    const retryAfter = Math.max(1, Math.ceil((ttl > 0 ? ttl : selected.ms) / 1000));
     return {
       allowed: count <= selected.limit,
       limit: selected.limit,

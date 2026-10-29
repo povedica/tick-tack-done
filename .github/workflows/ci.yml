@@ -113,7 +113,7 @@ jobs:
         env:
           R80_PHASE: despues
           R80_PREVIEW: '1'
-        run: pnpm --filter web exec playwright test --config playwright.r80.config.ts r80-agenda-performance.spec.ts r80-google.spec.ts r80-integrations.spec.ts r80-links.spec.ts r80-about.spec.ts r80-push-actions.spec.ts production-session.spec.ts --workers=1
+        run: pnpm --filter web exec playwright test --config playwright.r80.config.ts r80-agenda-performance.spec.ts r80-google.spec.ts r80-integrations.spec.ts r80-links.spec.ts r80-about.spec.ts r80-push-actions.spec.ts production-session.spec.ts password-reset.spec.ts --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -122,3 +122,17 @@ jobs:
             apps/web/test-results
             test-artifacts/audit/r80/98-waterfall-despues-*.json
           retention-days: 14
+
+  public-tree-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Five cases on a temporary tree, then this checkout
+        run: bash scripts/public-tree-guard.sh --self-test
+      - name: Added and modified lines of a pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.base_ref }}"
+          bash scripts/public-tree-guard.sh --diff-base "origin/${{ github.base_ref }}"

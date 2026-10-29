@@ -992,18 +992,125 @@ const CATALOG: readonly McpTool[] = [
   },
   {
     name: 'list_filters',
-    description: 'List saved filters.',
+    description: 'List saved filters. Pinned filters come first.',
     scopes: ['filters:read'],
     inputSchema: objectSchema({ limit, cursor }),
   },
   {
+    name: 'get_filter',
+    description: 'Read one saved filter.',
+    scopes: ['filters:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
     name: 'create_filter',
-    description: 'Save a normal filter that matches a keyword.',
+    description:
+      'Save a filter from a keyword, from match plus conditions, or from mode plus rules. folder: op in, value folder ids.',
     scopes: ['filters:write'],
-    inputSchema: objectSchema({ name, keyword: { type: 'string', minLength: 1 } }, [
-      'name',
-      'keyword',
-    ]),
+    inputSchema: objectSchema(
+      {
+        name,
+        keyword: { type: 'string', minLength: 1 },
+        match: { type: 'string', enum: ['all', 'any'] },
+        conditions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              field: {
+                type: 'string',
+                enum: [
+                  'list',
+                  'folder',
+                  'tag',
+                  'date',
+                  'priority',
+                  'keyword',
+                  'status',
+                  'assignee',
+                ],
+              },
+              op: { type: 'string' },
+              value: {},
+            },
+            required: ['field', 'op'],
+          },
+        },
+        mode: { type: 'string', enum: ['normal', 'advanced'] },
+        rules: { type: 'object' },
+        color: { type: 'string', nullable: true },
+      },
+      ['name'],
+    ),
+  },
+  {
+    name: 'update_filter',
+    description:
+      'Update a filter name, color, rules, or pinned state. folder: op in, value folder ids.',
+    scopes: ['filters:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        name,
+        color: { type: 'string', nullable: true },
+        match: { type: 'string', enum: ['all', 'any'] },
+        conditions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              field: {
+                type: 'string',
+                enum: [
+                  'list',
+                  'folder',
+                  'tag',
+                  'date',
+                  'priority',
+                  'keyword',
+                  'status',
+                  'assignee',
+                ],
+              },
+              op: { type: 'string' },
+              value: {},
+            },
+            required: ['field', 'op'],
+          },
+        },
+        mode: { type: 'string', enum: ['normal', 'advanced'] },
+        rules: { type: 'object' },
+        pinned: { type: 'boolean' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'delete_filter',
+    description: 'Soft-delete a saved filter.',
+    scopes: ['filters:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'restore_filter',
+    description: 'Restore a soft-deleted filter.',
+    scopes: ['filters:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'list_filter_tasks',
+    description: 'List tasks that match one saved filter.',
+    scopes: ['filters:read'],
+    inputSchema: objectSchema(
+      {
+        id,
+        group_by: { type: 'string', enum: ['none', 'section', 'date', 'tag', 'priority'] },
+        sort: { type: 'string', enum: ['manual', 'date', 'priority', 'title', 'created'] },
+        limit,
+        cursor,
+      },
+      ['id'],
+    ),
   },
   {
     name: 'list_smart_lists',

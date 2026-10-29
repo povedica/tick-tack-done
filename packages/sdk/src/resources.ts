@@ -463,6 +463,7 @@ export interface ResourceClient {
   achievements(): Promise<JsonObject>;
   setAchievements(enabled: boolean): Promise<JsonObject>;
   beginTotp(): Promise<JsonObject>;
+  totpStatus(): Promise<{ enabled: boolean }>;
   confirmTotp(code: string): Promise<JsonObject>;
   cancelTotp(): Promise<void>;
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
@@ -914,6 +915,7 @@ export function resourceMethods(http: Http): ResourceClient {
     setAchievements: (enabled) =>
       ask('PATCH', '/api/v1/me/achievements', { enabled }, undefined, isJsonObject),
     beginTotp: () => ask('POST', '/api/v1/me/totp', undefined, undefined, isJsonObject),
+    totpStatus: () => ask('GET', '/api/v1/me/totp', undefined, undefined, isTotpStatus),
     confirmTotp: (code) =>
       ask('POST', '/api/v1/me/totp/confirm', { code }, undefined, isJsonObject),
     async cancelTotp() {
@@ -1173,6 +1175,10 @@ function isCount(value: unknown): value is CountResult {
     typeof value.updated === 'number' ||
     typeof value.archived === 'number'
   );
+}
+
+function isTotpStatus(value: unknown): value is { enabled: boolean } {
+  return isJsonObject(value) && typeof value.enabled === 'boolean';
 }
 
 function isJsonObject(value: unknown): value is JsonObject {

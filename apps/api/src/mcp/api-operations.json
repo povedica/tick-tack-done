@@ -748,84 +748,9 @@
   },
   {
     "method": "GET",
-    "path": "/api/v1/auth/registration",
-    "summary": "Whether a new account can still be created",
-    "parameters": [],
-    "request_body": {}
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/auth/register",
-    "summary": "Create the account and a session. Closed after the first user unless REGISTRATION_OPEN.",
-    "parameters": [],
-    "request_body": {
-      "required": true,
-      "content": {
-        "application/json": {
-          "schema": {
-            "type": "object",
-            "properties": {
-              "email": { "type": "string" },
-              "password": { "type": "string", "minLength": 10, "maxLength": 200 },
-              "display_name": { "type": "string", "minLength": 1, "maxLength": 80 }
-            },
-            "required": ["email", "password", "display_name"]
-          }
-        }
-      }
-    }
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/auth/login",
-    "summary": "Open a revocable httpOnly session and return the CSRF token",
-    "parameters": [],
-    "request_body": {
-      "required": true,
-      "content": {
-        "application/json": {
-          "schema": {
-            "type": "object",
-            "properties": {
-              "email": { "type": "string" },
-              "password": { "type": "string" },
-              "totp_code": { "type": "string" },
-              "recovery_code": { "type": "string" }
-            },
-            "required": ["email", "password"]
-          }
-        }
-      }
-    }
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/auth/logout",
-    "summary": "Revoke the current session",
-    "parameters": [],
-    "request_body": {}
-  },
-  {
-    "method": "GET",
     "path": "/api/v1/auth/session",
     "summary": "Current session profile and CSRF token",
     "parameters": [],
-    "request_body": {}
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/auth/sessions",
-    "summary": "Revocable sessions of the current user",
-    "parameters": [],
-    "request_body": {}
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/v1/auth/sessions/{id}",
-    "summary": "Revoke one session immediately",
-    "parameters": [
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
     "request_body": {}
   },
   {
@@ -970,6 +895,13 @@
         }
       }
     }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/totp",
+    "summary": "Whether TOTP is enabled for the current account",
+    "parameters": [],
+    "request_body": {}
   },
   {
     "method": "POST",
@@ -2089,6 +2021,7 @@
                                 "type": "string",
                                 "enum": [
                                   "list",
+                                  "folder",
                                   "tag",
                                   "date",
                                   "priority",
@@ -2162,6 +2095,7 @@
                                 "type": "string",
                                 "enum": [
                                   "list",
+                                  "folder",
                                   "tag",
                                   "date",
                                   "priority",
@@ -2268,6 +2202,7 @@
                                 "type": "string",
                                 "enum": [
                                   "list",
+                                  "folder",
                                   "tag",
                                   "date",
                                   "priority",
@@ -2298,7 +2233,12 @@
               "move_to_end": { "type": "boolean" },
               "pin": {
                 "type": "boolean",
-                "description": "Place the filter first in the sidebar (RF-903)."
+                "deprecated": true,
+                "description": "Obsolete alias of pinned. pin true sets pinned true."
+              },
+              "pinned": {
+                "type": "boolean",
+                "description": "Keep the filter in the pinned block (TTD-FIL-11)."
               }
             }
           }
@@ -2310,6 +2250,21 @@
     "method": "DELETE",
     "path": "/api/v1/filters/{id}",
     "summary": "Move a filter to the trash (RF-902)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/filters/{id}/restore",
+    "summary": "Restore a deleted filter (TTD-FIL-03)",
     "parameters": [
       {
         "name": "X-Dev-User-Email",

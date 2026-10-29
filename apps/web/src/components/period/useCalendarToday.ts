@@ -5,14 +5,20 @@ import { nextMidnight, todayInZone } from './calendar-today';
 
 /** A single date basis for calendar marks, also refreshed when a sleeping tab wakes. */
 export function useCalendarToday(timeZone?: string): string {
-  const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const account = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.getMe(),
+    notifyOnChangeProps: ['data'],
+  });
   const zone = timeZone ?? account.data?.time_zone ?? 'Europe/Madrid';
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     let timer: number;
     function refresh() {
       const current = new Date();
-      setNow(current);
+      setNow((previous) =>
+        todayInZone(previous, zone) === todayInZone(current, zone) ? previous : current,
+      );
       window.clearTimeout(timer);
       timer = window.setTimeout(
         refresh,

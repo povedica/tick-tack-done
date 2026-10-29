@@ -8,11 +8,12 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Req,
   Res,
   ValidationPipe,
 } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AccountService } from './account.service.js';
 import { CurrentUser } from './current-user.decorator.js';
 import type { AuthUser } from './auth-user.js';
@@ -69,9 +70,14 @@ export class MeController {
   async changePassword(
     @CurrentUser() user: AuthUser,
     @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    await this.account.changePassword(user, dto);
+    const agent = req.header('user-agent');
+    await this.account.changePassword(user, dto, {
+      ip: req.ip?.slice(0, 80) ?? null,
+      userAgent: agent === undefined ? null : agent.slice(0, 300),
+    });
     res.status(204).end();
   }
 

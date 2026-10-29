@@ -39,8 +39,8 @@ function mount(entry = '/today') {
 
 beforeEach(() => {
   projects.splice(0, projects.length);
-  folders.splice(0, folders.length, folder('vass', 'VASS'));
-  projects.push(project('casa', 'Casa', { folder_id: 'vass' }));
+  folders.splice(0, folders.length, folder('work', 'Trabajo'));
+  projects.push(project('casa', 'Casa', { folder_id: 'work' }));
   api.listProjects.mockImplementation(() =>
     Promise.resolve({ items: [...projects], next_cursor: null }),
   );
@@ -72,7 +72,7 @@ afterEach(() => {
 describe('ListModal', () => {
   it('creates a list with no color and the chosen folder', async () => {
     mount();
-    openListModal({ folderId: 'vass' });
+    openListModal({ folderId: 'work' });
     expect(await screen.findByRole('dialog', { name: 'Nueva lista' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Notas' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear lista' }));
@@ -80,7 +80,7 @@ describe('ListModal', () => {
       expect(api.createProject).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'Notas',
-          folder_id: 'vass',
+          folder_id: 'work',
           color: null,
           view_mode: 'list',
           is_project: false,

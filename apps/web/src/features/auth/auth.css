@@ -1,3 +1,50 @@
+.legal-screen {
+  box-sizing: border-box;
+  min-height: 100%;
+  overflow: auto;
+  padding: 24px 16px 48px;
+  background: var(--sidebar-bg);
+}
+
+.legal-doc {
+  width: min(100%, 40rem);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px 28px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.legal-doc h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.legal-doc h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.legal-doc p {
+  margin: 0;
+}
+
+.legal-doc a {
+  color: var(--accent-ink);
+}
+
+.legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
 .auth-screen {
   width: 100%;
   max-width: none;
@@ -46,12 +93,14 @@
   gap: 12px;
 }
 
-.auth-card label {
+.auth-card label,
+.auth-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: var(--ink-2);
+  color: var(--ink);
   font-size: 13px;
+  font-weight: 600;
 }
 
 .auth-card input {
@@ -62,6 +111,7 @@
   background: var(--surface);
   color: var(--ink);
   font: inherit;
+  font-weight: 400;
 }
 
 .auth-card button[type='submit'] {
@@ -84,4 +134,85 @@
   color: var(--accent-ink);
   font-size: 14px;
   text-align: center;
+}
+
+.auth-forgot {
+  align-self: flex-end;
+  font-size: 13px;
+  text-align: right;
+}
+
+.auth-card input {
+  min-height: 40px;
+}
+
+.auth-password {
+  position: relative;
+  display: block;
+}
+
+.auth-password input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.auth-password.is-match input {
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+
+.auth-eye {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.auth-password.is-match .auth-eye {
+  color: var(--success);
+}
+
+.auth-reveal {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-card :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.auth-help {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.auth-help.is-match {
+  color: var(--success);
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .auth-card input,
+  .auth-card button[type='submit'] {
+    height: 44px;
+    min-height: 44px;
+  }
 }

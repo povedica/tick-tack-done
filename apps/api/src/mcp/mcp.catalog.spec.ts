@@ -52,10 +52,26 @@ describe('MCP tool catalog', () => {
       'create_habit',
       'list_projects',
       'create_filter',
+      'get_filter',
+      'update_filter',
+      'delete_filter',
+      'restore_filter',
+      'list_filter_tasks',
       'list_notes',
       'start_focus',
     ]) {
       expect(names).not.toContain(hidden);
+    }
+  });
+
+  it('create_filter and update_filter list folder as a condition field', () => {
+    for (const name of ['create_filter', 'update_filter']) {
+      const tool = MCP_TOOLS.find((item) => item.name === name);
+      const conditions = tool?.inputSchema.properties.conditions as {
+        items?: { properties?: { field?: { enum?: string[] } } };
+      };
+      expect(conditions.items?.properties?.field?.enum).toContain('folder');
+      expect(tool?.description).toContain('folder: op in, value folder ids');
     }
   });
 

@@ -1,5 +1,31 @@
 # Historial de cambios
 
+## Sin publicar
+
+- El editor de filtros usa campos, listas y fechas del propio diseño. Todas y
+  Alguna se distinguen, Cancelar es secundario y la pista de guardado solo se
+  marca al intentar guardar. Editar condiciones está en el menú. Una condición
+  puede citar una carpeta: vale para las tareas de las listas de esa carpeta.
+  Asignado sigue siendo un texto (nombre o email); no hay un listado global de
+  personas.
+- Un filtro guarda las etiquetas por id. Un nombre sigue valiendo al crear o
+  editar, y se resuelve sin distinguir mayúsculas. Fusionar dos etiquetas
+  reescribe los filtros que citaban la de origen. El paso de datos es
+  `pnpm --filter api exec tsx ../../scripts/backfill-filter-tag-ids.ts --dry-run`
+  antes de aplicarlo; no forma parte de la migración SQL.
+- Un filtro se puede fijar (`pinned`) y restaurar después del borrado lógico.
+  Crear o cambiar las reglas exige al menos una condición; un filtro vacío ya
+  guardado sigue leyéndose. El MCP lista, lee, crea, edita, fija, borra y
+  restaura filtros.
+- La página de filtros es una lista con menú, fijar, duplicar y borrar con
+  deshacer. La barra lateral usa el mismo menú. `/filters/:id` abre
+  `/filter/:id`.
+- El editor es un modal en escritorio y una pantalla completa en el móvil, con
+  Todas o Alguna, grupos y una vista previa que se calcula sola.
+- La vista del filtro muestra el embudo, las condiciones y las acciones en
+  «…». Un id que no existe lleva a los filtros. La captura rellena la etiqueta,
+  la lista o el día cuando la condición nombra solo uno.
+
 ## Revisión del paquete de listas
 
 - Planificar un día completo conserva la estimación de esfuerzo. Antes se
@@ -156,4 +182,4 @@
 
 Por petición de Pablo, se retira `docs/` del árbol. Las evidencias históricas siguen enlazadas en la PR; las nuevas ejecuciones generan artefactos ignorados por Git en `test-artifacts/`.
 
-Implementación y pruebas locales: [estado](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/audit/ESTADO.md). Las verificaciones externas pendientes se detallan en la PR; estos cambios no se han desplegado. [Contrato MCP](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/mcp/CHANGELOG.md).
+Implementación y pruebas locales: el estado quedó en la PR. Las verificaciones externas pendientes se detallan allí; estos cambios no se han desplegado. Contrato MCP: `docs/mcp/CHANGELOG.md`.

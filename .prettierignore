@@ -2,6 +2,8 @@
 apps/api/openapi.json
 packages/sdk/src/generated/**
 pnpm-lock.yaml
+apps/api/src/auth/common-passwords.txt
+apps/api/src/auth/common-passwords.txt
 test-artifacts/
 
 # Local private inputs and user-supplied reference assets are preserved verbatim.

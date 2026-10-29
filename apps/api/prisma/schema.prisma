@@ -328,6 +328,7 @@ model User {
   pushSubscriptions     PushSubscription[]
   seriesAdvances        SeriesAdvance[]
   sessions              Session[]
+  passwordResetTokens   PasswordResetToken[]
   oauthClients          OauthClient[]
   oauthCodes            OauthAuthorizationCode[]
   oauthRefreshTokens    OauthRefreshToken[]
@@ -598,11 +599,13 @@ model Filter {
   mode      FilterMode @default(normal)
   rules     Json
   sortOrder BigInt     @default(65536) @map("sort_order")
+  pinned    Boolean    @default(false)
   createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt DateTime?  @map("deleted_at") @db.Timestamptz(6)
 
   @@index([ownerId, sortOrder])
+  @@index([ownerId, pinned(sort: Desc), sortOrder])
   @@map("filters")
 }
 
@@ -1071,6 +1074,25 @@ model Session {
 
   @@index([userId, createdAt])
   @@map("sessions")
+}
+
+/// RF-PR-03. Only the SHA-256 of the reset secret is stored. One live token per user.
+model PasswordResetToken {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash          String    @unique @map("token_hash")
+  expiresAt          DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt             DateTime? @map("used_at") @db.Timestamptz(6)
+  invalidatedAt      DateTime? @map("invalidated_at") @db.Timestamptz(6)
+  failedAttempts     Int       @default(0) @map("failed_attempts")
+  requestedIp        String?   @map("requested_ip")
+  requestedUserAgent String?   @map("requested_user_agent")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 // Public OAuth client for Authorization Code + PKCE (section 10.1). No client secret.

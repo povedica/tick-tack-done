@@ -816,7 +816,7 @@
 }
 
 .detail-panel textarea:not(.detail-title):not(.detail-content):not(.comment-input),
-.detail-panel input:not(.task-check):not(.sr-only):not(.check-edit):not(.check-add-input),
+.detail-panel input:not(.task-check):not(.sr-only):not(.check-edit):not(.check-add-input):not([type='checkbox']):not([type='radio']):not(.popover-search),
 .detail-panel select:not(.sr-only),
 .settings-layout input:not([type='radio']):not([type='checkbox']),
 .settings-layout select,
@@ -1492,7 +1492,7 @@
   flex: 1;
 }
 
-.screen-page input:not([type='checkbox']):not([type='radio']),
+.screen-page input:not([type='checkbox']):not([type='radio']):not(.popover-search),
 .screen-page select,
 .habits input:not([type='checkbox']),
 .habits select,
@@ -2168,6 +2168,12 @@
   background: var(--surface);
   color: var(--ink-2);
   font-size: var(--fs-xs);
+}
+
+.totp-status {
+  margin: 0;
+  color: var(--success);
+  font-weight: 600;
 }
 
 .token-actions {
@@ -3231,4 +3237,59 @@ a.link:hover {
   font-size: var(--fs-xs);
   color: var(--warning);
   line-height: var(--lh-base);
+}
+
+.ui-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-base);
+}
+
+.ui-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.ui-input:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border-strong));
+}
+
+.ui-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.ui-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.ui-input[aria-invalid='true']:focus-visible {
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.ui-input:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.ui-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-align: start;
+  cursor: pointer;
+}
+
+@media (max-width: 1023px) {
+  .ui-input {
+    min-height: var(--tap);
+    font-size: var(--fs-md);
+  }
 }

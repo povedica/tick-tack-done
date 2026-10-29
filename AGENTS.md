@@ -1,9 +1,17 @@
 # AGENTS.md — guía para agentes de codificación (Cursor y otros)
 
 Este repositorio es un gestor de tareas personal extensible desplegado en
-`todo.reflexionia.com`. La referencia histórica del producto es la especificación
-[documentación histórica](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/spec/done/especificacion-producto-v1.1.md) (RF-xx = requisito testeable). Este archivo resume las
-normas; el detalle vive en `.cursor/rules/*.mdc`, que Cursor aplica automáticamente.
+`todo.reflexionia.com`. La referencia histórica del producto es un solo fichero
+de la revisión `340f34be17477ecab681ddc3dbfd790c9346a0ba`. El resto de ese commit
+no es fuente. Léelo antes de tocar código y cita los RF-xx que implementes:
+
+```bash
+git show 340f34be17477ecab681ddc3dbfd790c9346a0ba:docs/spec/done/especificacion-producto-v1.1.md
+```
+
+Un clon superficial no tiene ese objeto: hace falta `git fetch --unshallow`.
+Este archivo resume las normas; el detalle vive en `.cursor/rules/*.mdc`, que
+Cursor aplica automáticamente.
 
 ## Contexto mínimo antes de tocar código
 

@@ -25,16 +25,12 @@ export function whereFromClause(clause: FilterClause, clock?: FilterClock): Pris
         : { OR: clause.items.map((item) => whereFromClause(item, clock)) };
     case 'list_in':
       return clause.ids.length === 0 ? matchNone() : { projectId: { in: [...clause.ids] } };
-    case 'tag_any':
-      return clause.names.length === 0
+    case 'folder_in':
+      return clause.ids.length === 0
         ? matchNone()
-        : {
-            tags: {
-              some: {
-                tag: { name: { in: [...clause.names], mode: 'insensitive' }, deletedAt: null },
-              },
-            },
-          };
+        : { project: { folderId: { in: [...clause.ids] } } };
+    case 'tag_any':
+      return tagWhere(clause.ids, clause.legacyNames);
     case 'due_range': {
       const range = { gte: new Date(clause.from), lt: new Date(clause.to) };
       return { OR: [{ startDate: range }, { startDate: null, dueDate: range }] };
@@ -73,6 +69,25 @@ export function whereFromClause(clause: FilterClause, clock?: FilterClock): Pris
       return unreachable;
     }
   }
+}
+
+function tagWhere(ids: readonly string[], legacyNames: readonly string[]): Prisma.TaskWhereInput {
+  const links: Prisma.TaskTagWhereInput[] = [];
+  if (ids.length > 0) {
+    links.push({ tagId: { in: [...ids] }, tag: { deletedAt: null } });
+  }
+  if (legacyNames.length > 0) {
+    links.push({
+      tag: { name: { in: [...legacyNames], mode: 'insensitive' }, deletedAt: null },
+    });
+  }
+  if (links.length === 0) {
+    return matchNone();
+  }
+  const only = links[0];
+  return {
+    tags: { some: links.length === 1 && only !== undefined ? only : { OR: links } },
+  };
 }
 
 function prioritiesAtLeast(minimum: Priority): Priority[] {

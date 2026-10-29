@@ -26,4 +26,14 @@ backups/
 docker-compose.worktree.local.yml
 
 /test-artifacts/
+/docs/audit/
+/docs/spec/
+/docs/private/
+/docs/reviews/
+*-prompt.txt
+*.patch
+*.diff
+*.code-workspace
+**/evidencias/
+**/*-shots/
 .env-config/

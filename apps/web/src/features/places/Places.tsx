@@ -65,6 +65,7 @@ import {
   useSearchParams,
 } from 'react-router';
 import { eventDayRange, eventSpan } from './event-span';
+import { YearBoard } from './year-board';
 import { rememberCalendarView } from '../../shell/BottomBar';
 import { api } from '../../api';
 import { completeBody } from '../tasks/complete-body';
@@ -547,13 +548,14 @@ export function CalendarPage() {
             : undefined,
         }
       : rangedEvents;
+  const loadedTaskIds = new Set((tasks.data ?? []).map((task) => task.id));
   const startTaskIds = Array.isArray(externalQuery.data?.tasks)
     ? externalQuery.data.tasks.flatMap((value: unknown) => {
         if (typeof value !== 'object' || value === null) return [];
         const row = value as { id?: unknown; start_date?: unknown; due_date?: unknown };
         return typeof row.id === 'string' &&
           typeof row.start_date === 'string' &&
-          !(tasks.data ?? []).some((task) => task.id === row.id)
+          !loadedTaskIds.has(row.id)
           ? [row.id]
           : [];
       })
@@ -613,10 +615,14 @@ export function CalendarPage() {
   const [openEvent, setOpenEvent] = useState<ExternalEventView | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const pickedAnchor = useRef<HTMLElement | null>(null);
+  const seenEventIds = new Set<string>();
   const external = (Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : [])
     .filter(isExternalEvent)
-    .filter((event, index, all) => all.findIndex((other) => other.id === event.id) === index)
-    .filter((event) => sourceSelected(sourceParams.get('cals'), event.subscription_id ?? ''));
+    .filter((event) => {
+      if (seenEventIds.has(event.id)) return false;
+      seenEventIds.add(event.id);
+      return sourceSelected(sourceParams.get('cals'), event.subscription_id ?? '');
+    });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const colors = useMemo(() => {
     const map = new Map<string, string>();
@@ -627,9 +633,12 @@ export function CalendarPage() {
     }
     return map;
   }, [projects.data]);
+  const seenTaskIds = new Set<string>();
   const dated = [...(tasks.data ?? []), ...(startTasks.data ?? [])]
-    .filter(
-      (task, index, all) =>
+    .filter((task) => {
+      if (seenTaskIds.has(task.id)) return false;
+      seenTaskIds.add(task.id);
+      return (
         (task.start_date ?? task.due_date) !== null &&
         (contextProject === undefined || task.project_id === contextProject) &&
         (!tagId || task.tag_ids.includes(tagId)) &&
@@ -638,9 +647,9 @@ export function CalendarPage() {
         sourceSelected(sourceParams.get('lists'), task.project_id) &&
         (sourceParams.get('tags') === null ||
           task.tag_ids.some((id) => sourceSelected(sourceParams.get('tags'), id))) &&
-        task.kind === 'task' &&
-        all.findIndex((other) => other.id === task.id) === index,
-    )
+        task.kind === 'task'
+      );
+    })
     .map((task) => ({ ...task, due_date: task.start_date ?? task.due_date })); // Calendar display date only; mutations still address the original task ID.
   const activeFilterCount =
     Number(!!contextProject) +
@@ -1804,158 +1813,6 @@ function MobileWeekBoard({
   );
 }
 
-function YearBoard({
-  year,
-  onMove,
-  months = Array.from({ length: 12 }, (_, index) => index),
-  events = [],
-  tasks,
-  weekStart,
-  colors,
-  onOpen,
-  onCreateDay,
-}: {
-  readonly onCreateDay?: ((day: string, anchor: SlotAnchor) => void) | undefined;
-  readonly year: number;
-  readonly onMove?: (delta: number) => void;
-  readonly months?: readonly number[];
-  readonly events?: readonly ExternalEventView[];
-  readonly tasks: readonly Task[];
-  readonly weekStart: 'monday' | 'sunday';
-  readonly colors: ReadonlyMap<string, string>;
-  readonly onOpen: (month: number) => void;
-}) {
-  const locale = useAppLocale();
-  const messages = useMessages();
-  const todayKey = useCalendarToday();
-  const verticalNavigation = useVerticalCalendarNavigation(onMove);
-  const monthName = new Intl.DateTimeFormat(locale, { month: 'long' });
-  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
-  const sample = monthCells(new Date(year, 0, 1), weekStart);
-  const heads = sample.slice(0, 7).map((day) => weekday.format(day));
-  return (
-    <div
-      className={months.length === 3 ? 'year-board is-quarter' : 'year-board'}
-      tabIndex={onMove ? 0 : undefined}
-      onKeyDown={(event) => {
-        if (
-          !onMove ||
-          event.target !== event.currentTarget ||
-          !['PageUp', 'PageDown'].includes(event.key)
-        )
-          return;
-        event.preventDefault();
-        onMove(event.key === 'PageDown' ? 1 : -1);
-      }}
-      {...verticalNavigation}
-    >
-      {months.map((month) => {
-        const cells = monthCells(new Date(year, month, 1), weekStart);
-        return (
-          <section key={month} className="year-card">
-            <button
-              type="button"
-              className="year-month"
-              onClick={() => {
-                onOpen(month);
-              }}
-            >
-              {monthName.format(new Date(year, month, 1))}
-            </button>
-            <div
-              className="year-mini"
-              style={
-                months.length === 3
-                  ? { gridTemplateColumns: '1.5rem repeat(7,minmax(0,1fr))' }
-                  : undefined
-              }
-            >
-              {months.length === 3 ? <span className="year-dow">S</span> : null}
-              {heads.map((label, index) => (
-                <span key={`${label}-${String(index)}`} className="year-dow">
-                  {label}
-                </span>
-              ))}
-              {cells.map((day, index) => {
-                const key = localKey(day);
-                const inside = day.getMonth() === month;
-                const marks = inside
-                  ? [
-                      ...dayMarks(tasks, day, colors),
-                      ...eventsOnDay(events, day).map((event) => event.color ?? 'var(--accent)'),
-                    ]
-                  : [];
-                const when = new Intl.DateTimeFormat(locale, {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                }).format(day);
-                return (
-                  <Fragment key={key}>
-                    {months.length === 3 && index % 7 === 0 ? (
-                      <span className="year-week-number">{isoWeek(day)}</span>
-                    ) : null}
-                    <Link
-                      className={[
-                        'year-day',
-                        inside ? '' : 'is-outside',
-                        key === todayKey ? 'is-today' : '',
-                      ]
-                        .filter((item) => item.length > 0)
-                        .join(' ')}
-                      onClick={(event) => {
-                        if (
-                          !onCreateDay ||
-                          (event.target instanceof Element && event.target.closest('.year-num'))
-                        )
-                          return;
-                        event.preventDefault();
-                        onCreateDay(key, {
-                          element: event.currentTarget,
-                          x: event.clientX,
-                          y: event.clientY,
-                        });
-                      }}
-                      to={`/calendar/day?date=${key}`}
-                      aria-current={key === todayKey ? 'date' : undefined}
-                      aria-label={`${when}, ${String(tasksOnCell(tasks, day).length + eventsOnDay(events, day).length)} ${tasksOnCell(tasks, day).length + eventsOnDay(events, day).length === 1 ? messages.calendarItem : messages.calendarItems}`}
-                    >
-                      <TodayMark className="year-num" today={key === todayKey}>
-                        {day.getDate()}
-                      </TodayMark>
-                      <span className="year-marks" aria-hidden="true">
-                        {marks.map((color, index) => (
-                          <i key={`${color}-${String(index)}`} style={{ background: color }} />
-                        ))}
-                      </span>
-                    </Link>
-                  </Fragment>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
-    </div>
-  );
-}
-
-function dayMarks(
-  tasks: readonly Task[],
-  day: Date,
-  colors: ReadonlyMap<string, string>,
-): string[] {
-  const seen = new Set<string>();
-  for (const task of tasksOnCell(tasks, day)) {
-    const color = colors.get(task.project_id);
-    seen.add(color !== undefined && /^#[0-9a-fA-F]{3,8}$/.test(color) ? color : 'var(--accent)');
-    if (seen.size === 3) {
-      break;
-    }
-  }
-  return [...seen];
-}
-
 function Agenda({
   days,
   anchorDay,
@@ -2723,11 +2580,6 @@ export function RegisterPage() {
   return <AuthNote title={messages.registerTitle} body={messages.registerDev} />;
 }
 
-export function ForgotPage() {
-  const messages = useMessages();
-  return <AuthNote title={messages.forgotTitle} body={messages.forgotDev} />;
-}
-
 export function AccountPage() {
   const messages = useMessages();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
@@ -2745,6 +2597,8 @@ export function AccountPage() {
   const [totpCode, setTotpCode] = useState('');
   const [codes, setCodes] = useState<readonly string[] | null>(null);
   const [totpError, setTotpError] = useState<string | null>(null);
+  const totp = useQuery({ queryKey: ['me', 'totp'], queryFn: () => api.totpStatus() });
+  const totpOn = totp.data?.enabled === true || codes !== null;
   const displayName = name ?? profile?.display_name ?? '';
   const timeZone = zone ?? profile?.time_zone ?? '';
   const childPolicy = children ?? profile?.task_complete_children ?? 'ask';
@@ -2957,11 +2811,13 @@ export function AccountPage() {
           <section className="token-panel">
             <div className="token-panel-head">
               <div>
-                <h2>{messages.enableTwoFactor}</h2>
+                <h2 className={totpOn ? 'totp-status' : undefined}>
+                  {totpOn ? messages.twoFactorActive : messages.enableTwoFactor}
+                </h2>
                 <p>{messages.twoFactorHint}</p>
               </div>
             </div>
-            {setup === null ? (
+            {totpOn || totp.isPending ? null : setup === null ? (
               <Button
                 type="button"
                 size="sm"

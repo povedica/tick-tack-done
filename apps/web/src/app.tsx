@@ -6,7 +6,15 @@ import { PolicyPage } from './features/auth/PolicyPage';
 import { runAction } from './components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router';
 import { api } from './api';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
 import { TokensPage } from './features/tokens/components/TokensPage';
@@ -33,7 +41,6 @@ import {
   AccountPage,
   CalendarPage,
   CaptureSettings,
-  ForgotPage,
   InboxPage,
   MatrixPage,
   NoteRoute,
@@ -64,7 +71,12 @@ import { AppearancePage } from './features/settings/AppearancePage';
 import { FeaturesPage } from './features/settings/FeaturesPage';
 import { featureFlags, useFeatures, type FeatureFlags } from './features/settings/feature-flags';
 import { ConsentPage } from './features/auth/ConsentPage';
-import { LoginPage, RegisterPage } from './features/auth/AuthPages';
+import {
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+} from './features/auth/AuthPages';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
 import { RepeatPage } from './features/repeat/RepeatPage';
 import { ShutdownPage } from './features/closing/ShutdownPage';
@@ -122,7 +134,8 @@ function Shell() {
         <Route path="/terms" element={<PolicyPage terms />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<RequireSession />}>
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/today" replace />} />
@@ -135,7 +148,7 @@ function Shell() {
             <Route path="/list/:id/note/:taskId" element={<NoteRoute />} />
             <Route path="/filter/:id" element={<FilterViewPage />} />
             <Route path="/filters" element={<FiltersPage />} />
-            <Route path="/filters/:id" element={<FilterViewPage />} />
+            <Route path="/filters/:id" element={<FilterLegacyRedirect />} />
             <Route path="/tag/:id" element={<TagViewPage />} />
             <Route path="/trash" element={<Navigate to="/smart/trash" replace />} />
             <Route path="/tasks/completed" element={<Navigate to="/smart/completed" replace />} />
@@ -248,6 +261,11 @@ function FeatureRoute({
     return <Navigate to="/today?disabled=1" replace />;
   }
   return children;
+}
+
+function FilterLegacyRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/filter/${id ?? ''}`} replace />;
 }
 
 function QuickAddRoute() {

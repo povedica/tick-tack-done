@@ -130,17 +130,43 @@ export interface ApiClient extends ResourceClient {
   updateSmartLists(body: UpdateSmartListsBody): Promise<SmartListPage>;
   smartListTasks(key: string, options?: ViewOptions): Promise<ViewPage>;
   listFilters(): Promise<FilterPage>;
+  getFilter(id: string): Promise<Filter>;
   createFilter(body: CreateFilterBody, idempotencyKey: string): Promise<Filter>;
   updateFilter(id: string, body: UpdateFilterBody): Promise<Filter>;
   deleteFilter(id: string): Promise<void>;
-  previewFilter(body: PreviewFilterBody, options?: ViewOptions): Promise<ViewPage>;
+  restoreFilter(id: string): Promise<Filter>;
+  previewFilter(
+    body: PreviewFilterBody,
+    options?: ViewOptions,
+    signal?: AbortSignal,
+  ): Promise<ViewPage>;
   filterTasks(id: string, options?: ViewOptions): Promise<ViewPage>;
   search(q: string, types?: string): Promise<SearchResponse>;
   listTokens(query?: PageQuery & { readonly status?: 'active' | 'revoked' }): Promise<TokenPage>;
   createToken(body: CreateTokenBody): Promise<CreatedToken>;
   revokeToken(id: string): Promise<void>;
   tokenActivity(id: string, query?: PageQuery): Promise<ActivityPage>;
-  login(body: { email: string; password: string }): Promise<SessionBody>;
+  login(body: {
+    email: string;
+    password: string;
+    totp_code?: string;
+    recovery_code?: string;
+    captcha_token?: string;
+  }): Promise<SessionBody>;
+  requestPasswordReset(body: {
+    email: string;
+    locale?: 'es' | 'en';
+    captcha_token?: string;
+  }): Promise<void>;
+  verifyPasswordReset(body: {
+    token: string;
+  }): Promise<{ valid: true; totp_required: boolean; expires_at: string }>;
+  confirmPasswordReset(body: {
+    token: string;
+    new_password: string;
+    totp_code?: string;
+    recovery_code?: string;
+  }): Promise<void>;
   register(body: { email: string; password: string; display_name: string }): Promise<SessionBody>;
   registrationOpen(): Promise<boolean>;
   currentSession(): Promise<SessionBody>;
@@ -319,6 +345,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     listFilters() {
       return request(call, options, 'GET', '/api/v1/filters', undefined, undefined, isFilterPage);
     },
+    getFilter(id) {
+      return request(call, options, 'GET', `/api/v1/filters/${id}`, undefined, undefined, isFilter);
+    },
     createFilter(body, idempotencyKey) {
       return request(call, options, 'POST', '/api/v1/filters', body, idempotencyKey, isFilter);
     },
@@ -336,7 +365,18 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         isEmpty,
       );
     },
-    previewFilter(body, view) {
+    restoreFilter(id) {
+      return request(
+        call,
+        options,
+        'POST',
+        `/api/v1/filters/${id}/restore`,
+        undefined,
+        undefined,
+        isFilter,
+      );
+    },
+    previewFilter(body, view, signal) {
       return request(
         call,
         options,
@@ -345,6 +385,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         body,
         undefined,
         isViewPage,
+        signal,
       );
     },
     filterTasks(id, view) {
@@ -418,6 +459,39 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     login(body) {
       return request(call, options, 'POST', '/api/v1/auth/login', body, undefined, isSession);
+    },
+    async requestPasswordReset(body) {
+      await request(
+        call,
+        options,
+        'POST',
+        '/api/v1/auth/password-reset/request',
+        body,
+        undefined,
+        isResetAccepted,
+      );
+    },
+    verifyPasswordReset(body) {
+      return request(
+        call,
+        options,
+        'POST',
+        '/api/v1/auth/password-reset/verify',
+        body,
+        undefined,
+        isResetVerified,
+      );
+    },
+    async confirmPasswordReset(body) {
+      await request(
+        call,
+        options,
+        'POST',
+        '/api/v1/auth/password-reset/confirm',
+        body,
+        undefined,
+        isEmpty,
+      );
     },
     register(body) {
       return request(call, options, 'POST', '/api/v1/auth/register', body, undefined, isSession);
@@ -495,6 +569,7 @@ async function request<T>(
   body: unknown,
   idempotencyKey: string | undefined,
   parse: (value: unknown) => value is T,
+  signal?: AbortSignal,
 ): Promise<T> {
   const prefix = options.baseUrl.replace(/\/$/, '');
   const headers: Record<string, string> = { accept: 'application/json' };
@@ -508,7 +583,7 @@ async function request<T>(
   if (idempotencyKey !== undefined && idempotencyKey.length > 0) {
     headers['Idempotency-Key'] = idempotencyKey;
   }
-  const init: RequestInit = { method, headers };
+  const init: RequestInit = { method, headers, ...(signal === undefined ? {} : { signal }) };
   if (options.credentials !== undefined) {
     init.credentials = options.credentials;
   }
@@ -529,7 +604,7 @@ async function request<T>(
       options.onUnauthorized(path);
     }
     const error = readError(payload);
-    throw new ApiError(response.status, error.code, error.message);
+    throw new ApiError(response.status, error.code, error.message, error.details);
   }
   if (!parse(payload)) {
     throw new ApiError(response.status, 'request_failed', 'Response does not match the API');
@@ -537,14 +612,16 @@ async function request<T>(
   return payload;
 }
 
-function readError(value: unknown): { code: string; message: string } {
+function readError(value: unknown): { code: string; message: string; details: unknown } {
   if (typeof value !== 'object' || value === null) {
-    return { code: 'request_failed', message: 'Request failed' };
+    return { code: 'request_failed', message: 'Request failed', details: null };
   }
-  const error = (value as { error?: { code?: unknown; message?: unknown } }).error;
+  const error = (value as { error?: { code?: unknown; message?: unknown; details?: unknown } })
+    .error;
   return {
     code: typeof error?.code === 'string' ? error.code : 'request_failed',
     message: typeof error?.message === 'string' ? error.message : 'Request failed',
+    details: error?.details ?? null,
   };
 }
 
@@ -716,6 +793,27 @@ function isSyncPage(value: unknown): value is SyncPage {
   return (
     Array.isArray(page.changes) &&
     (page.next_cursor === null || typeof page.next_cursor === 'string')
+  );
+}
+
+function isResetAccepted(value: unknown): value is { status: 'accepted' } {
+  return (
+    typeof value === 'object' && value !== null && 'status' in value && value.status === 'accepted'
+  );
+}
+
+function isResetVerified(
+  value: unknown,
+): value is { valid: true; totp_required: boolean; expires_at: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'valid' in value &&
+    value.valid === true &&
+    'totp_required' in value &&
+    typeof value.totp_required === 'boolean' &&
+    'expires_at' in value &&
+    typeof value.expires_at === 'string'
   );
 }
 

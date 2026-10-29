@@ -8,6 +8,11 @@
 - `POST /projects/{id}/members` ya no responde siempre 201. Crea con 201 (`changed: created`), actualiza el permiso con 200 (`updated`) y, si el permiso es el mismo, responde 200 (`unchanged`). El cuerpo es `{id, permission, changed}`.
 - La Bandeja no se puede compartir (`422 inbox_not_shareable`). Un `token_id` tiene que ser de un token activo del dueño.
 
+## Restablecer contraseña
+
+- `api_request` rechaza `/api/v1/auth/*` salvo `GET /api/v1/auth/session` (D-5). El mensaje es `This API path is not available to agents`.
+- El catálogo generado ya no incluye login, registro ni `password-reset`.
+
 ## Carpetas y proyectos
 
 - `list_folders`, `create_folder`, `update_folder` y `delete_folder` (`lists:read` / `lists:write`).
