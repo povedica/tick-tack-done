@@ -13,6 +13,9 @@ GitHub mantiene el campo nativo `Status` y no permite renombrarlo. «Estado» es
 protocolo: usa `Status` con las siete opciones en español. Los comandos admiten también un
 campo `Estado` existente; no crees otro campo para sustituir el nativo.
 
+Para un Project de la cuenta autenticada se usa `--owner @me`: evita la consulta de
+organizaciones de `gh project` y funciona con el PAT classic de scopes `repo` y `project`.
+
 Este procedimiento lo comparten Cursor y Codex. La entrada para ambos está en `AGENTS.md`.
 
 ## Cuándo se activa
@@ -45,12 +48,15 @@ Este procedimiento lo comparten Cursor y Codex. La entrada para ambos está en `
 
 ```bash
 OWNER=povedica; REPO=povedica/tick-tack-done; N="${PROJECT_NUMBER:?}"
-PID=$(gh project view "$N" --owner "$OWNER" --format json --jq .id)
-FIELDS=$(gh project field-list "$N" --owner "$OWNER" --format json --limit 100)
+PROJECT_OWNER="$OWNER"
+IDENTITY=$(gh api user --jq .login)
+if [ "$IDENTITY" = "$OWNER" ]; then PROJECT_OWNER="@me"; fi
+PID=$(gh project view "$N" --owner "$PROJECT_OWNER" --format json --jq .id)
+FIELDS=$(gh project field-list "$N" --owner "$PROJECT_OWNER" --format json --limit 100)
 STATE_FIELD=$(jq -r 'if any(.fields[]; .name=="Estado") then "Estado" else "Status" end' <<<"$FIELDS")
 fid() { jq -r --arg n "$1" '.fields[]|select(.name==$n)|.id' <<<"$FIELDS"; }
 oid() { jq -r --arg n "$1" --arg o "$2" '.fields[]|select(.name==$n)|.options[]?|select(.name==$o)|.id' <<<"$FIELDS"; }
-item_of() { gh project item-list "$N" --owner "$OWNER" --format json --limit 500 \
+item_of() { gh project item-list "$N" --owner "$PROJECT_OWNER" --format json --limit 500 \
   --jq ".items[]|select(.content.type==\"Issue\" and .content.number==$1 and .content.repository==\"$REPO\")|.id"; }
 set_sel() {
   local field="$2"
@@ -65,7 +71,7 @@ set_sel() {
 NEXT=$(gh issue list --repo "$REPO" --state all --limit 1000 --json title --jq '[.[].title|(capture("^BKL-(?<n>[0-9]+)")? | .n | tonumber)]|(. // [])|((max // 0)+1)')
 gh issue create --repo "$REPO" --title "$(printf 'BKL-%03d · Título' "$NEXT")" --body-file cuerpo.md \
   --label backlog --label area:<area> --label tipo:<tipo> --label prio:P3
-gh project item-add "$N" --owner "$OWNER" --url <url>
+gh project item-add "$N" --owner "$PROJECT_OWNER" --url <url>
 set_sel <num> Estado Idea; set_sel <num> Prioridad P3; set_sel <num> Area <area>; set_sel <num> Tipo <tipo>
 ```
 
@@ -83,7 +89,7 @@ Comprueba el WIP antes (máximo 3). Si hay más de 500 elementos, no uses un rec
 lee todos los elementos antes de decidir si hay hueco.
 
 ```bash
-gh project item-list "$N" --owner "$OWNER" --format json --limit 500 --jq '[.items[]|select((.estado // .status)=="En Codex/PR")]|length'
+gh project item-list "$N" --owner "$PROJECT_OWNER" --format json --limit 500 --jq '[.items[]|select((.estado // .status)=="En Codex/PR")]|length'
 ```
 
 Si ya hay 3, no empieces: avisa y propone cuál cerrar. Si hay hueco: `set_sel <num> Estado "En Codex/PR"`. La PR lleva «Closes #N» o «Refs #N».

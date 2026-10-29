@@ -25,13 +25,18 @@ command -v jq >/dev/null || { echo "Falta jq" >&2; exit 1; }
 if [ -n "$FROM_JSON" ]; then
   ITEMS="$(cat "$FROM_JSON")"
 else
+  # @me evita la consulta adicional a organizaciones de gh project. Un PAT
+  # personal con repo + project no necesita read:org para leer su propio Project.
+  project_owner="$OWNER"
+  identity="$(gh api user --jq .login)"
+  if [ "$identity" = "$OWNER" ]; then project_owner="@me"; fi
   NUMBER="${PROJECT_NUMBER:-}"
   if [ -z "$NUMBER" ]; then
-    NUMBER="$(gh project list --owner "$OWNER" --format json --limit 100 \
+    NUMBER="$(gh project list --owner "$project_owner" --format json --limit 100 \
       --jq ".projects[] | select(.title == \"$TITLE\") | .number" | head -n1)"
   fi
   [ -n "$NUMBER" ] || { echo "No encuentro el Project «${TITLE}»" >&2; exit 1; }
-  ITEMS="$(gh project item-list "$NUMBER" --owner "$OWNER" --format json --limit 500)"
+  ITEMS="$(gh project item-list "$NUMBER" --owner "$project_owner" --format json --limit 500)"
 fi
 
 jq -e '.items | type == "array"' >/dev/null <<<"$ITEMS"

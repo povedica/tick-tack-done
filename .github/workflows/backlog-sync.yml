@@ -121,6 +121,7 @@ jobs:
             echo "::error::PROJECT_TOKEN no autentica en GitHub. Sustituye el secret por un PAT classic válido con scopes repo y project."
             exit 1
           fi
+          # shellcheck disable=SC2016 # $owner y $number son variables de GraphQL.
           gh api graphql -f owner="$OWNER" -F number="$PROJECT_NUMBER" \
             -f query='query($owner: String!, $number: Int!) { user(login: $owner) { projectV2(number: $number) { title } } }' \
             --jq '.data.user.projectV2.title'

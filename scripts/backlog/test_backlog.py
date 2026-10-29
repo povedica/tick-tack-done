@@ -209,6 +209,24 @@ fi
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("403", result.stderr)
 
+    def test_generator_uses_viewer_alias_for_own_project(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.stub("gh", r'''#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CALLS"
+case "$1 $2" in
+  "api user") echo povedica ;;
+  "project item-list")
+    case "$*" in
+      *"--owner @me"*) echo '{"items":[],"totalCount":0}' ;;
+      *) echo 'unknown owner type' >&2; exit 1 ;;
+    esac ;;
+  *) exit 99 ;;
+esac
+''')
+        result = self.run_script("generar-backlog.sh", "--out", str(self.folder / "live.md"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--owner @me", self.log.read_text())
+
     def test_missing_project_warning_is_valid_under_macos_bash(self):
         self.stub("gh", "#!/bin/sh\nprintf ''\n")
         result = self.run_script("generar-backlog.sh", "--out", str(self.folder / "missing.md"))
@@ -223,6 +241,7 @@ fi
         self.stub("gh", r'''#!/usr/bin/env bash
 case "$1 $2" in
   "pr view") printf '%s\n' "$MOCK_PR" ;;
+  "api user") echo povedica ;;
   "project view") echo PVT_test ;;
   "project field-list") echo '{"fields":[]}' ;;
   "project item-list"|"issue edit"|"issue comment"|"api --paginate") ;;
