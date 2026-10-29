@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- El editor de filtros usa campos, listas y fechas del propio diseño. Todas y
+  Alguna se distinguen, Cancelar es secundario y la pista de guardado solo se
+  marca al intentar guardar. Editar condiciones está en el menú. Una condición
+  puede citar una carpeta: vale para las tareas de las listas de esa carpeta.
+  Asignado sigue siendo un texto (nombre o email); no hay un listado global de
+  personas.
 - Un filtro guarda las etiquetas por id. Un nombre sigue valiendo al crear o
   editar, y se resuelve sin distinguir mayúsculas. Fusionar dos etiquetas
   reescribe los filtros que citaban la de origen. El paso de datos es

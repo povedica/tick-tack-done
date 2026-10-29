@@ -159,7 +159,13 @@ export function ViewMenu({
           {extraItems !== undefined ? (
             <>
               <div className="menu-sep" role="separator" />
-              {extraItems}
+              <div
+                onClick={() => {
+                  setOpen(false);
+                }}
+              >
+                {extraItems}
+              </div>
             </>
           ) : null}
         </div>

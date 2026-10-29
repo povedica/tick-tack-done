@@ -584,3 +584,43 @@ describe('TTD-AUD-01 effective task date', () => {
     expect(matchesFilter(rules, subject({ startDate: tomorrow, dueDate: null }), clock)).toBe(true);
   });
 });
+
+describe('folder conditions', () => {
+  const folder = '11111111-1111-4111-8111-111111111111';
+  const rules = {
+    combinator: 'AND' as const,
+    groups: [
+      {
+        combinator: 'AND' as const,
+        conditions: [{ field: 'folder' as const, op: 'in' as const, value: [folder] }],
+      },
+    ],
+  };
+
+  it('parses folder ids and rejects a name', () => {
+    expect(parseFilterRules(rules, 'normal').ok).toBe(true);
+    expect(
+      parseFilterRules(
+        {
+          combinator: 'AND',
+          groups: [
+            {
+              combinator: 'AND',
+              conditions: [{ field: 'folder', op: 'in', value: ['Proyectos'] }],
+            },
+          ],
+        },
+        'normal',
+      ),
+    ).toEqual({ ok: false, reason: 'invalid_condition' });
+  });
+
+  it('matches the list folder and misses when the subject has none', () => {
+    expect(compileRules(rules, clock)).toMatchObject({
+      items: [{ items: [{ op: 'folder_in', ids: [folder] }] }],
+    });
+    expect(matchesFilter(rules, subject({ folderId: folder }), clock)).toBe(true);
+    expect(matchesFilter(rules, subject({ folderId: null }), clock)).toBe(false);
+    expect(matchesFilter(rules, subject(), clock)).toBe(false);
+  });
+});

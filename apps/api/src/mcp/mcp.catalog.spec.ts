@@ -64,6 +64,17 @@ describe('MCP tool catalog', () => {
     }
   });
 
+  it('create_filter and update_filter list folder as a condition field', () => {
+    for (const name of ['create_filter', 'update_filter']) {
+      const tool = MCP_TOOLS.find((item) => item.name === name);
+      const conditions = tool?.inputSchema.properties.conditions as {
+        items?: { properties?: { field?: { enum?: string[] } } };
+      };
+      expect(conditions.items?.properties?.field?.enum).toContain('folder');
+      expect(tool?.description).toContain('folder: op in, value folder ids');
+    }
+  });
+
   it('RF-2001: paged listings accept the API v1 cursor', () => {
     for (const name of [
       'list_tasks',

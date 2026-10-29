@@ -418,6 +418,7 @@ export const en = {
   filterDelete: 'Delete',
   filterCount: '{count}',
   fieldList: 'List',
+  fieldFolder: 'Folder',
   fieldTag: 'Tag',
   fieldDate: 'Date',
   fieldPriority: 'Priority',

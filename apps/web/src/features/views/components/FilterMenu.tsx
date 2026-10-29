@@ -1,13 +1,22 @@
-import { Copy, Funnel, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
-import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
+import { Funnel } from 'lucide-react';
+import {
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { Popover } from '../../../components/Popover';
 import { fill, useMessages } from '../../../i18n';
+import { FilterMenuButtons, type FilterMenuActionId } from '../filter-menu-items';
 
 export function FilterMenu({
   name,
   color,
   pinned,
   summary,
+  chips,
   countLabel,
   anchor,
   onClose,
@@ -20,10 +29,11 @@ export function FilterMenu({
   readonly color: string | null;
   readonly pinned: boolean;
   readonly summary: string;
+  readonly chips?: ReactNode;
   readonly countLabel: string;
   readonly anchor: RefObject<HTMLElement | null>;
   readonly onClose: () => void;
-  readonly onEdit: () => void;
+  readonly onEdit: (focus: 'conditions' | 'name') => void;
   readonly onPin: () => void;
   readonly onDuplicate: () => void;
   readonly onDelete: () => void;
@@ -70,25 +80,23 @@ export function FilterMenu({
     next?.focus();
   }
 
+  function select(id: FilterMenuActionId): void {
+    if (id === 'conditions') {
+      onEdit('conditions');
+    } else if (id === 'name') {
+      onEdit('name');
+    } else if (id === 'pin') {
+      onPin();
+    } else if (id === 'duplicate') {
+      onDuplicate();
+    } else {
+      onDelete();
+    }
+  }
+
   const items = (
     <div ref={menuRef} className="filter-menu" role="menu" onKeyDown={onKeyDown}>
-      <button type="button" className="menu-item" role="menuitem" onClick={onEdit}>
-        <Pencil size={16} aria-hidden="true" />
-        {messages.filterEdit}
-      </button>
-      <button type="button" className="menu-item" role="menuitem" onClick={onPin}>
-        {pinned ? <PinOff size={16} aria-hidden="true" /> : <Pin size={16} aria-hidden="true" />}
-        {pinned ? messages.filterUnpin : messages.filterPinTop}
-      </button>
-      <button type="button" className="menu-item" role="menuitem" onClick={onDuplicate}>
-        <Copy size={16} aria-hidden="true" />
-        {messages.duplicateFilter}
-      </button>
-      <div className="menu-sep" role="separator" />
-      <button type="button" className="menu-item is-danger" role="menuitem" onClick={onDelete}>
-        <Trash2 size={16} aria-hidden="true" />
-        {messages.filterDelete}
-      </button>
+      <FilterMenuButtons messages={messages} pinned={pinned} onSelect={select} />
     </div>
   );
 
@@ -107,9 +115,10 @@ export function FilterMenu({
           <Funnel className="nav-filter-icon" size={18} aria-hidden="true" />
           <div>
             <strong>{name}</strong>
+            {chips ?? null}
             <p>
               {countLabel}
-              {summary.length > 0 ? ` · ${summary}` : ''}
+              {chips === undefined && summary.length > 0 ? ` · ${summary}` : ''}
             </p>
           </div>
         </div>

@@ -51,6 +51,7 @@ async function removeOwner(id: string): Promise<void> {
   await prisma.column.deleteMany({ where: { ownerId: id } });
   await prisma.tag.deleteMany({ where: { ownerId: id } });
   await prisma.project.deleteMany({ where: { ownerId: id } });
+  await prisma.folder.deleteMany({ where: { ownerId: id } });
   await prisma.filter.deleteMany({ where: { ownerId: id } });
   await prisma.smartList.deleteMany({ where: { ownerId: id } });
   await prisma.idempotencyRecord.deleteMany({ where: { ownerId: id } });
@@ -583,6 +584,82 @@ describe('filters, smart lists and search', () => {
     } finally {
       await removeOwner(user.id);
       await removeOwner(otherUser.id);
+    }
+  });
+
+  it('CA-Q1: a folder filter follows the lists in that folder', async () => {
+    const user = await createOwner('filter-folder');
+    const stranger = await createOwner('filter-folder-other');
+    try {
+      const api = authed(user.email);
+      const folder = await prisma.folder.create({
+        data: { ownerId: user.id, name: 'Proyectos' },
+      });
+      const otherFolder = await prisma.folder.create({
+        data: { ownerId: user.id, name: 'Casa' },
+      });
+      const foreign = await prisma.folder.create({
+        data: { ownerId: stranger.id, name: 'Ajena' },
+      });
+      const inside = await prisma.project.create({
+        data: { ownerId: user.id, name: 'Personal', folderId: folder.id },
+      });
+      const outside = await prisma.project.create({
+        data: { ownerId: user.id, name: 'Bandeja', isInbox: true },
+      });
+      await api.post('/api/v1/tasks').send({ project_id: inside.id, title: 'Informe' }).expect(201);
+      await api.post('/api/v1/tasks').send({ project_id: outside.id, title: 'Regar' }).expect(201);
+      const created = await api
+        .post('/api/v1/filters')
+        .send({
+          name: 'Trabajo',
+          mode: 'normal',
+          rules: {
+            combinator: 'AND',
+            groups: [
+              {
+                combinator: 'AND',
+                conditions: [{ field: 'folder', op: 'in', value: [folder.id] }],
+              },
+            ],
+          },
+        })
+        .expect(201);
+      expect(created.body.task_count).toBe(1);
+      expect(created.body.folder_labels[folder.id]).toEqual({ name: 'Proyectos', deleted: false });
+
+      await prisma.project.update({ where: { id: inside.id }, data: { folderId: otherFolder.id } });
+      const moved = await api.get(`/api/v1/filters/${created.body.id}`).expect(200);
+      expect(moved.body.task_count).toBe(0);
+
+      await prisma.folder.update({ where: { id: folder.id }, data: { deletedAt: new Date() } });
+      const gone = await api.get(`/api/v1/filters/${created.body.id}`).expect(200);
+      expect(gone.body.rules.groups[0].conditions[0].value).toEqual([folder.id]);
+      expect(gone.body.folder_labels[folder.id].deleted).toBe(true);
+
+      const rejected = await api
+        .post('/api/v1/filters')
+        .send({
+          name: 'Ajena',
+          mode: 'normal',
+          rules: {
+            combinator: 'AND',
+            groups: [
+              {
+                combinator: 'AND',
+                conditions: [{ field: 'folder', op: 'in', value: [foreign.id] }],
+              },
+            ],
+          },
+        })
+        .expect(400);
+      expect(rejected.body.error).toMatchObject({
+        code: 'validation_failed',
+        details: { reason: 'unknown_folder' },
+      });
+    } finally {
+      await removeOwner(user.id);
+      await removeOwner(stranger.id);
     }
   });
 

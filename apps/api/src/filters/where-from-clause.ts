@@ -25,6 +25,10 @@ export function whereFromClause(clause: FilterClause, clock?: FilterClock): Pris
         : { OR: clause.items.map((item) => whereFromClause(item, clock)) };
     case 'list_in':
       return clause.ids.length === 0 ? matchNone() : { projectId: { in: [...clause.ids] } };
+    case 'folder_in':
+      return clause.ids.length === 0
+        ? matchNone()
+        : { project: { folderId: { in: [...clause.ids] } } };
     case 'tag_any':
       return tagWhere(clause.ids, clause.legacyNames);
     case 'due_range': {

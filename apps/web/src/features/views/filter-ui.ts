@@ -3,9 +3,11 @@ import type { FilterPreset } from './draft';
 
 export type { FilterPreset };
 
+export type FilterEditorFocus = 'conditions' | 'name';
+
 export type FilterEditorRequest =
   | { readonly kind: 'create'; readonly preset?: FilterPreset }
-  | { readonly kind: 'edit'; readonly id: string };
+  | { readonly kind: 'edit'; readonly id: string; readonly focus?: FilterEditorFocus };
 
 export interface FilterDeleteRequest {
   readonly id: string;
@@ -23,7 +25,7 @@ interface FilterUiStore {
   readonly toasts: readonly FilterToast[];
   readonly notice: string | null;
   readonly openCreate: (preset?: FilterPreset) => void;
-  readonly openEdit: (id: string) => void;
+  readonly openEdit: (id: string, focus?: FilterEditorFocus) => void;
   readonly closeEditor: () => void;
   readonly askDelete: (request: FilterDeleteRequest) => void;
   readonly cancelDelete: () => void;
@@ -40,8 +42,8 @@ export const useFilterUi = create<FilterUiStore>((set) => ({
   openCreate: (preset) => {
     set({ editor: preset === undefined ? { kind: 'create' } : { kind: 'create', preset } });
   },
-  openEdit: (id) => {
-    set({ editor: { kind: 'edit', id } });
+  openEdit: (id, focus) => {
+    set({ editor: focus === undefined ? { kind: 'edit', id } : { kind: 'edit', id, focus } });
   },
   closeEditor: () => {
     set({ editor: null });

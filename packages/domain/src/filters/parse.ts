@@ -1,4 +1,5 @@
 import { isPriority } from '../priority/priority';
+import { isFilterTagId } from './tags';
 import type {
   DateFilterOp,
   FilterCombinator,
@@ -91,6 +92,10 @@ function parseCondition(
   switch (value.field) {
     case 'list':
       return value.op === 'in' ? stringList('list', 'in', value.value) : fail('invalid_condition');
+    case 'folder':
+      return value.op === 'in'
+        ? stringList('folder', 'in', value.value)
+        : fail('invalid_condition');
     case 'tag':
       return value.op === 'any_of'
         ? stringList('tag', 'any_of', value.value)
@@ -111,13 +116,19 @@ function parseCondition(
 }
 
 function stringList(
-  field: 'list' | 'tag',
+  field: 'list' | 'tag' | 'folder',
   op: 'in' | 'any_of',
   value: unknown,
 ): { ok: true; condition: FilterCondition } | { ok: false; reason: string } {
   const items = stringArray(value);
   if (items === null || items.length === 0) {
     return fail('invalid_condition');
+  }
+  if (field === 'folder') {
+    if (items.some((item) => !isFilterTagId(item))) {
+      return fail('invalid_condition');
+    }
+    return { ok: true, condition: { field: 'folder', op: 'in', value: items } };
   }
   if (field === 'list') {
     return { ok: true, condition: { field: 'list', op: 'in', value: items } };

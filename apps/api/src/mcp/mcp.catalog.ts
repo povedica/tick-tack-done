@@ -974,7 +974,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'create_filter',
     description:
-      'Save a filter from a keyword, from match plus conditions, or from mode plus rules.',
+      'Save a filter from a keyword, from match plus conditions, or from mode plus rules. folder: op in, value folder ids.',
     scopes: ['filters:write'],
     inputSchema: objectSchema(
       {
@@ -986,7 +986,19 @@ const CATALOG: readonly McpTool[] = [
           items: {
             type: 'object',
             properties: {
-              field: { type: 'string' },
+              field: {
+                type: 'string',
+                enum: [
+                  'list',
+                  'folder',
+                  'tag',
+                  'date',
+                  'priority',
+                  'keyword',
+                  'status',
+                  'assignee',
+                ],
+              },
               op: { type: 'string' },
               value: {},
             },
@@ -1002,7 +1014,8 @@ const CATALOG: readonly McpTool[] = [
   },
   {
     name: 'update_filter',
-    description: 'Update a filter name, color, rules, or pinned state.',
+    description:
+      'Update a filter name, color, rules, or pinned state. folder: op in, value folder ids.',
     scopes: ['filters:write'],
     inputSchema: objectSchema(
       {
@@ -1015,7 +1028,19 @@ const CATALOG: readonly McpTool[] = [
           items: {
             type: 'object',
             properties: {
-              field: { type: 'string' },
+              field: {
+                type: 'string',
+                enum: [
+                  'list',
+                  'folder',
+                  'tag',
+                  'date',
+                  'priority',
+                  'keyword',
+                  'status',
+                  'assignee',
+                ],
+              },
               op: { type: 'string' },
               value: {},
             },

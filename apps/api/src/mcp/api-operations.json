@@ -2089,6 +2089,7 @@
                                 "type": "string",
                                 "enum": [
                                   "list",
+                                  "folder",
                                   "tag",
                                   "date",
                                   "priority",
@@ -2162,6 +2163,7 @@
                                 "type": "string",
                                 "enum": [
                                   "list",
+                                  "folder",
                                   "tag",
                                   "date",
                                   "priority",
@@ -2268,6 +2270,7 @@
                                 "type": "string",
                                 "enum": [
                                   "list",
+                                  "folder",
                                   "tag",
                                   "date",
                                   "priority",

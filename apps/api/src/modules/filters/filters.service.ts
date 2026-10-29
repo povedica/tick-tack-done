@@ -27,6 +27,7 @@ import type { ViewPageJson } from '../../reading/view-page.js';
 import { countViewTasks, pageViewTasks } from '../../reading/view-query.js';
 import type {
   CreateFilterDto,
+  FilterFolderLabelDto,
   FilterResponseDto,
   FilterTagLabelDto,
   PreviewFilterDto,
@@ -58,14 +59,15 @@ export class FiltersService {
       take: limit + 1,
     });
     const clock = this.clock(user);
-    const [counts, labels] = await Promise.all([
+    const [counts, labels, folders] = await Promise.all([
       Promise.all(
         rows.map((row) => countViewTasks(this.prisma, user.id, this.clause(row, clock), clock)),
       ),
       this.tagLabels(this.prisma, user.id, rows),
+      this.folderLabels(this.prisma, user.id, rows),
     ]);
     return pageFilters(
-      rows.map((row, index) => this.toJson(row, counts[index] ?? 0, labels)),
+      rows.map((row, index) => this.toJson(row, counts[index] ?? 0, labels, folders)),
       limit,
     );
   }
@@ -95,7 +97,7 @@ export class FiltersService {
     limit: number,
     cursorRaw: string | undefined,
   ): Promise<ViewPageJson> {
-    const rules = await this.resolveTags(this.prisma, user.id, this.parse(dto.mode, dto.rules));
+    const rules = await this.resolveRules(this.prisma, user.id, this.parse(dto.mode, dto.rules));
     const clock = this.clock(user);
     return this.page(user, savedFilterClause(rules, clock), clock, groupBy, sort, limit, cursorRaw);
   }
@@ -103,11 +105,15 @@ export class FiltersService {
   async get(user: AuthUser, id: string): Promise<FilterResponseDto> {
     const row = await this.require(this.prisma, user.id, id);
     const clock = this.clock(user);
-    const labels = await this.tagLabels(this.prisma, user.id, [row]);
+    const [labels, folders] = await Promise.all([
+      this.tagLabels(this.prisma, user.id, [row]),
+      this.folderLabels(this.prisma, user.id, [row]),
+    ]);
     return this.toJson(
       row,
       await countViewTasks(this.prisma, user.id, this.clause(row, clock), clock),
       labels,
+      folders,
     );
   }
 
@@ -145,7 +151,7 @@ export class FiltersService {
         this.parse(dto.mode, incoming);
       }
       const writingRules = dto.rules !== undefined || dto.mode !== undefined;
-      const rules = writingRules ? await this.resolveTags(tx, user.id, incoming) : incoming;
+      const rules = writingRules ? await this.resolveRules(tx, user.id, incoming) : incoming;
       if (writingRules) {
         this.assertConditions(rules);
       }
@@ -177,11 +183,15 @@ export class FiltersService {
         },
       });
       const clock = this.clock(user);
-      const labels = await this.tagLabels(tx, user.id, [current, row]);
+      const [labels, folders] = await Promise.all([
+        this.tagLabels(tx, user.id, [current, row]),
+        this.folderLabels(tx, user.id, [current, row]),
+      ]);
       const body = this.toJson(
         row,
         await countViewTasks(tx, user.id, this.clause(row, clock), clock),
         labels,
+        folders,
       );
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.filterUpdated,
@@ -189,7 +199,7 @@ export class FiltersService {
         entityId: id,
         action: 'updated',
         data: { filter: asJson(body) },
-        previous: asJson(this.toJson(current, 0, labels)),
+        previous: asJson(this.toJson(current, 0, labels, folders)),
       });
       return body;
     });
@@ -208,11 +218,15 @@ export class FiltersService {
         data: { deletedAt: null },
       });
       const clock = this.clock(user);
-      const labels = await this.tagLabels(tx, user.id, [row]);
+      const [labels, folders] = await Promise.all([
+        this.tagLabels(tx, user.id, [row]),
+        this.folderLabels(tx, user.id, [row]),
+      ]);
       const body = this.toJson(
         row,
         await countViewTasks(tx, user.id, this.clause(row, clock), clock),
         labels,
+        folders,
       );
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.filterRestored,
@@ -250,7 +264,7 @@ export class FiltersService {
     dto: CreateFilterDto,
     rules: FilterRules,
   ): Promise<FilterResponseDto> {
-    const resolved = await this.resolveTags(tx, user.id, rules);
+    const resolved = await this.resolveRules(tx, user.id, rules);
     const rows = await tx.filter.findMany({
       where: { ownerId: user.id, deletedAt: null },
       select: { id: true, sortOrder: true },
@@ -271,11 +285,15 @@ export class FiltersService {
       },
     });
     const clock = this.clock(user);
-    const labels = await this.tagLabels(tx, user.id, [row]);
+    const [labels, folders] = await Promise.all([
+      this.tagLabels(tx, user.id, [row]),
+      this.folderLabels(tx, user.id, [row]),
+    ]);
     const body = this.toJson(
       row,
       await countViewTasks(tx, user.id, savedFilterClause(resolved, clock), clock),
       labels,
+      folders,
     );
     await this.events.record(tx, actorOf(user), {
       type: DomainEvent.filterCreated,
@@ -383,6 +401,38 @@ export class FiltersService {
     return { now: new Date().toISOString(), timeZone: user.timeZone };
   }
 
+  private async resolveRules(
+    db: PrismaService | Tx,
+    ownerId: string,
+    rules: FilterRules,
+  ): Promise<FilterRules> {
+    return this.resolveFolders(db, ownerId, await this.resolveTags(db, ownerId, rules));
+  }
+
+  private async resolveFolders(
+    db: PrismaService | Tx,
+    ownerId: string,
+    rules: FilterRules,
+  ): Promise<FilterRules> {
+    const ids = folderIds(rules);
+    if (ids.length === 0) {
+      return rules;
+    }
+    const folders = await db.folder.findMany({
+      where: { ownerId, id: { in: ids } },
+      select: { id: true, deletedAt: true },
+    });
+    const live = new Set(
+      folders.filter((folder) => folder.deletedAt === null).map((folder) => folder.id),
+    );
+    if (ids.some((id) => !live.has(id))) {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Unknown folder', {
+        reason: 'unknown_folder',
+      });
+    }
+    return rules;
+  }
+
   private async resolveTags(
     db: PrismaService | Tx,
     ownerId: string,
@@ -466,10 +516,41 @@ export class FiltersService {
     );
   }
 
+  private async folderLabels(
+    db: PrismaService | Tx,
+    ownerId: string,
+    rows: readonly Filter[],
+  ): Promise<Map<string, FilterFolderLabelDto>> {
+    const ids = new Set<string>();
+    for (const row of rows) {
+      const parsed = parseFilterRules(row.rules, row.mode);
+      if (!parsed.ok) {
+        continue;
+      }
+      for (const id of folderIds(parsed.rules)) {
+        ids.add(id);
+      }
+    }
+    if (ids.size === 0) {
+      return new Map();
+    }
+    const folders = await db.folder.findMany({
+      where: { ownerId, id: { in: [...ids] } },
+      select: { id: true, name: true, deletedAt: true },
+    });
+    return new Map(
+      folders.map((folder) => [
+        folder.id,
+        { name: folder.name, deleted: folder.deletedAt !== null },
+      ]),
+    );
+  }
+
   private toJson(
     row: Filter,
     taskCount: number,
     labels: ReadonlyMap<string, FilterTagLabelDto>,
+    folders: ReadonlyMap<string, FilterFolderLabelDto>,
   ): FilterResponseDto {
     const rules = this.readRules(row);
     return {
@@ -480,6 +561,7 @@ export class FiltersService {
       mode: row.mode,
       rules: rules as FilterResponseDto['rules'],
       tag_labels: labelsFor(rules, labels),
+      folder_labels: folderLabelsFor(rules, folders),
       sort_order: row.sortOrder.toString(),
       pinned: row.pinned,
       task_count: taskCount,
@@ -487,6 +569,32 @@ export class FiltersService {
       updated_at: iso(row.updatedAt) ?? '',
     };
   }
+}
+
+function folderIds(rules: FilterRules): string[] {
+  const ids: string[] = [];
+  for (const group of rules.groups) {
+    for (const condition of group.conditions) {
+      if (condition.field === 'folder') {
+        ids.push(...condition.value);
+      }
+    }
+  }
+  return ids;
+}
+
+function folderLabelsFor(
+  rules: FilterRules,
+  labels: ReadonlyMap<string, FilterFolderLabelDto>,
+): Record<string, FilterFolderLabelDto> {
+  const out: Record<string, FilterFolderLabelDto> = {};
+  for (const id of folderIds(rules)) {
+    const label = labels.get(id);
+    if (label !== undefined) {
+      out[id] = label;
+    }
+  }
+  return out;
 }
 
 function labelsFor(

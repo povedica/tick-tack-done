@@ -1,6 +1,11 @@
 import type { FilterRules } from '@reflexionia/sdk';
 
-export type ChipIcon = 'tag' | 'calendar' | 'flag' | 'list' | 'check' | 'user' | 'type';
+export type ChipIcon = 'tag' | 'calendar' | 'flag' | 'list' | 'folder' | 'check' | 'user' | 'type';
+
+export interface FolderLabel {
+  readonly name: string;
+  readonly deleted: boolean;
+}
 
 export interface ChipSummary {
   readonly icon: ChipIcon;
@@ -27,6 +32,7 @@ export interface SummaryText {
   readonly statusActive: string;
   readonly statusCompleted: string;
   readonly deletedTag: string;
+  readonly deletedFolder: string;
 }
 
 type Condition = FilterRules['groups'][number]['conditions'][number];
@@ -39,14 +45,15 @@ function texts(value: Condition['value']): string[] {
 }
 
 /** Short chips for a saved filter. Callers cap the visible count. */
-export function summarizeRules(
-  rules: FilterRules,
-  options: {
-    readonly tagLabels: Readonly<Record<string, TagLabel>>;
-    readonly listNames: ReadonlyMap<string, string>;
-    readonly text: SummaryText;
-  },
-): ChipSummary[] {
+export interface SummaryOptions {
+  readonly tagLabels: Readonly<Record<string, TagLabel>>;
+  readonly folderLabels?: Readonly<Record<string, FolderLabel>>;
+  readonly listNames: ReadonlyMap<string, string>;
+  readonly folderNames?: ReadonlyMap<string, string>;
+  readonly text: SummaryText;
+}
+
+export function summarizeRules(rules: FilterRules, options: SummaryOptions): ChipSummary[] {
   const chips: ChipSummary[] = [];
   for (const group of rules.groups) {
     for (const condition of group.conditions) {
@@ -78,14 +85,25 @@ export function filterTagLabels(value: unknown): Record<string, TagLabel> {
   return labels;
 }
 
-function chipsFor(
-  condition: Condition,
-  options: {
-    readonly tagLabels: Readonly<Record<string, TagLabel>>;
-    readonly listNames: ReadonlyMap<string, string>;
-    readonly text: SummaryText;
-  },
-): ChipSummary[] {
+export function filterFolderLabels(value: unknown): Record<string, FolderLabel> {
+  if (typeof value !== 'object' || value === null) {
+    return {};
+  }
+  const labels: Record<string, FolderLabel> = {};
+  for (const [id, label] of Object.entries(value)) {
+    if (typeof label !== 'object' || label === null) {
+      continue;
+    }
+    const row = label as { name?: unknown; deleted?: unknown };
+    if (typeof row.name !== 'string') {
+      continue;
+    }
+    labels[id] = { name: row.name, deleted: row.deleted === true };
+  }
+  return labels;
+}
+
+function chipsFor(condition: Condition, options: SummaryOptions): ChipSummary[] {
   const values = texts(condition.value);
   switch (condition.field) {
     case 'keyword':
@@ -95,6 +113,18 @@ function chipsFor(
         icon: 'list' as const,
         text: options.listNames.get(id) ?? id,
       }));
+    case 'folder':
+      return values.map((id) => {
+        const label = options.folderLabels?.[id];
+        if (label !== undefined && !label.deleted) {
+          return { icon: 'folder' as const, text: label.name };
+        }
+        const cached = options.folderNames?.get(id);
+        if (cached !== undefined && label?.deleted !== true) {
+          return { icon: 'folder' as const, text: cached };
+        }
+        return { icon: 'folder' as const, text: options.text.deletedFolder };
+      });
     case 'tag':
       return values.map((id) => {
         const label = options.tagLabels[id];

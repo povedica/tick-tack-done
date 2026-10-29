@@ -74,7 +74,7 @@ describe('FilterMenu', () => {
 
   it('moves with the arrow keys and returns focus on Escape', () => {
     const { onClose, anchor } = renderMenu(false);
-    const edit = screen.getByRole('menuitem', { name: 'Editar filtro' });
+    const edit = screen.getByRole('menuitem', { name: 'Editar nombre y color' });
     edit.focus();
     fireEvent.keyDown(edit, { key: 'ArrowDown' });
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Fijar arriba' }));

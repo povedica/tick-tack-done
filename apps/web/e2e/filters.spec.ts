@@ -29,13 +29,13 @@ for (const theme of ['light', 'dark'] as const) {
         const dialog = page.getByRole('dialog', { name: 'Nuevo filtro' });
         await dialog.getByLabel('Nombre').fill('Casa · hoy');
         await dialog.getByRole('radio', { name: 'Verde' }).click();
-        await dialog.getByLabel('Campo').selectOption('tag');
+        await dialog.getByRole('button', { name: 'Campo: Palabra' }).click();
+        await page.getByRole('option', { name: 'Etiqueta' }).click();
         await dialog.getByRole('button', { name: 'Añadir etiqueta…' }).click();
         await page.getByRole('checkbox', { name: 'casa' }).check();
         await page.keyboard.press('Escape');
         await dialog.getByRole('button', { name: 'Añadir condición' }).click();
-        const fields = dialog.getByLabel('Campo');
-        await fields.nth(1).selectOption('date');
+        await page.getByRole('option', { name: 'Fecha' }).click();
         if (narrow) {
           const bar = dialog.locator('.filter-editor-bar');
           await expect(bar).toContainText('1 tarea coincide');
@@ -44,6 +44,10 @@ for (const theme of ['light', 'dark'] as const) {
           const seeBox = await bar.getByRole('button', { name: 'Ver' }).boundingBox();
           expect(barBox?.width ?? 0).toBeGreaterThan(200);
           expect((seeBox?.y ?? 0) - (barBox?.y ?? 0)).toBeLessThan(20);
+          const body = dialog.locator('.filter-editor-body');
+          const fit = await body.evaluate((node) => node.scrollWidth <= node.clientWidth + 1);
+          expect(fit).toBe(true);
+          await expect(dialog.locator('.filter-editor-actions')).toBeHidden();
         } else {
           await expect(dialog.locator('.filter-preview strong')).toHaveText('1 tarea coincide');
         }
@@ -66,13 +70,24 @@ for (const theme of ['light', 'dark'] as const) {
           path: `e2e/__screenshots__/filters-view-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
         });
+        const chip = page.locator('.filter-view-rules .filter-summary-chip').first();
+        await expect(chip).toBeVisible();
+        const border = await chip.evaluate((node) => getComputedStyle(node).borderTopWidth);
+        expect(Number.parseFloat(border)).toBeGreaterThanOrEqual(1);
+        await page.screenshot({
+          path: `e2e/__screenshots__/filters-view-chips-${theme}-${String(viewport.width)}.png`,
+        });
+        await expect(
+          page.locator('.filter-view-rules').getByRole('button', { name: 'Editar condiciones' }),
+        ).toHaveCount(0);
         await page
-          .locator('.filter-view-rules')
-          .getByRole('button', { name: 'Editar condiciones' })
+          .locator('#content')
+          .getByRole('button', { name: 'Acciones', exact: true })
           .click();
+        await page.getByRole('menuitem', { name: 'Editar condiciones' }).click();
         const editor = page.getByRole('dialog', { name: 'Editar filtro' });
         await editor.getByRole('button', { name: 'Añadir condición' }).click();
-        await editor.getByLabel('Campo').nth(2).selectOption('priority');
+        await page.getByRole('option', { name: 'Prioridad' }).click();
         await editor.getByRole('button', { name: 'Quitar condición Prioridad' }).click();
         await expect(
           editor.getByRole('button', { name: 'Quitar condición Prioridad' }),
@@ -80,9 +95,14 @@ for (const theme of ['light', 'dark'] as const) {
         await editor.getByRole('button', { name: 'Guardar filtro' }).first().click();
         await expect(editor).toBeHidden();
         if (phone) {
-          await expectTap(page.getByRole('button', { name: 'Acciones', exact: true }));
+          await expectTap(
+            page.locator('#content').getByRole('button', { name: 'Acciones', exact: true }),
+          );
         }
-        await page.getByRole('button', { name: 'Acciones', exact: true }).click();
+        await page
+          .locator('#content')
+          .getByRole('button', { name: 'Acciones', exact: true })
+          .click();
         if (phone) {
           await expectTap(page.getByRole('menuitem', { name: 'Fijar arriba' }));
         }
@@ -142,6 +162,75 @@ for (const theme of ['light', 'dark'] as const) {
         await page.goto('/filter/no-existe');
         await expect(page.getByRole('link', { name: 'Ver filtros' })).toBeVisible();
         await expectContrast(page.locator('h1'));
+      });
+
+      test('polishes the field picker, match and groups', async ({ page }) => {
+        test.setTimeout(90_000);
+        const narrow = viewport.width < 1024;
+        await boot(page);
+        await page.goto('/filters');
+        await page.locator('#content').getByRole('button', { name: 'Nuevo filtro' }).click();
+        const dialog = page.getByRole('dialog', { name: 'Nuevo filtro' });
+        await expect(dialog.locator('select')).toHaveCount(0);
+        await dialog.getByLabel('Valor de Palabra').fill('solo-alguna');
+        const count = narrow
+          ? dialog.locator('.filter-editor-bar')
+          : dialog.locator('.filter-preview strong');
+        await expect(count).toContainText('0 tareas');
+        await dialog.getByRole('radio', { name: 'Alguna' }).click();
+        await expect(count).toContainText('2 tareas');
+        const colors = await dialog.getByRole('radio', { name: 'Alguna' }).evaluate((node) => {
+          const off = node.parentElement?.querySelector<HTMLElement>('[aria-checked="false"]');
+          return {
+            on: getComputedStyle(node).backgroundColor,
+            off: off === undefined || off === null ? '' : getComputedStyle(off).backgroundColor,
+          };
+        });
+        expect(colors.on).not.toBe(colors.off);
+        await expectContrast(dialog.getByRole('radio', { name: 'Alguna' }));
+        await dialog.getByRole('button', { name: 'Campo: Palabra' }).click();
+        await page.screenshot({
+          path: `e2e/__screenshots__/filters-editor-fieldpicker-${theme}-${String(viewport.width)}.png`,
+        });
+        await page.getByRole('option', { name: 'Lista' }).click();
+        await dialog.getByRole('button', { name: 'Añadir lista…' }).click();
+        await expect(page.getByRole('heading', { name: 'Proyectos' })).toBeVisible();
+        await page.getByRole('textbox', { name: 'Buscar', exact: true }).fill('per');
+        await expect(page.getByRole('checkbox', { name: 'Personal' })).toBeVisible();
+        await page.screenshot({
+          path: `e2e/__screenshots__/filters-editor-listpicker-${theme}-${String(viewport.width)}.png`,
+        });
+        await page.keyboard.press('Escape');
+        await dialog.getByRole('button', { name: 'Campo: Lista' }).click();
+        await page.getByRole('option', { name: 'Fecha' }).click();
+        await dialog.getByRole('radio', { name: 'Entre fechas' }).click();
+        await dialog.getByRole('button', { name: 'Desde' }).click();
+        await expect(page.getByRole('dialog', { name: 'Fecha' })).toBeVisible();
+        await page.keyboard.press('Escape');
+        await dialog.getByRole('button', { name: 'Campo: Fecha' }).click();
+        await page.getByRole('option', { name: 'Prioridad' }).click();
+        await expect(dialog.getByRole('radio', { name: 'Alta' })).toHaveAttribute(
+          'aria-checked',
+          'true',
+        );
+        await dialog.getByRole('button', { name: 'Modo avanzado: grupos Y/O' }).click();
+        await dialog.getByRole('button', { name: 'Añadir grupo' }).click();
+        const join = dialog.getByRole('radiogroup', { name: 'Combinar grupos' });
+        await expect(join.getByRole('radio', { name: 'Y' })).toHaveAttribute(
+          'aria-checked',
+          'true',
+        );
+        await page.screenshot({
+          path: `e2e/__screenshots__/filters-editor-advanced-${theme}-${String(viewport.width)}.png`,
+        });
+        if (narrow) {
+          const fit = await dialog
+            .locator('.filter-editor-body')
+            .evaluate((node) => node.scrollWidth <= node.clientWidth + 1);
+          expect(fit).toBe(true);
+          await expect(dialog.locator('.filter-editor-actions')).toBeHidden();
+          await expectTap(dialog.getByRole('button', { name: 'Campo: Prioridad' }));
+        }
       });
     });
   }
@@ -222,6 +311,12 @@ async function boot(page: Page): Promise<void> {
         next_cursor: null,
       };
     }
+    if (path === '/folders' && method === 'GET') {
+      body = {
+        items: [{ id: 'folder-proyectos', name: 'Proyectos', sort_order: '1' }],
+        next_cursor: null,
+      };
+    }
     if (path === '/projects' && method === 'GET') {
       body = {
         items: [
@@ -232,6 +327,19 @@ async function boot(page: Page): Promise<void> {
             closed: false,
             color: null,
             kind: 'TASK',
+            folder_id: null,
+            task_count: 0,
+            completed_count: 0,
+            open_count: 0,
+          },
+          {
+            id: 'list-personal',
+            name: 'Personal',
+            is_inbox: false,
+            closed: false,
+            color: null,
+            kind: 'TASK',
+            folder_id: 'folder-proyectos',
             task_count: 0,
             completed_count: 0,
             open_count: 0,
@@ -260,8 +368,14 @@ async function boot(page: Page): Promise<void> {
       body = created;
     }
     if (path === '/filters/preview' && method === 'POST') {
+      const data = route.request().postDataJSON() as {
+        rules?: { groups?: Array<{ combinator?: string; conditions?: unknown[] }> };
+      };
+      const group = data.rules?.groups?.[0];
+      const marked = JSON.stringify(group?.conditions ?? '').includes('solo-alguna');
+      const count = marked ? (group?.combinator === 'OR' ? 2 : 0) : 1;
       body = {
-        count: 1,
+        count,
         group_by: 'section',
         sort: 'manual',
         groups: [

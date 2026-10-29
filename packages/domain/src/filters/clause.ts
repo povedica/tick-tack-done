@@ -12,6 +12,8 @@ export interface FilterClock {
 
 export interface FilterSubject {
   readonly listId: string | null;
+  /** Absent means the caller did not load the list's folder. A folder condition then does not match. */
+  readonly folderId?: string | null;
   readonly tagIds: readonly string[];
   readonly tagNames: readonly string[];
   readonly dueDate: string | null;
@@ -31,6 +33,7 @@ export interface FilterSubject {
 export type FilterClause =
   | { readonly op: 'and' | 'or'; readonly items: readonly FilterClause[] }
   | { readonly op: 'list_in'; readonly ids: readonly string[] }
+  | { readonly op: 'folder_in'; readonly ids: readonly string[] }
   | {
       readonly op: 'tag_any';
       readonly ids: readonly string[];
@@ -104,6 +107,8 @@ export function matchesClause(
       return clause.items.some((item) => matchesClause(item, subject, clock));
     case 'list_in':
       return subject.listId !== null && clause.ids.includes(subject.listId);
+    case 'folder_in':
+      return subject.folderId != null && clause.ids.includes(subject.folderId);
     case 'tag_any':
       return (
         idsOverlap(subject.tagIds, clause.ids) || overlaps(subject.tagNames, clause.legacyNames)
@@ -199,6 +204,10 @@ function compileCondition(condition: FilterCondition, clock: FilterClock): Filte
       return condition.value.length === 0
         ? { op: 'never' }
         : { op: 'list_in', ids: condition.value };
+    case 'folder':
+      return condition.value.length === 0
+        ? { op: 'never' }
+        : { op: 'folder_in', ids: condition.value };
     case 'tag': {
       if (condition.value.length === 0) {
         return { op: 'never' };

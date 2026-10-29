@@ -7,7 +7,7 @@ import type { Tx } from '../prisma/tx.js';
 const include = {
   tags: { include: { tag: { select: { id: true, name: true, deletedAt: true } } } },
   column: { select: { id: true, name: true, sortOrder: true, deletedAt: true } },
-  project: { select: { name: true } },
+  project: { select: { name: true, folderId: true } },
   checklist: {
     where: { deletedAt: null },
     orderBy: { sortOrder: 'asc' as const },
@@ -167,6 +167,7 @@ function toViewTask(row: TaskRow): ViewTask {
     sortOrder: row.sortOrder.toString(),
     subject: {
       listId: row.projectId,
+      folderId: row.project.folderId,
       tagIds: tags.map((tag) => tag.id),
       tagNames: tags.map((tag) => tag.name),
       dueDate,

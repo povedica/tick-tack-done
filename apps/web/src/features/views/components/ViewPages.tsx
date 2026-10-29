@@ -41,8 +41,10 @@ import type { CaptureDraft } from '../../capture/notice';
 import { viewsApi } from '../api';
 import { captureSeed } from '../capture-seed';
 import { duplicateFilter, pinFilter } from '../filter-commands';
+import { FilterMenuButtons } from '../filter-menu-items';
 import { useFilterUi } from '../filter-ui';
-import { filterTagLabels, summarizeRules } from '../summarize';
+import { filterFolderLabels, filterTagLabels, summarizeRules } from '../summarize';
+import { SummaryChips } from './SummaryChip';
 import '../filters.css';
 import { WorkHoursLine } from '../../settings/WorkHoursLine';
 
@@ -102,6 +104,9 @@ export function FilterViewPage() {
   const labels = filterTagLabels(
     filter !== undefined && 'tag_labels' in filter ? filter.tag_labels : undefined,
   );
+  const folders = filterFolderLabels(
+    filter !== undefined && 'folder_labels' in filter ? filter.folder_labels : undefined,
+  );
   const listNames = new Map(
     (projects.data?.items ?? []).map((project) => [project.id, project.name]),
   );
@@ -110,6 +115,7 @@ export function FilterViewPage() {
       ? []
       : summarizeRules(filter.rules, {
           tagLabels: labels,
+          folderLabels: folders,
           listNames,
           text: {
             today: messages.dateToday,
@@ -125,10 +131,9 @@ export function FilterViewPage() {
             statusActive: messages.statusActive,
             statusCompleted: messages.statusCompleted,
             deletedTag: messages.filterDeletedTag,
+            deletedFolder: messages.filterDeletedFolder,
           },
         });
-  const shown = chips.slice(0, 4);
-  const extra = chips.length - shown.length;
   const summary = chips.map((chip) => chip.text).join(' · ');
   const seed = filter === undefined ? null : captureSeed(filter.rules);
   const capture: CaptureDraft | undefined =
@@ -149,77 +154,39 @@ export function FilterViewPage() {
       }
       belowTitle={
         <div className="filter-view-rules">
-          {shown.map((chip, index) => (
-            <span key={`${chip.icon}-${String(index)}`} className="filter-chip">
-              {chip.text}
-            </span>
-          ))}
-          {extra > 0 ? (
-            <span className="filter-chip">
-              {messages.filterMoreChips.replace('{count}', String(extra))}
-            </span>
-          ) : null}
-          <Button
-            variant="ghost"
-            onClick={() => {
-              useFilterUi.getState().openEdit(filterId);
-            }}
-          >
-            {messages.filterEditConditions}
-          </Button>
+          <SummaryChips
+            chips={chips}
+            max={4}
+            more={(count) => messages.filterMoreChips.replace('{count}', String(count))}
+          />
         </div>
       }
       {...(filter === undefined
         ? {}
         : {
             menuExtra: (
-              <>
-                <button
-                  type="button"
-                  className="menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    useFilterUi.getState().openEdit(filter.id);
-                  }}
-                >
-                  {messages.filterEdit}
-                </button>
-                <button
-                  type="button"
-                  className="menu-item"
-                  role="menuitem"
-                  onClick={() => {
+              <FilterMenuButtons
+                messages={messages}
+                pinned={filter.pinned}
+                onSelect={(id) => {
+                  if (id === 'conditions') {
+                    useFilterUi.getState().openEdit(filter.id, 'conditions');
+                  } else if (id === 'name') {
+                    useFilterUi.getState().openEdit(filter.id, 'name');
+                  } else if (id === 'pin') {
                     pinFilter(
                       queryClient,
                       filter,
                       messages.filterPinnedLive,
                       messages.filterUnpinnedLive,
                     );
-                  }}
-                >
-                  {filter.pinned ? messages.filterUnpin : messages.filterPinTop}
-                </button>
-                <button
-                  type="button"
-                  className="menu-item"
-                  role="menuitem"
-                  onClick={() => {
+                  } else if (id === 'duplicate') {
                     duplicateFilter(queryClient, filter, messages.filterDuplicated);
-                  }}
-                >
-                  {messages.duplicateFilter}
-                </button>
-                <button
-                  type="button"
-                  className="menu-item is-danger"
-                  role="menuitem"
-                  onClick={() => {
+                  } else {
                     useFilterUi.getState().askDelete({ id: filter.id, name: filter.name });
-                  }}
-                >
-                  {messages.filterDelete}
-                </button>
-              </>
+                  }
+                }}
+              />
             ),
           })}
       {...(capture === undefined ? {} : { captureDraft: capture })}

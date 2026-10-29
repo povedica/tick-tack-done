@@ -47,6 +47,7 @@ export type DateFilterOp = 'today' | 'tomorrow' | 'next_7_days' | 'overdue' | 'n
 
 export type FilterCondition =
   | { readonly field: 'list'; readonly op: 'in'; readonly value: readonly string[] }
+  | { readonly field: 'folder'; readonly op: 'in'; readonly value: readonly string[] }
   | { readonly field: 'tag'; readonly op: 'any_of'; readonly value: readonly string[] }
   | { readonly field: 'date'; readonly op: Exclude<DateFilterOp, 'between'> }
   | {

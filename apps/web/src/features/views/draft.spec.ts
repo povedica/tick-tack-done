@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   blankDraft,
   draftFromSaved,
+  emptyCondition,
   groupsToDrop,
   incompleteIds,
   rulesFromDraft,
@@ -129,5 +130,26 @@ describe('filter draft', () => {
     expect(simple.match).toBe('any');
     expect(simple.groups).toHaveLength(1);
     expect(groupsToDrop(simple)).toBe(0);
+  });
+
+  it('round-trips a folder condition', () => {
+    const folder = '11111111-1111-4111-8111-111111111111';
+    const row = { ...emptyCondition('folder'), values: [folder] };
+    const next = draft({ groups: [{ id: 'g', combinator: 'AND', conditions: [row] }] });
+    expect(rulesFromDraft(next).rules.groups[0]?.conditions).toEqual([
+      { field: 'folder', op: 'in', value: [folder] },
+    ]);
+    const saved = draftFromSaved({
+      name: 'Trabajo',
+      color: null,
+      mode: 'normal',
+      rules: {
+        combinator: 'AND',
+        groups: [
+          { combinator: 'AND', conditions: [{ field: 'folder', op: 'in', value: [folder] }] },
+        ],
+      },
+    });
+    expect(saved.groups[0]?.conditions[0]).toMatchObject({ field: 'folder', values: [folder] });
   });
 });

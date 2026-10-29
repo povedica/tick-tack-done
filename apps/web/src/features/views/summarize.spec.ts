@@ -15,6 +15,7 @@ const text: SummaryText = {
   statusActive: 'Pendiente',
   statusCompleted: 'Completada',
   deletedTag: 'Etiqueta eliminada',
+  deletedFolder: 'Carpeta eliminada',
 };
 
 describe('summarizeRules', () => {

@@ -1,7 +1,7 @@
 import type { FilterRules } from '@reflexionia/sdk';
 
 export type ConditionField =
-  'list' | 'tag' | 'date' | 'priority' | 'keyword' | 'status' | 'assignee';
+  'list' | 'folder' | 'tag' | 'date' | 'priority' | 'keyword' | 'status' | 'assignee';
 
 export interface ConditionDraft {
   readonly id: string;
@@ -122,6 +122,7 @@ export function isComplete(condition: ConditionDraft): boolean {
     case 'assignee':
       return condition.value.trim().length > 0;
     case 'list':
+    case 'folder':
     case 'tag':
       return condition.values.length > 0;
     case 'date':
@@ -196,6 +197,7 @@ function defaultOp(field: ConditionField): string {
     case 'keyword':
       return 'contains';
     case 'list':
+    case 'folder':
       return 'in';
     case 'tag':
       return 'any_of';
@@ -219,6 +221,8 @@ function conditionToDraft(condition: Condition): ConditionDraft {
   switch (condition.field) {
     case 'list':
       return { ...base, field: 'list', op: 'in', values };
+    case 'folder':
+      return { ...base, field: 'folder', op: 'in', values };
     case 'tag':
       return { ...base, field: 'tag', op: 'any_of', values };
     case 'date':
@@ -251,6 +255,8 @@ function conditionFromDraft(draft: ConditionDraft): Condition | null {
   switch (draft.field) {
     case 'list':
       return { field: 'list', op: 'in', value: [...draft.values] };
+    case 'folder':
+      return { field: 'folder', op: 'in', value: [...draft.values] };
     case 'tag':
       return { field: 'tag', op: 'any_of', value: [...draft.values] };
     case 'date':
@@ -283,6 +289,7 @@ function texts(value: Condition['value']): string[] {
 function isField(value: string): value is ConditionField {
   return (
     value === 'list' ||
+    value === 'folder' ||
     value === 'tag' ||
     value === 'date' ||
     value === 'priority' ||

@@ -1,20 +1,6 @@
 import type { Filter } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Calendar,
-  CircleCheck,
-  Flag,
-  Funnel,
-  GripVertical,
-  List,
-  MoreHorizontal,
-  Pin,
-  Plus,
-  Tag,
-  Type,
-  UserRound,
-  type LucideIcon,
-} from 'lucide-react';
+import { Funnel, GripVertical, MoreHorizontal, Pin, Plus } from 'lucide-react';
 import {
   useEffect,
   useRef,
@@ -35,19 +21,15 @@ import { duplicateFilter, pinFilter } from '../filter-commands';
 import { isFilterMenuShortcut } from '../filter-menu-key';
 import { filterMove } from '../filter-order';
 import { useFilterUi } from '../filter-ui';
-import { filterTagLabels, summarizeRules, type ChipIcon, type SummaryText } from '../summarize';
+import {
+  filterFolderLabels,
+  filterTagLabels,
+  summarizeRules,
+  type SummaryText,
+} from '../summarize';
 import { FilterMenu } from './FilterMenu';
+import { SummaryChips } from './SummaryChip';
 import '../filters.css';
-
-const ICONS: Record<ChipIcon, LucideIcon> = {
-  tag: Tag,
-  calendar: Calendar,
-  flag: Flag,
-  list: List,
-  check: CircleCheck,
-  user: UserRound,
-  type: Type,
-};
 
 export function FiltersPage() {
   const messages = useMessages();
@@ -226,9 +208,9 @@ export function FiltersPage() {
           onClose={() => {
             setMenu(null);
           }}
-          onEdit={() => {
+          onEdit={(focus) => {
             setMenu(null);
-            openEdit(open.id);
+            openEdit(open.id, focus);
           }}
           onPin={() => {
             setMenu(null);
@@ -318,11 +300,10 @@ function FilterRow({
   });
   const chips = summarizeRules(filter.rules, {
     tagLabels: filterTagLabels(tagLabelsOf(filter)),
+    folderLabels: filterFolderLabels(folderLabelsOf(filter)),
     listNames,
     text,
   });
-  const shown = chips.slice(0, 3);
-  const extra = chips.length - shown.length;
   const tint =
     filter.color === null ? undefined : ({ '--list-tint': filter.color } as CSSProperties);
 
@@ -391,24 +372,11 @@ function FilterRow({
               <Pin className="filter-pin" size={12} aria-label={messages.filterPinnedMark} />
             ) : null}
           </span>
-          {shown.length > 0 ? (
-            <span className="filter-chips">
-              {shown.map((chip, index) => {
-                const Icon = ICONS[chip.icon];
-                return (
-                  <span key={`${chip.icon}-${String(index)}`} className="filter-chip">
-                    <Icon size={12} aria-hidden="true" />
-                    <span>{chip.text}</span>
-                  </span>
-                );
-              })}
-              {extra > 0 ? (
-                <span className="filter-chip">
-                  {messages.filterMoreChips.replace('{count}', String(extra))}
-                </span>
-              ) : null}
-            </span>
-          ) : null}
+          <SummaryChips
+            chips={chips}
+            max={3}
+            more={(count) => messages.filterMoreChips.replace('{count}', String(count))}
+          />
         </span>
         <span className="filter-count">
           <span className="filter-count-long">{countLabel(messages, filter.task_count, true)}</span>
@@ -440,6 +408,7 @@ function chipLine(
 ): string {
   return summarizeRules(filter.rules, {
     tagLabels: filterTagLabels(tagLabelsOf(filter)),
+    folderLabels: filterFolderLabels(folderLabelsOf(filter)),
     listNames,
     text,
   })
@@ -474,7 +443,12 @@ function summaryText(messages: Messages): SummaryText {
     statusActive: messages.statusActive,
     statusCompleted: messages.statusCompleted,
     deletedTag: messages.filterDeletedTag,
+    deletedFolder: messages.filterDeletedFolder,
   };
+}
+
+function folderLabelsOf(filter: Filter): unknown {
+  return 'folder_labels' in filter ? filter.folder_labels : undefined;
 }
 
 function tagLabelsOf(filter: Filter): unknown {

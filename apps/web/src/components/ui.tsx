@@ -130,6 +130,7 @@ export function Modal({
   danger = false,
   role = 'dialog',
   className,
+  hideTitle = false,
 }: {
   readonly title: string;
   readonly children: ReactNode;
@@ -137,6 +138,8 @@ export function Modal({
   readonly danger?: boolean;
   readonly role?: 'dialog' | 'alertdialog';
   readonly className?: string;
+  /** Keeps the title as the dialog name and skips the extra heading. */
+  readonly hideTitle?: boolean;
 }) {
   return (
     <div
@@ -157,7 +160,7 @@ export function Modal({
           event.stopPropagation();
         }}
       >
-        <h2>{title}</h2>
+        {hideTitle ? null : <h2>{title}</h2>}
         {children}
       </div>
     </div>

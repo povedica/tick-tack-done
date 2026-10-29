@@ -21,7 +21,7 @@ const COMBINATORS = ['AND', 'OR'] as const;
 
 export class FilterConditionDto {
   @ApiProperty({
-    enum: ['list', 'tag', 'date', 'priority', 'keyword', 'status', 'assignee'],
+    enum: ['list', 'folder', 'tag', 'date', 'priority', 'keyword', 'status', 'assignee'],
   })
   @IsString()
   field!: string;
@@ -289,6 +289,14 @@ export class ViewPageDto {
   next_cursor!: string | null;
 }
 
+export class FilterFolderLabelDto {
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  deleted!: boolean;
+}
+
 export class FilterTagLabelDto {
   @ApiProperty()
   name!: string;
@@ -321,6 +329,9 @@ export class FilterResponseDto {
 
   @ApiProperty({ type: 'object', additionalProperties: { type: 'object' } })
   tag_labels!: Record<string, FilterTagLabelDto>;
+
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'object' } })
+  folder_labels!: Record<string, FilterFolderLabelDto>;
 
   @ApiProperty()
   sort_order!: string;

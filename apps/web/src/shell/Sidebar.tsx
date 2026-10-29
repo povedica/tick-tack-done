@@ -1090,9 +1090,9 @@ export function Sidebar({
                 onClose={() => {
                   setFilterMenuId(null);
                 }}
-                onEdit={() => {
+                onEdit={(focus) => {
                   setFilterMenuId(null);
-                  useFilterUi.getState().openEdit(filter.id);
+                  useFilterUi.getState().openEdit(filter.id, focus);
                 }}
                 onPin={() => {
                   setFilterMenuId(null);
@@ -1489,6 +1489,7 @@ function filterSummaryText(messages: Messages): SummaryText {
     statusActive: messages.statusActive,
     statusCompleted: messages.statusCompleted,
     deletedTag: messages.filterDeletedTag,
+    deletedFolder: messages.filterDeletedFolder,
   };
 }
 

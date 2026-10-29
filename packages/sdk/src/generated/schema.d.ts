@@ -4836,7 +4836,7 @@ export interface components {
         };
         FilterConditionDto: {
             /** @enum {string} */
-            field: "list" | "tag" | "date" | "priority" | "keyword" | "status" | "assignee";
+            field: "list" | "folder" | "tag" | "date" | "priority" | "keyword" | "status" | "assignee";
             op: string;
             value?: string | string[];
         };
@@ -4859,6 +4859,9 @@ export interface components {
             mode: "normal" | "advanced";
             rules: components["schemas"]["FilterRulesDto"];
             tag_labels: {
+                [key: string]: Record<string, never>;
+            };
+            folder_labels: {
                 [key: string]: Record<string, never>;
             };
             sort_order: string;
