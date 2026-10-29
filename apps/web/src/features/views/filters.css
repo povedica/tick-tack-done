@@ -392,6 +392,20 @@
   white-space: nowrap;
 }
 
+.filter-field-popover,
+.filter-picker {
+  z-index: 60;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.filter-field-popover.is-bottom-sheet,
+.filter-picker.is-bottom-sheet,
+body:has(.filter-editor) .date-popover {
+  z-index: 2000;
+}
+
 .filter-field-list {
   display: grid;
   padding: 4px;
