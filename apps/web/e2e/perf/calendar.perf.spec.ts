@@ -135,8 +135,8 @@ async function measureWeek(page: Page): Promise<Sample> {
   });
   const interactionMs = await gestureUntil(
     page,
-    () => swipe(page, '.mobile-week-board', 'left'),
-    /date=2026-01-1/,
+    () => swipe(page, '.mobile-week-day', 'left'),
+    /date=2026-01-12/,
     async () => {
       await expect(page.getByText('PERF-SENTINEL')).toHaveCount(0, { timeout: VISIBLE_MS });
       await expect(page).toHaveURL(/date=2026-01-1/);
