@@ -348,6 +348,8 @@ model User {
   ownedMemberships      ProjectMember[]        @relation("MembershipOwner")
   memberships           ProjectMember[]        @relation("MemberUser")
   sentInvitations       ProjectMember[]        @relation("MembershipInviter")
+  ownedPublicLinks      PublicListLink[]       @relation("PublicLinkOwner")
+  createdPublicLinks    PublicListLink[]       @relation("PublicLinkCreator")
   presences             ListPresence[]
   plugins               PluginInstall[]
   recoveryCodes         RecoveryCode[]
@@ -436,6 +438,7 @@ model Project {
   columns   Column[]
   tasks     Task[]
   members   ProjectMember[]
+  publicLinks PublicListLink[]
   feeds     CalendarFeed[]
   presences ListPresence[]
 
@@ -1301,6 +1304,33 @@ model ProjectMember {
   @@index([memberId])
   @@index([memberId, status])
   @@map("project_members")
+}
+
+/// COMP-29. Read-only public link. Only the hash of the token is stored.
+/// One active link per list: unique (project_id) WHERE revoked_at IS NULL.
+/// Prisma cannot model that partial index; see
+/// prisma/migrations/20261029235100_add_public_list_links.
+model PublicListLink {
+  id           String    @id @default(uuid()) @db.Uuid
+  ownerId      String    @map("owner_id") @db.Uuid
+  owner        User      @relation("PublicLinkOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  projectId    String    @map("project_id") @db.Uuid
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById  String    @map("created_by_id") @db.Uuid
+  createdBy    User      @relation("PublicLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  tokenHash    String    @unique @map("token_hash")
+  tokenHint    String    @map("token_hint")
+  includeNotes Boolean   @default(true) @map("include_notes")
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  viewCount    Int       @default(0) @map("view_count")
+  lastViewedAt DateTime? @map("last_viewed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([projectId])
+  @@index([ownerId])
+  @@map("public_list_links")
 }
 
 /// RF-1804. Lightweight presence: last time someone opened the list.

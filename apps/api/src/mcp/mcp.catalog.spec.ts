@@ -189,12 +189,20 @@ describe('MCP tool catalog', () => {
     const read = visibleTools(['lists:read']).map((tool) => tool.name);
     const write = visibleTools(['lists:write']).map((tool) => tool.name);
     expect(read).toEqual(
-      expect.arrayContaining(['list_folders', 'list_projects', 'list_project_members']),
+      expect.arrayContaining([
+        'list_folders',
+        'list_projects',
+        'list_project_members',
+        'get_project_public_link',
+      ]),
     );
     expect(read).not.toContain('share_project');
     expect(read).not.toContain('unshare_project');
+    expect(read).not.toContain('create_project_public_link');
     expect(write).toContain('share_project');
     expect(write).toContain('unshare_project');
+    expect(write).toContain('create_project_public_link');
+    expect(write).toContain('revoke_project_public_link');
     const writing = [
       'create_folder',
       'update_folder',
@@ -266,6 +274,9 @@ describe('MCP tool catalog', () => {
     expect(MCP_TOOLS.find((tool) => tool.name === 'unshare_project')?.description).toBe(
       'Remove a member from a list you own.',
     );
+    const publish = MCP_TOOLS.find((tool) => tool.name === 'create_project_public_link');
+    expect(publish?.inputSchema.additionalProperties).toBe(false);
+    expect(publish?.description).toContain("Never publish without the owner's explicit OK.");
     const members = MCP_TOOLS.find((tool) => tool.name === 'list_project_members');
     expect(members?.scopes).toEqual(['lists:read']);
     expect(Object.keys(members?.inputSchema.properties ?? {})).toEqual(['id']);

@@ -103,6 +103,7 @@ describe('McpService recurrence mapping', () => {
       {} as never,
       projectOverview as never,
       {} as never,
+      {} as never,
     );
   });
 

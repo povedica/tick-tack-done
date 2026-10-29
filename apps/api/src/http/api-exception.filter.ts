@@ -76,7 +76,8 @@ function errorParts(exception: HttpException): { code: string; message: string; 
 function requestPath(host: ArgumentsHost): string {
   const request = host.switchToHttp().getRequest<Request>();
   const raw = request.originalUrl.length > 0 ? request.originalUrl : request.url;
-  return raw.split('?')[0] ?? raw;
+  const path = raw.split('?')[0] ?? raw;
+  return path.replace(/\/public\/lists\/[^/]+/g, '/public/lists/:token');
 }
 
 function transportStatus(error: unknown): number | null {

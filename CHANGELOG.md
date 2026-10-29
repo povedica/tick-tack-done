@@ -2,6 +2,9 @@
 
 ## Sin publicar
 
+- El dueño puede publicar un enlace de solo lectura (`/s/…`). Quien lo abre ve el
+  nombre de la lista y sus tareas, sin iniciar sesión y sin comentarios ni
+  personas. Regenerar o revocar deja el enlace anterior inservible al momento.
 - Una lista compartida con otra persona aparece en «Compartidas conmigo» cuando
   acepta la invitación. Leer solo mira, comentar añade comentarios y escribir
   crea y completa tareas de esa lista. El dueño invita, cambia el permiso o

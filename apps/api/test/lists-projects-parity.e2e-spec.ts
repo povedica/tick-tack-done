@@ -33,6 +33,9 @@ const WRITE_TOOLS = [
   'mark_project_reviewed',
   'share_project',
   'unshare_project',
+  'create_project_public_link',
+  'regenerate_project_public_link',
+  'revoke_project_public_link',
   'create_task',
   'update_work_context',
 ] as const;
@@ -1023,6 +1026,7 @@ describe('lists, projects and work context parity', () => {
         'list_projects',
         'list_project_overview',
         'list_project_members',
+        'get_project_public_link',
         'get_work_context',
       ]),
     );

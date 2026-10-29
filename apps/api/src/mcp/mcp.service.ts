@@ -39,6 +39,7 @@ import { CountdownsService } from '../modules/countdowns/countdowns.service.js';
 import { HabitsService } from '../modules/habits/habits.service.js';
 import { ListsService } from '../modules/lists/lists.service.js';
 import { CollaborationService } from '../modules/collaboration/collaboration.service.js';
+import { PublicLinksService } from '../modules/collaboration/public-links.service.js';
 import { ProjectsOverviewService } from '../modules/lists/projects-overview.service.js';
 import { SearchService } from '../modules/search/search.service.js';
 import { TagsService } from '../modules/tags/tags.service.js';
@@ -92,6 +93,7 @@ export class McpService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(ProjectsOverviewService) private readonly projectOverview: ProjectsOverviewService,
     @Inject(CollaborationService) private readonly collaboration: CollaborationService,
+    @Inject(PublicLinksService) private readonly publicLinks: PublicLinksService,
   ) {}
 
   async handle(user: AuthUser, body: unknown, authorization?: string): Promise<RpcResponse | null> {
@@ -909,6 +911,29 @@ export class McpService {
         await this.collaboration.unshare(user, id, memberId);
         return { removed: true, member_id: memberId };
       }
+      case 'get_project_public_link':
+        return this.publicLinks.state(user, requiredUuid(args, 'id'));
+      case 'create_project_public_link': {
+        const id = requiredUuid(args, 'id');
+        const input = publicLinkInput(args);
+        if (args.confirm !== true) {
+          return this.publicLinks.preview(user, id, input);
+        }
+        return this.publicLinks.create(user, id, input);
+      }
+      case 'regenerate_project_public_link': {
+        const id = requiredUuid(args, 'id');
+        if (args.confirm !== true) {
+          return {
+            regenerated: false,
+            hint: 'Call again with confirm=true. The current link will stop working.',
+          };
+        }
+        return this.publicLinks.regenerate(user, id);
+      }
+      case 'revoke_project_public_link':
+        await this.publicLinks.revoke(user, requiredUuid(args, 'id'));
+        return { revoked: true };
       case 'list_tags':
         return this.tags.list(user, limit, cursorOf(args));
       case 'create_tag':
@@ -1891,6 +1916,24 @@ function sharePermission(value: unknown): 'read' | 'comment' | 'write' {
     return value;
   }
   throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'permission is invalid');
+}
+
+function publicLinkInput(args: Record<string, unknown>): {
+  expires_at?: string | null;
+  include_notes?: boolean;
+} {
+  const expires = args.expires_at;
+  const notes = args.include_notes;
+  if (expires !== undefined && expires !== null && typeof expires !== 'string') {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'expires_at is invalid');
+  }
+  if (notes !== undefined && typeof notes !== 'boolean') {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'include_notes is invalid');
+  }
+  return {
+    ...(expires === undefined ? {} : { expires_at: expires }),
+    ...(notes === undefined ? {} : { include_notes: notes }),
+  };
 }
 
 function keywordRules(keyword: string): CreateFilterDto['rules'] {

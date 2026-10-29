@@ -18,6 +18,7 @@ export const PUBLIC_OPERATIONS = [
   'get /api/v1/integrations/google/callback',
   'post /api/v1/inbound/email',
   'get /feeds/{token}',
+  'get /api/v1/public/lists/{token}',
 ] as const;
 
 const PUBLIC = new Set<string>(PUBLIC_OPERATIONS);

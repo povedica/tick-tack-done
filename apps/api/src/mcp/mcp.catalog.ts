@@ -979,6 +979,39 @@ const CATALOG: readonly McpTool[] = [
     inputSchema: objectSchema({ id, member_id: id }, ['id', 'member_id']),
   },
   {
+    name: 'get_project_public_link',
+    description: 'Read whether a list you own has a public read-only link. Never returns the token.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'create_project_public_link',
+    description:
+      "Publish a read-only link to a list. Two steps. Never publish without the owner's explicit OK.",
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        confirm: { type: 'boolean' },
+        include_notes: { type: 'boolean' },
+        expires_at: { type: 'string', format: 'date-time' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'regenerate_project_public_link',
+    description: 'Replace the public link. The previous link stops working. Requires confirm=true.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id, confirm: { type: 'boolean' } }, ['id']),
+  },
+  {
+    name: 'revoke_project_public_link',
+    description: 'Turn off the public link for a list you own.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
     name: 'list_tags',
     description: 'List tags.',
     scopes: ['tags:read'],
