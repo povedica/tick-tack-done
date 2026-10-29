@@ -11,3 +11,9 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS tasks_owner_start_live_idx
 CREATE INDEX CONCURRENTLY IF NOT EXISTS external_events_owner_live_starts_idx
   ON external_events (owner_id, starts_at)
   WHERE deleted_at IS NULL;
+
+-- The new index has no stats until this runs. Without it the planner can
+-- prefer a full index scan (tens of thousands of buffer hits) over the
+-- existing bitmap on (owner_id, starts_at).
+ANALYZE tasks;
+ANALYZE external_events;
