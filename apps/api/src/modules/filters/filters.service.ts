@@ -398,7 +398,7 @@ export class FiltersService {
       where: { ownerId, deletedAt: null },
       select: { id: true, name: true },
     });
-    let unknown: boolean = false;
+    const missing: string[] = [];
     const groups = rules.groups.map((group) => ({
       combinator: group.combinator,
       conditions: group.conditions.map((condition) => {
@@ -411,7 +411,7 @@ export class FiltersService {
           value: condition.value.map((item) => {
             const id = resolveTagReference(item, tags);
             if (id === null) {
-              unknown = true;
+              missing.push(item);
               return item;
             }
             return id;
@@ -419,7 +419,7 @@ export class FiltersService {
         };
       }),
     }));
-    if (unknown) {
+    if (missing.length > 0) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Unknown tag', {
         reason: 'unknown_tag',
       });
