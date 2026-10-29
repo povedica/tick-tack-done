@@ -230,7 +230,7 @@ async function paintsWithin(page: Page, ms: number): Promise<boolean> {
 
 /** Pixel 7 hides the desktop arrows. Year and month move on a vertical touch; week moves sideways. */
 async function swipe(page: Page, selector: string, axis: 'up' | 'left'): Promise<void> {
-  const segment = await page.locator(selector).evaluate((element, direction: 'up' | 'left') => {
+  const segment = await page.locator(selector).first().evaluate((element, direction: 'up' | 'left') => {
     const rect = element.getBoundingClientRect();
     const hits = (x: number, y: number) => {
       const node = document.elementFromPoint(x, y);
