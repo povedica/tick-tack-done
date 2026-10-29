@@ -1,0 +1,150 @@
+# Mantiene el backlog al día: check de PR, PR fusionada → Fusionado, detección del despliegue
+# por /api/v1/health y regeneración de docs/backlog/BACKLOG.md desde el Project.
+#
+# Requisitos (LEEME, paso 7):
+# - Secret PROJECT_TOKEN: PAT *classic* con scopes «project» y «repo». Los tokens fine-grained
+#   no pueden acceder a Projects de una cuenta personal; GITHUB_TOKEN tampoco.
+# - Variable PROJECT_NUMBER: número del Project «ttd · backlog».
+# - Variable opcional HEALTH_URL (por defecto https://todo.reflexionia.com/api/v1/health).
+# - Ajustes › Actions › «Allow GitHub Actions to create and approve pull requests» activado
+#   (para la PR de regeneración). Las PR creadas con GITHUB_TOKEN no disparan la CI: revísalas
+#   y vuelve a lanzar la CI a mano si la necesitas.
+name: backlog-sync
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled, closed]
+  schedule:
+    - cron: '17 * * * *' # cada hora: detectar despliegues
+    - cron: '0 5,6 * * 1-5' # el job comprueba las 07:00 de Madrid (invierno y verano)
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Qué ejecutar'
+        type: choice
+        options: [check-deploy, regenerar]
+        default: regenerar
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backlog-sync-${{ github.event.pull_request.number || github.event_name }}
+  cancel-in-progress: false
+
+env:
+  REPO: ${{ github.repository }}
+  OWNER: ${{ github.repository_owner }}
+  PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+  HEALTH_URL: ${{ vars.HEALTH_URL || 'https://todo.reflexionia.com/api/v1/health' }}
+
+jobs:
+  pr-check:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: La PR enlaza issue y actualiza DECISIONES si cambia una decisión
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: scripts/backlog/sync.sh pr-check "$PR"
+
+  pr-merged:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Issues cerradas por la PR → Fusionado + pendiente-despliegue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: scripts/backlog/sync.sh pr-merged "$PR"
+
+  check-deploy:
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || (github.event_name == 'workflow_dispatch' && inputs.job == 'check-deploy')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Commit de producción → etiqueta en-produccion (no mueve a Desplegado)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/backlog/sync.sh check-deploy
+
+  regenerar:
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 5,6 * * 1-5') || (github.event_name == 'workflow_dispatch' && inputs.job == 'regenerar')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Comprobar configuración y hora de Madrid
+        id: ready
+        env:
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ -z "$PROJECT_TOKEN" ] || [ -z "$PROJECT_NUMBER" ]; then
+            echo "::warning::Sin PROJECT_TOKEN o PROJECT_NUMBER: no se regenera el backlog."
+            exit 0
+          fi
+          if [ "$EVENT_NAME" = schedule ] && [ "$(TZ=Europe/Madrid date +%H)" != 07 ]; then
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+      - name: Regenerar docs/backlog/BACKLOG.md desde el Project
+        if: steps.ready.outputs.enabled == 'true' 
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: scripts/backlog/generar-backlog.sh --out docs/backlog/BACKLOG.md
+      - name: Abrir o actualizar la PR chore/backlog-sync si hay cambios
+        if: steps.ready.outputs.enabled == 'true' 
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Solo cambia la marca de hora → no abrir PR.
+          if git diff --quiet -I '^_Generado el ' -- docs/backlog/BACKLOG.md; then
+            echo "Sin cambios en el backlog."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          generated="$(mktemp)"
+          cp docs/backlog/BACKLOG.md "$generated"
+          git restore docs/backlog/BACKLOG.md
+          if git ls-remote --exit-code --heads origin chore/backlog-sync >/dev/null; then
+            git fetch origin chore/backlog-sync
+            git switch -c chore/backlog-sync FETCH_HEAD
+          else
+            git switch -c chore/backlog-sync
+          fi
+          cp "$generated" docs/backlog/BACKLOG.md
+          rm -f "$generated"
+          if git diff --quiet -I '^_Generado el ' -- docs/backlog/BACKLOG.md; then
+            echo "La rama de sincronización ya contiene estos cambios."
+            exit 0
+          fi
+          git add docs/backlog/BACKLOG.md
+          git commit -m "docs(backlog): regenerate BACKLOG.md from the project"
+          git push origin chore/backlog-sync
+          if ! gh pr view chore/backlog-sync --json state --jq .state 2>/dev/null | grep -q OPEN; then
+            gh pr create --base main --head chore/backlog-sync \
+              --title "docs(backlog): regenerate BACKLOG.md" \
+              --body "Regenerado desde el Project «ttd · backlog» por backlog-sync. Sin cambios de código."
+          fi
