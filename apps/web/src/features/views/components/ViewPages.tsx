@@ -494,7 +494,11 @@ export function Board({
         <div className="page-title">
           <SidebarFoldButton />
           {titleIcon}
-          <h1 id={titleId} tabIndex={titleId === undefined ? undefined : -1}>
+          <h1
+            id={titleId}
+            className={titleId === undefined ? undefined : 'filter-view-title'}
+            tabIndex={titleId === undefined ? undefined : -1}
+          >
             {title}
           </h1>
         </div>

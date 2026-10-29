@@ -217,12 +217,40 @@
   }
 }
 
+.today-header:has(.filter-view-rules) {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.today-header:has(.filter-view-rules) .page-title {
+  flex: 1 1 auto;
+  min-width: 8rem;
+}
+
+.today-header:has(.filter-view-rules) .page-actions {
+  margin-left: auto;
+}
+
+.page-title h1.filter-view-title {
+  flex: 1;
+  min-width: 0;
+}
+
 .filter-view-rules {
   display: flex;
+  flex: 1 0 100%;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  order: 3;
   margin: 0 0 var(--sp-3);
+}
+
+@media (max-width: 1023px) {
+  .today-header:has(.filter-view-rules) .view-menu > .icon-button {
+    width: var(--tap);
+    height: var(--tap);
+  }
 }
 
 .filter-editor {

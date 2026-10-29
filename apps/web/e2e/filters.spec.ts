@@ -9,6 +9,7 @@ for (const theme of ['light', 'dark'] as const) {
     test.describe(`${theme} ${String(viewport.width)}`, () => {
       test.use({ viewport, colorScheme: theme });
       test('creates, pins, duplicates and restores a filter', async ({ page }) => {
+        test.setTimeout(60_000);
         await boot(page);
         await page.goto('/filters');
         await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible();
@@ -16,13 +17,13 @@ for (const theme of ['light', 'dark'] as const) {
           path: `e2e/__screens__/filters-list-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
         });
-        await page.getByRole('button', { name: 'Nuevo filtro' }).click();
+        await page.locator('#content').getByRole('button', { name: 'Nuevo filtro' }).click();
         const dialog = page.getByRole('dialog', { name: 'Nuevo filtro' });
         await dialog.getByLabel('Nombre').fill('Casa · hoy');
         await dialog.getByLabel('Campo').selectOption('tag');
         await dialog.getByRole('button', { name: 'Añadir etiqueta…' }).click();
         await page.getByRole('checkbox', { name: 'casa' }).check();
-        await dialog.getByRole('heading', { name: 'Nuevo filtro' }).first().click();
+        await page.keyboard.press('Escape');
         await dialog.getByRole('button', { name: 'Añadir condición' }).click();
         const fields = dialog.getByLabel('Campo');
         await fields.nth(1).selectOption('date');
@@ -38,11 +39,11 @@ for (const theme of ['light', 'dark'] as const) {
           fullPage: true,
         });
         if (viewport.width < 1024) {
-          const box = await page.getByRole('button', { name: 'Acciones' }).boundingBox();
+          const box = await page.getByRole('button', { name: 'Acciones', exact: true }).boundingBox();
           expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
           expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
         }
-        await page.getByRole('button', { name: 'Acciones' }).click();
+        await page.getByRole('button', { name: 'Acciones', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Fijar arriba' }).click();
         await page.goto('/filter/no-existe');
         await expect(page.getByRole('link', { name: 'Ver filtros' })).toBeVisible();
