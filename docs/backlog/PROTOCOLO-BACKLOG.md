@@ -11,6 +11,10 @@ Destino en el repo: `docs/backlog/PROTOCOLO-BACKLOG.md`. Forma parte del harness
 | **`docs/backlog/BACKLOG.md`** | **Espejo legible** del Project, versionado. El bloque entre `backlog:inicio` y `backlog:fin` es generado | `scripts/backlog/generar-backlog.sh`, a mano o con backlog-sync. Se revisa en la PR |
 | **`docs/backlog/DECISIONES.md`** | **Registro** de decisiones: pregunta, opciones, recomendación, origen, estado, fecha y decisión | La PR que aplica la decisión. Solo Pablo decide |
 
+El campo nativo de GitHub se llama `Status` y no se puede renombrar. En este protocolo,
+«Estado» se refiere a ese campo con sus siete opciones en español. Se conserva el campo
+nativo para que funcionen las automatizaciones integradas; no se crea un campo duplicado.
+
 IDs estables: `BKL-NNN` para el trabajo y `DEC-NNN` para las decisiones. No se reutilizan.
 
 ## 2. Estados y definición de hecho

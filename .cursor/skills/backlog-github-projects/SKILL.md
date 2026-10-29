@@ -9,6 +9,10 @@ Fuente de verdad del estado: el Project «ttd · backlog» (n.º en la variable 
 `docs/backlog/BACKLOG.md` es un espejo generado; `docs/backlog/DECISIONES.md` es el registro de decisiones.
 Reglas completas: `docs/backlog/PROTOCOLO-BACKLOG.md`.
 
+GitHub mantiene el campo nativo `Status` y no permite renombrarlo. «Estado» es el concepto del
+protocolo: usa `Status` con las siete opciones en español. Los comandos admiten también un
+campo `Estado` existente; no crees otro campo para sustituir el nativo.
+
 Este procedimiento lo comparten Cursor y Codex. La entrada para ambos está en `AGENTS.md`.
 
 ## Cuándo se activa
@@ -43,11 +47,16 @@ Este procedimiento lo comparten Cursor y Codex. La entrada para ambos está en `
 OWNER=povedica; REPO=povedica/tick-tack-done; N="${PROJECT_NUMBER:?}"
 PID=$(gh project view "$N" --owner "$OWNER" --format json --jq .id)
 FIELDS=$(gh project field-list "$N" --owner "$OWNER" --format json --limit 100)
+STATE_FIELD=$(jq -r 'if any(.fields[]; .name=="Estado") then "Estado" else "Status" end' <<<"$FIELDS")
 fid() { jq -r --arg n "$1" '.fields[]|select(.name==$n)|.id' <<<"$FIELDS"; }
 oid() { jq -r --arg n "$1" --arg o "$2" '.fields[]|select(.name==$n)|.options[]?|select(.name==$o)|.id' <<<"$FIELDS"; }
 item_of() { gh project item-list "$N" --owner "$OWNER" --format json --limit 500 \
   --jq ".items[]|select(.content.type==\"Issue\" and .content.number==$1 and .content.repository==\"$REPO\")|.id"; }
-set_sel() { gh project item-edit --id "$(item_of "$1")" --project-id "$PID" --field-id "$(fid "$2")" --single-select-option-id "$(oid "$2" "$3")"; }
+set_sel() {
+  local field="$2"
+  [ "$field" != Estado ] || field="$STATE_FIELD"
+  gh project item-edit --id "$(item_of "$1")" --project-id "$PID" --field-id "$(fid "$field")" --single-select-option-id "$(oid "$field" "$3")"
+}
 ```
 
 ### 1. Idea nueva
@@ -74,7 +83,7 @@ Comprueba el WIP antes (máximo 3). Si hay más de 500 elementos, no uses un rec
 lee todos los elementos antes de decidir si hay hueco.
 
 ```bash
-gh project item-list "$N" --owner "$OWNER" --format json --limit 500 --jq '[.items[]|select(.estado=="En Codex/PR")]|length'
+gh project item-list "$N" --owner "$OWNER" --format json --limit 500 --jq '[.items[]|select((.estado // .status)=="En Codex/PR")]|length'
 ```
 
 Si ya hay 3, no empieces: avisa y propone cuál cerrar. Si hay hueco: `set_sel <num> Estado "En Codex/PR"`. La PR lleva «Closes #N» o «Refs #N».

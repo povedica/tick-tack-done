@@ -30,7 +30,7 @@ else
     NUMBER="$(gh project list --owner "$OWNER" --format json --limit 100 \
       --jq ".projects[] | select(.title == \"$TITLE\") | .number" | head -n1)"
   fi
-  [ -n "$NUMBER" ] || { echo "No encuentro el Project «$TITLE»" >&2; exit 1; }
+  [ -n "$NUMBER" ] || { echo "No encuentro el Project «${TITLE}»" >&2; exit 1; }
   ITEMS="$(gh project item-list "$NUMBER" --owner "$OWNER" --format json --limit 500)"
 fi
 

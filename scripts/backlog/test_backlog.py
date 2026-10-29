@@ -209,6 +209,31 @@ fi
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("403", result.stderr)
 
+    def test_missing_project_warning_is_valid_under_macos_bash(self):
+        self.stub("gh", "#!/bin/sh\nprintf ''\n")
+        result = self.run_script("generar-backlog.sh", "--out", str(self.folder / "missing.md"))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("No encuentro el Project", result.stderr)
+        self.assertNotIn("unbound variable", result.stderr)
+
+    def test_missing_project_field_warns_without_unbound_variable(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.env["PROJECT_TOKEN"] = "test-only-token"
+        self.env["MOCK_PR"] = json.dumps({"body": "Closes #12", "mergeCommit": {"oid": "abcdef0"}, "closingIssuesReferences": [{"number": 12}]})
+        self.stub("gh", r'''#!/usr/bin/env bash
+case "$1 $2" in
+  "pr view") printf '%s\n' "$MOCK_PR" ;;
+  "project view") echo PVT_test ;;
+  "project field-list") echo '{"fields":[]}' ;;
+  "project item-list"|"issue edit"|"issue comment"|"api --paginate") ;;
+  *) exit 99 ;;
+esac
+''')
+        result = self.run_script("sync.sh", "pr-merged", "1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("no encuentro el item", result.stdout)
+        self.assertNotIn("unbound variable", result.stderr)
+
     def test_invalid_health_commit_never_reaches_git(self):
         self.stub("curl", "#!/bin/sh\necho '{\"commit\":\"--invalid\"}'\n")
         result = self.run_script("sync.sh", "check-deploy")

@@ -83,7 +83,7 @@ set_estado() { # issue_number valor
     return 0
   fi
   pn="$(project_number)" || return 0
-  [ -n "$pn" ] || { say "::warning::No encuentro el Project «$TITLE»."; return 0; }
+  [ -n "$pn" ] || { say "::warning::No encuentro el Project «${TITLE}»."; return 0; }
   pid="$(ghp project view "$pn" --owner "$OWNER" --format json --jq .id)"
   fields="$(ghp project field-list "$pn" --owner "$OWNER" --format json --limit 100)"
   fid="$(jq -r '.fields[] | select(.name=="Estado" or .name=="Status") | .id' <<<"$fields" | head -n1)"
@@ -91,12 +91,12 @@ set_estado() { # issue_number valor
   item="$(ghp project item-list "$pn" --owner "$OWNER" --format json --limit 500 \
     --jq ".items[] | select(.content.type==\"Issue\" and .content.number==$num and .content.repository==\"$REPO\") | .id" | head -n1)"
   if [ -z "$fid" ] || [ -z "$oid" ] || [ -z "$item" ]; then
-    say "::warning::#$num: no encuentro el item, el campo Estado o la opción «$value»."
+    say "::warning::#$num: no encuentro el item, el campo Estado o la opción «${value}»."
     return 0
   fi
   GH_TOKEN="$PROJECT_TOKEN" run gh project item-edit --id "$item" --project-id "$pid" \
     --field-id "$fid" --single-select-option-id "$oid"
-  say "#$num → Estado «$value»"
+  say "#$num → Estado «${value}»"
 }
 
 refs_in_body() { # texto → números referenciados con Refs/Closes/Fixes/Resolves
