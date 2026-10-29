@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { TagChip } from '../../../components/ui';
-import type { ChipSummary } from '../summarize';
+import type { ChipIcon, ChipSummary } from '../summarize';
 
 const ICONS: Record<Exclude<ChipIcon, 'tag'>, LucideIcon> = {
   calendar: Calendar,
@@ -66,7 +66,7 @@ export function SummaryChips({
           key={`${chip.icon}-${String(index)}`}
           icon={chip.icon}
           text={chip.text}
-          color={chip.color}
+          color={chip.color ?? null}
           deleted={chip.deleted === true}
         />
       ))}

@@ -1215,7 +1215,7 @@ function folderChoices(
   labels: ReturnType<typeof filterFolderLabels>,
   messages: Messages,
 ): PickerChoice[] {
-  const choices = folders.map((folder, index) => {
+  const choices: PickerChoice[] = folders.map((folder, index) => {
     const count = lists.filter((list) => list.folder_id === folder.id).length;
     return {
       id: folder.id,
