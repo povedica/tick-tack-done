@@ -1121,7 +1121,12 @@ describe('MCP server', () => {
         },
       },
     });
-    for (const tool of MCP_TOOLS.filter((tool) => tool.name.startsWith('list_'))) {
+    for (const tool of MCP_TOOLS.filter(
+      (tool) =>
+        tool.name.startsWith('list_') &&
+        tool.name !== 'list_project_members' &&
+        tool.name !== 'list_share_invitations',
+    )) {
       const required = tool.inputSchema.required ?? [];
       const candidates: Record<string, unknown> = {
         task_id: task.id,

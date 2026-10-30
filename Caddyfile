@@ -67,4 +67,8 @@
 		Cross-Origin-Opener-Policy "same-origin-allow-popups"
 		-Server
 	}
+
+	@publicShare path /s/* /api/v1/public/*
+	header @publicShare Referrer-Policy no-referrer
+	header @publicShare X-Robots-Tag "noindex, nofollow, noarchive"
 }

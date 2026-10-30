@@ -177,6 +177,15 @@ enum SharePermission {
   write
 }
 
+/// RF-1801. Existing rows and token members stay accepted.
+enum ShareStatus {
+  pending
+  accepted
+  declined
+  left
+  revoked
+}
+
 enum MatrixQuadrant {
   do
   schedule
@@ -338,7 +347,11 @@ model User {
   automations           Automation[]
   ownedMemberships      ProjectMember[]        @relation("MembershipOwner")
   memberships           ProjectMember[]        @relation("MemberUser")
+  sentInvitations       ProjectMember[]        @relation("MembershipInviter")
+  ownedPublicLinks      PublicListLink[]       @relation("PublicLinkOwner")
+  createdPublicLinks    PublicListLink[]       @relation("PublicLinkCreator")
   presences             ListPresence[]
+  shareNotices          ShareNotice[]
   plugins               PluginInstall[]
   recoveryCodes         RecoveryCode[]
   notificationPreferences NotificationPreference[]
@@ -426,6 +439,7 @@ model Project {
   columns   Column[]
   tasks     Task[]
   members   ProjectMember[]
+  publicLinks PublicListLink[]
   feeds     CalendarFeed[]
   presences ListPresence[]
 
@@ -1259,24 +1273,65 @@ model AutomationRun {
 }
 
 /// RF-1801. A member is a user or a personal access token. The list still has one owner.
+/// Only status pending or accepted grants a seat. Token rows stay accepted.
+/// Prisma cannot model the partial unique indexes; see
+/// prisma/migrations/20261028092916_project_member_unique_active and
+/// prisma/migrations/20261029235000_project_member_invitations.
+/// Active user seat: (project_id, member_id) WHERE deleted_at IS NULL AND member_id IS NOT NULL AND status IN ('pending','accepted').
+/// Active token seat: (project_id, token_id) WHERE deleted_at IS NULL AND token_id IS NOT NULL.
+/// Pending email without an account: (project_id, invite_email) WHERE deleted_at IS NULL AND member_id IS NULL AND status = 'pending'.
 model ProjectMember {
-  id         String              @id @default(uuid()) @db.Uuid
-  ownerId    String              @map("owner_id") @db.Uuid
-  owner      User                @relation("MembershipOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  projectId  String              @map("project_id") @db.Uuid
-  project    Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  memberId   String?             @map("member_id") @db.Uuid
-  member     User?               @relation("MemberUser", fields: [memberId], references: [id], onDelete: Cascade)
-  tokenId    String?             @map("token_id") @db.Uuid
-  token      PersonalAccessToken? @relation(fields: [tokenId], references: [id], onDelete: Cascade)
-  permission SharePermission
-  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt  DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  id          String               @id @default(uuid()) @db.Uuid
+  ownerId     String               @map("owner_id") @db.Uuid
+  owner       User                 @relation("MembershipOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  projectId   String               @map("project_id") @db.Uuid
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  memberId    String?              @map("member_id") @db.Uuid
+  member      User?                @relation("MemberUser", fields: [memberId], references: [id], onDelete: Cascade)
+  tokenId     String?              @map("token_id") @db.Uuid
+  token       PersonalAccessToken? @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  permission  SharePermission
+  status      ShareStatus          @default(accepted)
+  inviteEmail String?              @map("invite_email")
+  invitedById String?              @map("invited_by_id") @db.Uuid
+  invitedBy   User?                @relation("MembershipInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  respondedAt DateTime?            @map("responded_at") @db.Timestamptz(6)
+  expiresAt   DateTime?            @map("expires_at") @db.Timestamptz(6)
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?            @map("deleted_at") @db.Timestamptz(6)
 
   @@index([projectId])
   @@index([memberId])
+  @@index([memberId, status])
   @@map("project_members")
+}
+
+/// COMP-29. Read-only public link. Only the hash of the token is stored.
+/// One active link per list: unique (project_id) WHERE revoked_at IS NULL.
+/// Prisma cannot model that partial index; see
+/// prisma/migrations/20261029235100_add_public_list_links.
+model PublicListLink {
+  id           String    @id @default(uuid()) @db.Uuid
+  ownerId      String    @map("owner_id") @db.Uuid
+  owner        User      @relation("PublicLinkOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  projectId    String    @map("project_id") @db.Uuid
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById  String    @map("created_by_id") @db.Uuid
+  createdBy    User      @relation("PublicLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  tokenHash    String    @unique @map("token_hash")
+  tokenHint    String    @map("token_hint")
+  includeNotes Boolean   @default(true) @map("include_notes")
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  viewCount    Int       @default(0) @map("view_count")
+  lastViewedAt DateTime? @map("last_viewed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([projectId])
+  @@index([ownerId])
+  @@map("public_list_links")
 }
 
 /// RF-1804. Lightweight presence: last time someone opened the list.
@@ -1292,6 +1347,23 @@ model ListPresence {
 
   @@unique([projectId, userId])
   @@map("list_presence")
+}
+
+/// RF-1801. In-app notice for the list owner or a mentioned member.
+model ShareNotice {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  projectId String    @map("project_id") @db.Uuid
+  taskId    String?   @map("task_id") @db.Uuid
+  actorName String    @map("actor_name")
+  listName  String    @map("list_name")
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, readAt, createdAt])
+  @@map("share_notices")
 }
 
 model PluginInstall {

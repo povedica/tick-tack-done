@@ -1,4 +1,5 @@
 import { purgePasswordResetTokens } from '../auth/password-reset-cleanup.js';
+import { expireShareInvitations } from '../modules/collaboration/expire-invitations.js';
 import { deliverNotification } from '../notifications/deliver.js';
 import type { DeliveryResult } from './reminder.transport.js';
 import { randomUUID } from 'node:crypto';
@@ -56,6 +57,7 @@ type SeriesTask = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
 export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | null = null;
   private resetPurgeDay = '';
+  private invitePurgeDay = '';
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
@@ -89,6 +91,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     catchUp: boolean,
   ): Promise<{ materialized: number; fired: number; late: number }> {
     await this.purgeResetTokens(now);
+    await this.expireInvites(now);
     const materialized = (await this.advanceCompleted()) + (await this.advanceDetached());
     await this.enqueueFocusEnds(now, catchUp);
     await this.enqueueReminders(now, catchUp);
@@ -114,6 +117,20 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       await purgePasswordResetTokens(this.prisma, now);
     } catch {
       this.resetPurgeDay = '';
+    }
+  }
+
+  /** RF-1801. One pass per UTC day. Expired invites stop occupying a seat. */
+  private async expireInvites(now: Date): Promise<void> {
+    const day = now.toISOString().slice(0, 10);
+    if (this.invitePurgeDay === day) {
+      return;
+    }
+    this.invitePurgeDay = day;
+    try {
+      await expireShareInvitations(this.prisma, now);
+    } catch {
+      this.invitePurgeDay = '';
     }
   }
 

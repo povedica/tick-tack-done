@@ -209,6 +209,15 @@
   font-weight: 600;
 }
 
+/* v3 pins the badge on body and never removes it. Show it only on these screens. */
+.grecaptcha-badge {
+  visibility: hidden;
+}
+
+html[data-recaptcha-badge] .grecaptcha-badge {
+  visibility: visible;
+}
+
 @media (pointer: coarse) {
   .auth-card input,
   .auth-card button[type='submit'] {

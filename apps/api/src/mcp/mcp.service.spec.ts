@@ -102,6 +102,8 @@ describe('McpService recurrence mapping', () => {
       prisma as never,
       {} as never,
       projectOverview as never,
+      {} as never,
+      {} as never,
     );
   });
 

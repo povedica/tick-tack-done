@@ -323,6 +323,20 @@ export class ProjectResponseDto {
   @ApiProperty()
   active_task_count!: number;
 
+  @ApiProperty({ enum: ['owner', 'read', 'comment', 'write'] })
+  role!: 'owner' | 'read' | 'comment' | 'write';
+
+  @ApiProperty({
+    description: 'True when the list has an accepted member or belongs to someone else.',
+  })
+  shared!: boolean;
+
+  @ApiProperty()
+  member_count!: number;
+
+  @ApiProperty({ description: 'True when the list has an active public read-only link.' })
+  public_link_active!: boolean;
+
   @ApiProperty()
   created_at!: string;
 

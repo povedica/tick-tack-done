@@ -21,6 +21,8 @@ import {
   ListTodo,
   Funnel,
   List,
+  Share2,
+  Globe,
   Settings,
   Search,
   X,
@@ -203,10 +205,19 @@ export function Sidebar({
   );
   const folderItems = folders.data?.items ?? [];
   const archivedProjects = archivedQuery.data?.items ?? [];
+  const viewerId = me.data?.id;
+  const sharedWithMe = (projects.data?.items ?? []).filter(
+    (project) =>
+      !project.is_inbox &&
+      !project.closed &&
+      viewerId !== undefined &&
+      project.owner_id !== viewerId,
+  );
   const projectItems = (projects.data?.items ?? []).filter(
     (project) =>
       !project.is_inbox &&
       !project.closed &&
+      (viewerId === undefined || project.owner_id === viewerId) &&
       (folderItems.length === 0 || folderId(project) === null),
   );
   const routeFolder = activeFolderId(location.pathname, projects.data?.items ?? []);
@@ -445,6 +456,12 @@ export function Sidebar({
                   <span className="nav-label">{messages.filtersTitle}</span>
                 </SideLink>
               </li>
+              <li>
+                <SideLink to="/settings/sharing" onNavigate={onNavigate}>
+                  <Share2 size={22} aria-hidden="true" />
+                  <span className="nav-label">{messages.settingsSharing}</span>
+                </SideLink>
+              </li>
             </ul>
           ) : (
             <>
@@ -651,6 +668,7 @@ export function Sidebar({
                           menuOpen={menu?.kind === 'list' && menu.id === project.id}
                           inboxLabel={messages.smartInbox}
                           menuLabel={messages.menuLabel}
+                          globeLabel={messages.publicLinkGlobe}
                           onNavigate={() => {
                             setMenu(null);
                             onNavigate();
@@ -697,6 +715,7 @@ export function Sidebar({
                       menuOpen={menu?.kind === 'list' && menu.id === project.id}
                       inboxLabel={messages.smartInbox}
                       menuLabel={messages.menuLabel}
+                      globeLabel={messages.publicLinkGlobe}
                       onNavigate={() => {
                         setMenu(null);
                         onNavigate();
@@ -717,6 +736,38 @@ export function Sidebar({
                     />
                   ))}
                 </ul>
+                {sharedWithMe.length > 0 ? (
+                  <>
+                    <p className="nav-section">{messages.sharedWithMe}</p>
+                    <ul className="nav-list">
+                      {sharedWithMe.map((project) => (
+                        <ListRow
+                          key={project.id}
+                          project={project}
+                          showCounters={showCounters}
+                          draggable={false}
+                          dragging={false}
+                          insertBefore={false}
+                          insertAfter={false}
+                          menuOpen={menu?.kind === 'list' && menu.id === project.id}
+                          inboxLabel={messages.smartInbox}
+                          menuLabel={messages.menuLabel}
+                          globeLabel={messages.publicLinkGlobe}
+                          onNavigate={() => {
+                            setMenu(null);
+                            onNavigate();
+                          }}
+                          onOpenMenu={(anchor) => {
+                            openMenu({ kind: 'list', id: project.id, archived: false }, anchor);
+                          }}
+                          onDragStart={() => undefined}
+                          onDragOver={() => undefined}
+                          onDrop={() => undefined}
+                        />
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
                 {archivedProjects.length > 0 ? (
                   <details className="nav-folder">
                     <summary>
@@ -737,6 +788,7 @@ export function Sidebar({
                           menuOpen={menu?.kind === 'list' && menu.id === project.id}
                           inboxLabel={messages.smartInbox}
                           menuLabel={messages.menuLabel}
+                          globeLabel={messages.publicLinkGlobe}
                           onNavigate={() => {
                             setMenu(null);
                             onNavigate();
@@ -1493,6 +1545,13 @@ function filterSummaryText(messages: Messages): SummaryText {
   };
 }
 
+function publicLinkActive(project: Project): boolean {
+  return (
+    'public_link_active' in project &&
+    (project as { public_link_active?: boolean }).public_link_active === true
+  );
+}
+
 function ListRow({
   project,
   showCounters,
@@ -1503,6 +1562,7 @@ function ListRow({
   menuOpen,
   inboxLabel,
   menuLabel,
+  globeLabel,
   onNavigate,
   onOpenMenu,
   onDragStart,
@@ -1518,6 +1578,7 @@ function ListRow({
   readonly menuOpen: boolean;
   readonly inboxLabel: string;
   readonly menuLabel: string;
+  readonly globeLabel: string;
   readonly onNavigate: () => void;
   readonly onOpenMenu: (anchor: HTMLElement) => void;
   readonly onDragStart: (event: DragEvent<HTMLElement>) => void;
@@ -1550,6 +1611,9 @@ function ListRow({
         <SideLink to={`/list/${project.id}`} section style={tint} onNavigate={onNavigate}>
           <Icon className="nav-list-icon" size={16} aria-hidden="true" />
           <span className="nav-label">{project.is_inbox ? inboxLabel : project.name}</span>
+          {publicLinkActive(project) ? (
+            <Globe className="nav-list-icon" size={14} aria-label={globeLabel} />
+          ) : null}
           {showCounters && project.active_task_count > 0 ? (
             <Badge value={project.active_task_count} />
           ) : null}

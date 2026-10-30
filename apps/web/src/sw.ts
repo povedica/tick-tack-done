@@ -23,10 +23,13 @@ precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
 scope.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/s/')) {
+    return;
+  }
   if (event.request.method !== 'POST') {
     return;
   }
-  const url = new URL(event.request.url);
   if (url.pathname !== '/quick-add') {
     return;
   }

@@ -31,6 +31,11 @@ const WRITE_TOOLS = [
   'unarchive_project',
   'delete_project',
   'mark_project_reviewed',
+  'share_project',
+  'unshare_project',
+  'create_project_public_link',
+  'regenerate_project_public_link',
+  'revoke_project_public_link',
   'create_task',
   'update_work_context',
 ] as const;
@@ -1020,6 +1025,8 @@ describe('lists, projects and work context parity', () => {
         'list_folders',
         'list_projects',
         'list_project_overview',
+        'list_project_members',
+        'get_project_public_link',
         'get_work_context',
       ]),
     );
@@ -1081,23 +1088,163 @@ describe('lists, projects and work context parity', () => {
     }
   });
 
-  it('shares a list over the members API and has no dedicated MCP tool', async () => {
+  it('shares a list over REST and MCP with the same members', async () => {
     const list = await api().post('/api/v1/projects').send({ name: 'compartida' }).expect(201);
-    const shared = await api()
-      .post(`/api/v1/projects/${String(list.body.id)}/members`)
-      .send({ email: otherEmail, permission: 'read' })
-      .expect(201);
-    const members = await api()
-      .get(`/api/v1/projects/${String(list.body.id)}/members`)
-      .expect(200);
-    expect(members.body.items).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: shared.body.id, email: otherEmail })]),
+    const projectId = String(list.body.id);
+    const active = () => prisma.projectMember.count({ where: { projectId, deletedAt: null } });
+    const before = await active();
+    const preview = await tool('share_project', {
+      id: projectId,
+      email: otherEmail,
+      permission: 'read',
+    });
+    expect(preview.isError).toBe(false);
+    expect(preview.value).toEqual({
+      shared: false,
+      preview: {
+        list_name: 'compartida',
+        task_count: 0,
+        email: otherEmail,
+        permission: 'read',
+        already_member: null,
+      },
+      hint: 'Call again with confirm=true to share.',
+    });
+    expect(await active()).toBe(before);
+    const confirmed = await tool('share_project', {
+      id: projectId,
+      email: otherEmail,
+      permission: 'read',
+      confirm: true,
+    });
+    expect(confirmed.isError).toBe(false);
+    expect(confirmed.value).toMatchObject({
+      shared: false,
+      status: 'pending',
+      permission: 'read',
+      changed: 'created',
+    });
+    const memberId = String(confirmed.value.member_id);
+    const viaTool = await tool('list_project_members', { id: projectId });
+    const viaRest = await api().get(`/api/v1/projects/${projectId}/members`).expect(200);
+    expect(viaTool.isError).toBe(false);
+    expect(viaTool.value).toEqual(viaRest.body);
+    expect(viaRest.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: memberId, email: otherEmail, permission: 'read' }),
+      ]),
     );
-    const names = await toolNames(writerToken);
-    expect(names.some((name) => name.includes('member') || name.includes('share'))).toBe(false);
-    const missing = await tool('share_project', { id: list.body.id });
+    const again = await tool('share_project', {
+      id: projectId,
+      email: otherEmail,
+      permission: 'read',
+      confirm: true,
+    });
+    expect(again.isError).toBe(false);
+    expect(again.value).toMatchObject({
+      shared: false,
+      status: 'pending',
+      member_id: memberId,
+      changed: 'unchanged',
+    });
+    expect(await active()).toBe(before + 1);
+    const updated = await tool('share_project', {
+      id: projectId,
+      email: otherEmail,
+      permission: 'write',
+      confirm: true,
+    });
+    expect(updated.isError).toBe(false);
+    expect(updated.value).toMatchObject({
+      shared: false,
+      status: 'pending',
+      member_id: memberId,
+      permission: 'write',
+      changed: 'updated',
+    });
+    const removed = await tool('unshare_project', { id: projectId, member_id: memberId });
+    expect(removed.isError).toBe(false);
+    expect(removed.value).toEqual({ removed: true, member_id: memberId });
+    const after = await api().get(`/api/v1/projects/${projectId}/members`).expect(200);
+    expect(after.body.items).toEqual([
+      expect.objectContaining({ id: null, role: 'owner', status: 'accepted' }),
+    ]);
+    const missing = await tool('unshare_project', { id: projectId, member_id: memberId });
     expect(missing.isError).toBe(true);
-    expect(missing.text).toContain('unknown_tool');
+    expect(missing.text).toContain('member_not_found');
+  });
+
+  it('rejects sharing the inbox, another owner, a foreign token, a list outside the token, and a missing member', async () => {
+    const list = await api().post('/api/v1/projects').send({ name: 'privada' }).expect(201);
+    const otherList = await api().post('/api/v1/projects').send({ name: 'otra' }).expect(201);
+    const projectId = String(list.body.id);
+    const stranger = newPersonalAccessToken();
+    await prisma.personalAccessToken.create({
+      data: {
+        ownerId: otherId,
+        name: `stranger-${randomUUID()}`,
+        tokenHash: stranger.hash,
+        tokenPrefix: stranger.prefix,
+        scopes: ['lists:read', 'lists:write'],
+      },
+    });
+    const notOwner = await api(stranger.token)
+      .post(`/api/v1/projects/${projectId}/members`)
+      .send({ email: otherEmail, permission: 'read' });
+    expect(notOwner.status).toBe(404);
+    expect(notOwner.body.error.code).toBe('project_not_found');
+
+    const inbox = await prisma.project.findFirst({
+      where: { ownerId, isInbox: true, deletedAt: null },
+    });
+    if (inbox === null) {
+      throw new Error('inbox missing');
+    }
+    const inboxShare = await api()
+      .post(`/api/v1/projects/${inbox.id}/members`)
+      .send({ email: otherEmail, permission: 'read' });
+    expect(inboxShare.status).toBe(422);
+    expect(inboxShare.body.error.code).toBe('inbox_not_shareable');
+
+    const foreign = newPersonalAccessToken();
+    const foreignRow = await prisma.personalAccessToken.create({
+      data: {
+        ownerId: otherId,
+        name: `foreign-${randomUUID()}`,
+        tokenHash: foreign.hash,
+        tokenPrefix: foreign.prefix,
+        scopes: ['lists:read'],
+      },
+    });
+    const foreignToken = await api()
+      .post(`/api/v1/projects/${projectId}/members`)
+      .send({ token_id: foreignRow.id, permission: 'read' });
+    expect(foreignToken.status).toBe(404);
+    expect(foreignToken.body.error.code).toBe('token_not_found');
+
+    const limited = newPersonalAccessToken();
+    await prisma.personalAccessToken.create({
+      data: {
+        ownerId,
+        name: `limited-${randomUUID()}`,
+        tokenHash: limited.hash,
+        tokenPrefix: limited.prefix,
+        scopes: ['lists:read', 'lists:write'],
+        listRestricted: true,
+        listIds: [String(otherList.body.id)],
+      },
+    });
+    const outside = await api(limited.token)
+      .post(`/api/v1/projects/${projectId}/members`)
+      .send({ email: otherEmail, permission: 'read' });
+    expect(outside.status).toBe(404);
+    expect(outside.body.error.code).toBe('project_not_found');
+
+    const missingMember = await api().delete(
+      `/api/v1/projects/${projectId}/members/${randomUUID()}`,
+    );
+    expect(missingMember.status).toBe(404);
+    expect(missingMember.body.error.code).toBe('member_not_found');
   });
 
   async function projectOf(taskId: string): Promise<{ project_id: string }> {

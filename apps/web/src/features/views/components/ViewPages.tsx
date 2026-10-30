@@ -237,41 +237,62 @@ export function ProjectListPage() {
       </main>
     );
   }
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const foreign =
+    project !== undefined && me.data?.id !== undefined && project.owner_id !== me.data.id;
+  const role = foreign ? shareRole(project) : 'owner';
+  const notice =
+    role === 'read' ? messages.listReadOnly : role === 'comment' ? messages.listCommentOnly : null;
   return (
-    <Board
-      key={projectId}
-      messages={messages}
-      title={project?.name ?? messages.listName}
-      queryKey={['project-tasks', projectId]}
-      createProjectId={projectId}
-      matrixListId={project !== undefined && project.kind !== 'NOTE' ? projectId : undefined}
-      columns={(columns.data?.items ?? []).map((column) => ({
-        id: column.id,
-        name: column.name,
-        wip_limit: wipOf(column),
-      }))}
-      load={(groupBy, sort) =>
-        viewsApi.previewFilter(
-          {
-            mode: 'normal',
-            rules: {
-              combinator: 'AND',
-              groups: [
-                {
-                  combinator: 'AND',
-                  conditions: [{ field: 'list', op: 'in', value: [projectId] }],
-                },
-              ],
+    <>
+      {notice !== null ? (
+        <p className="screen-note" role="status">
+          {notice}
+        </p>
+      ) : null}
+      <Board
+        key={projectId}
+        messages={messages}
+        title={project?.name ?? messages.listName}
+        queryKey={['project-tasks', projectId]}
+        createProjectId={projectId}
+        matrixListId={project !== undefined && project.kind !== 'NOTE' ? projectId : undefined}
+        columns={(columns.data?.items ?? []).map((column) => ({
+          id: column.id,
+          name: column.name,
+          wip_limit: wipOf(column),
+        }))}
+        load={(groupBy, sort) =>
+          viewsApi.previewFilter(
+            {
+              mode: 'normal',
+              rules: {
+                combinator: 'AND',
+                groups: [
+                  {
+                    combinator: 'AND',
+                    conditions: [{ field: 'list', op: 'in', value: [projectId] }],
+                  },
+                ],
+              },
             },
-          },
-          { groupBy, sort },
-        )
-      }
-      enabled={projectId.length > 0}
-      note={project?.kind === 'NOTE'}
-      viewKey={`project:${projectId}`}
-    />
+            { groupBy, sort },
+          )
+        }
+        enabled={projectId.length > 0}
+        note={project?.kind === 'NOTE'}
+        viewKey={`project:${projectId}`}
+      />
+    </>
   );
+}
+
+function shareRole(project: { owner_id: string }): 'read' | 'comment' | 'write' {
+  const role = (project as { role?: unknown }).role;
+  if (role === 'comment' || role === 'write' || role === 'read') {
+    return role;
+  }
+  return 'read';
 }
 
 export function Board({

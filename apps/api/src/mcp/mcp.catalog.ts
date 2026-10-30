@@ -948,6 +948,102 @@ const CATALOG: readonly McpTool[] = [
     ),
   },
   {
+    name: 'list_project_members',
+    description: 'List members of a shared list.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'share_project',
+    description:
+      "Share a list with another ttd user by email. Two steps: call without confirm to preview, then confirm=true. Never share without the owner's explicit OK.",
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        email: { type: 'string', format: 'email' },
+        permission: {
+          type: 'string',
+          enum: ['read', 'comment', 'write'],
+          default: 'read',
+        },
+        confirm: { type: 'boolean' },
+      },
+      ['id', 'email'],
+    ),
+  },
+  {
+    name: 'unshare_project',
+    description: 'Remove a member from a list you own.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id, member_id: id }, ['id', 'member_id']),
+  },
+  {
+    name: 'update_project_member',
+    description: 'Change the permission of a member on a list you own.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        member_id: id,
+        permission: { type: 'string', enum: ['read', 'comment', 'write'] },
+      },
+      ['id', 'member_id', 'permission'],
+    ),
+  },
+  {
+    name: 'leave_project',
+    description: 'Leave a list that was shared with you. The owner cannot leave.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'list_share_invitations',
+    description: 'List pending invitations to lists shared with you.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({}),
+  },
+  {
+    name: 'respond_share_invitation',
+    description: 'Accept or decline a pending list invitation. accept=true accepts it.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id, accept: { type: 'boolean' } }, ['id', 'accept']),
+  },
+  {
+    name: 'get_project_public_link',
+    description:
+      'Read whether a list you own has a public read-only link. Never returns the token.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'create_project_public_link',
+    description:
+      "Publish a read-only link to a list. Two steps. Never publish without the owner's explicit OK.",
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        confirm: { type: 'boolean' },
+        include_notes: { type: 'boolean' },
+        expires_at: { type: 'string', format: 'date-time' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'regenerate_project_public_link',
+    description: 'Replace the public link. The previous link stops working. Requires confirm=true.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id, confirm: { type: 'boolean' } }, ['id']),
+  },
+  {
+    name: 'revoke_project_public_link',
+    description: 'Turn off the public link for a list you own.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
     name: 'list_tags',
     description: 'List tags.',
     scopes: ['tags:read'],
@@ -1353,6 +1449,9 @@ const CATALOG: readonly McpTool[] = [
   },
 ];
 
+/** Members follow GET /projects/{id}/members: one id, no page. */
+const UNPAGED_LIST_TOOLS = new Set(['list_project_members', 'list_share_invitations']);
+
 /** Every listing shares paging inputs; task activity defaults to a compact summary. */
 const ACTIVITY_TOOLS = new Set([
   'get_task',
@@ -1370,7 +1469,9 @@ export const MCP_TOOLS: readonly McpTool[] = CATALOG.map((tool) => ({
   inputSchema: {
     ...tool.inputSchema,
     properties: {
-      ...(tool.name.startsWith('list_') ? { limit, cursor } : {}),
+      ...(tool.name.startsWith('list_') && !UNPAGED_LIST_TOOLS.has(tool.name)
+        ? { limit, cursor }
+        : {}),
       ...(ACTIVITY_TOOLS.has(tool.name)
         ? {
             include_activity: {

@@ -15,6 +15,7 @@ import { userGoogleRefreshToken } from '../../integrations/user-google-token.js'
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 import { GoogleSyncService, type SubscriptionJson } from './google-sync.service.js';
 import { workFilterFor, type WorkContextMode } from '../../work/work-context.js';
+import { ListAccessService } from '../collaboration/list-access.js';
 
 @Injectable()
 export class CalendarService {
@@ -22,6 +23,7 @@ export class CalendarService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(GoogleSyncService) private readonly googleSync: GoogleSyncService,
+    @Inject(ListAccessService) private readonly access: ListAccessService,
   ) {}
 
   async range(
@@ -34,13 +36,18 @@ export class CalendarService {
     const from = this.instant(fromIso, 'from');
     const to = this.instant(toIso, 'to');
     const work = await workFilterFor(this.prisma, user.id, context);
+    const visibility = await this.access.assignedSharedWhere(user);
     const tasks = await this.prisma.task.findMany({
       where: {
-        ownerId: user.id,
-        deletedAt: null,
-        status: 'active',
-        ...(work === null ? {} : { AND: [work] }),
-        OR: [{ dueDate: { gte: from, lt: to } }, { startDate: { gte: from, lt: to } }],
+        AND: [
+          visibility,
+          {
+            deletedAt: null,
+            status: 'active',
+            OR: [{ dueDate: { gte: from, lt: to } }, { startDate: { gte: from, lt: to } }],
+          },
+          ...(work === null ? [] : [work]),
+        ],
       },
       orderBy: { dueDate: 'asc' },
     });

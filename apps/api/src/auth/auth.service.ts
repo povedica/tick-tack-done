@@ -3,6 +3,7 @@ import { actorOf, type AuthUser } from './auth-user.js';
 import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
 import { DomainException } from '../http/domain.exception.js';
+import { attachPendingInvites } from '../modules/collaboration/collaboration.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto.js';
 import { AttemptLimiter } from './attempt-limiter.js';
@@ -63,6 +64,7 @@ export class AuthService {
         await tx.project.create({
           data: { ownerId: created.id, name: 'Bandeja de entrada', isInbox: true },
         });
+        await attachPendingInvites(tx, created.id, email);
         return created;
       });
       return await this.openSession(user.id, meta);

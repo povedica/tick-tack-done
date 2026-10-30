@@ -38,6 +38,8 @@ import { SmartListsService } from '../modules/filters/smart-lists.service.js';
 import { CountdownsService } from '../modules/countdowns/countdowns.service.js';
 import { HabitsService } from '../modules/habits/habits.service.js';
 import { ListsService } from '../modules/lists/lists.service.js';
+import { CollaborationService } from '../modules/collaboration/collaboration.service.js';
+import { PublicLinksService } from '../modules/collaboration/public-links.service.js';
 import { ProjectsOverviewService } from '../modules/lists/projects-overview.service.js';
 import { SearchService } from '../modules/search/search.service.js';
 import { TagsService } from '../modules/tags/tags.service.js';
@@ -90,6 +92,8 @@ export class McpService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(ProjectsOverviewService) private readonly projectOverview: ProjectsOverviewService,
+    @Inject(CollaborationService) private readonly collaboration: CollaborationService,
+    @Inject(PublicLinksService) private readonly publicLinks: PublicLinksService,
   ) {}
 
   async handle(user: AuthUser, body: unknown, authorization?: string): Promise<RpcResponse | null> {
@@ -236,7 +240,13 @@ export class McpService {
       const record = response as { data: { capture_settings: unknown } };
       data = record.data.capture_settings;
     } else data = await this.run(user, tool.name, args, authorization);
-    if (tool.name.startsWith('list_')) data = listResult(data, args);
+    if (
+      tool.name.startsWith('list_') &&
+      tool.name !== 'list_project_members' &&
+      tool.name !== 'list_share_invitations'
+    ) {
+      data = listResult(data, args);
+    }
     if (args.include_activity !== 'full') data = summarizeActivity(data, tool.name === 'get_task');
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
@@ -654,23 +664,7 @@ export class McpService {
         const taskId = requiredUuid(args, 'id');
         const assigneeId =
           args.assignee_id === null ? null : (uuidOrEmpty(args.assignee_id) ?? null);
-        const task = await this.tasks.get(user, taskId);
-        const row = await this.prisma.$transaction(async (tx) => {
-          const saved = await tx.task.update({
-            where: { id: taskId },
-            data: { assigneeId },
-          });
-          await this.events.record(tx, actorOf(user), {
-            type: DomainEvent.taskAssigned,
-            entityType: 'task',
-            entityId: taskId,
-            action: 'assigned',
-            data: asJson({ assignee_id: assigneeId }),
-            previous: asJson({ assignee_id: task.assignee_id ?? null }),
-          });
-          return saved;
-        });
-        return { id: row.id, assignee_id: row.assigneeId };
+        return this.collaboration.assign(user, taskId, assigneeId);
       }
       case 'update_task': {
         const id = requiredUuid(args, 'id');
@@ -881,6 +875,76 @@ export class McpService {
         return this.projectOverview.overview(user, stateOf(args));
       case 'mark_project_reviewed':
         return this.projectOverview.markReviewed(user, requiredUuidList(args, 'ids'));
+      case 'list_project_members':
+        return this.collaboration.members(user, requiredUuid(args, 'id'));
+      case 'share_project': {
+        const id = requiredUuid(args, 'id');
+        const email = requiredString(args, 'email', 320);
+        const permission = sharePermission(args.permission);
+        if (args.confirm !== true) {
+          return this.collaboration.previewShare(user, id, email, permission);
+        }
+        const shared = await this.collaboration.share(user, id, { email, permission });
+        return {
+          shared: shared.body.status === 'accepted',
+          status: shared.body.status,
+          member_id: shared.body.id,
+          permission: shared.body.permission,
+          changed: shared.body.changed,
+        };
+      }
+      case 'unshare_project': {
+        const id = requiredUuid(args, 'id');
+        const memberId = requiredUuid(args, 'member_id');
+        await this.collaboration.unshare(user, id, memberId);
+        return { removed: true, member_id: memberId };
+      }
+      case 'update_project_member':
+        return this.collaboration.updateMember(
+          user,
+          requiredUuid(args, 'id'),
+          requiredUuid(args, 'member_id'),
+          sharePermission(args.permission),
+        );
+      case 'leave_project':
+        await this.collaboration.leave(user, requiredUuid(args, 'id'));
+        return { left: true };
+      case 'list_share_invitations':
+        return this.collaboration.invitations(user);
+      case 'respond_share_invitation': {
+        if (typeof args.accept !== 'boolean') {
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'accept is required',
+          );
+        }
+        await this.collaboration.respond(user, requiredUuid(args, 'id'), args.accept);
+        return { responded: true, accepted: args.accept };
+      }
+      case 'get_project_public_link':
+        return this.publicLinks.state(user, requiredUuid(args, 'id'));
+      case 'create_project_public_link': {
+        const id = requiredUuid(args, 'id');
+        const input = publicLinkInput(args);
+        if (args.confirm !== true) {
+          return this.publicLinks.preview(user, id, input);
+        }
+        return this.publicLinks.create(user, id, input);
+      }
+      case 'regenerate_project_public_link': {
+        const id = requiredUuid(args, 'id');
+        if (args.confirm !== true) {
+          return {
+            regenerated: false,
+            hint: 'Call again with confirm=true. The current link will stop working.',
+          };
+        }
+        return this.publicLinks.regenerate(user, id);
+      }
+      case 'revoke_project_public_link':
+        await this.publicLinks.revoke(user, requiredUuid(args, 'id'));
+        return { revoked: true };
       case 'list_tags':
         return this.tags.list(user, limit, cursorOf(args));
       case 'create_tag':
@@ -1852,6 +1916,38 @@ function projectFields(args: Record<string, unknown>): {
     ...(projectStatus === undefined ? {} : { project_status: projectStatus }),
     ...(outcome === undefined ? {} : { outcome }),
     ...(reminder === undefined ? {} : { default_reminder_trigger: reminder }),
+  };
+}
+
+function sharePermission(value: unknown): 'read' | 'comment' | 'write' {
+  if (value === undefined) {
+    return 'read';
+  }
+  if (value === 'read' || value === 'comment' || value === 'write') {
+    return value;
+  }
+  throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'permission is invalid');
+}
+
+function publicLinkInput(args: Record<string, unknown>): {
+  expires_at?: string | null;
+  include_notes?: boolean;
+} {
+  const expires = args.expires_at;
+  const notes = args.include_notes;
+  if (expires !== undefined && expires !== null && typeof expires !== 'string') {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'expires_at is invalid');
+  }
+  if (notes !== undefined && typeof notes !== 'boolean') {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'include_notes is invalid',
+    );
+  }
+  return {
+    ...(expires === undefined ? {} : { expires_at: expires }),
+    ...(notes === undefined ? {} : { include_notes: notes }),
   };
 }
 

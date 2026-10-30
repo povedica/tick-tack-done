@@ -6,6 +6,7 @@ import { linkTitle } from './link-title.js';
 import type { AddTaskLinkDto } from './task-links.dto.js';
 import { reconcileTaskLinks, taskLinkJson } from './task-links.js';
 import { DriveAttachmentsService } from '../../drive/attachments.service.js';
+import { ListAccessService } from '../collaboration/list-access.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
 import { annotateWork, workFilterFor } from '../../work/work-context.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -33,6 +34,7 @@ import {
   normalizeReminderTrigger,
   endFromDuration,
   reminderFireAt,
+  canDo,
   listVisible,
   projectConstraint,
   resolveDefaultReminder,
@@ -169,6 +171,7 @@ export class TasksService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
     @Inject(DriveAttachmentsService) private readonly drive: DriveAttachmentsService,
+    @Inject(ListAccessService) private readonly access: ListAccessService,
   ) {}
 
   private readonly planningTx = new AsyncLocalStorage<Tx>();
@@ -230,9 +233,10 @@ export class TasksService {
               };
     const work = await workFilterFor(this.prisma, user.id, query.context ?? 'all');
     const filters = [work, range].filter((item): item is Prisma.TaskWhereInput => item !== null);
+    const visibility = await this.access.taskVisibility(user);
     const rows = await this.prisma.task.findMany({
       where: {
-        ownerId: user.id,
+        ...visibility,
         ...(filters.length === 0 ? {} : { AND: filters }),
         ...(query.deleted ? { deletedAt: { not: null } } : { deletedAt: null }),
         ...visibleParents(query),
@@ -503,7 +507,7 @@ export class TasksService {
     source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
     return this.transaction(async (tx) => {
-      const current = await this.require(tx, user.id, id, false);
+      const current = await this.requireWritable(tx, user, id, false);
       if (current.seriesId !== null) await lockRecurrenceSeries(tx, user.id, current.seriesId);
       const receivedAt = new Date().toISOString();
       const selected = selectPatch(dto, readClocks(current.fieldClocks), receivedAt);
@@ -809,7 +813,7 @@ export class TasksService {
 
   async cancel(user: AuthUser, id: string): Promise<TaskDetail> {
     return this.transaction(async (tx) => {
-      const current = await this.require(tx, user.id, id, false);
+      const current = await this.requireWritable(tx, user, id, false);
       if (current.status === 'cancelled') {
         return this.load(tx, user, id, false);
       }
@@ -848,9 +852,9 @@ export class TasksService {
 
   async remove(user: AuthUser, id: string): Promise<void> {
     await this.transaction(async (tx) => {
-      await this.require(tx, user.id, id, false);
+      await this.requireWritable(tx, user, id, false);
       const now = new Date();
-      const existing = await this.require(tx, user.id, id, false);
+      const existing = await this.requireWritable(tx, user, id, false);
       const removed = await tx.task.findMany({
         where: { ownerId: user.id, OR: [{ id }, { parentId: id }], deletedAt: null },
         select: { id: true },
@@ -915,7 +919,7 @@ export class TasksService {
     source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
     return this.transaction(async (tx) => {
-      const current = await this.require(tx, user.id, id, false);
+      const current = await this.requireWritable(tx, user, id, false);
       if (current.status !== 'completed' && current.status !== 'cancelled') {
         throw new DomainException(
           HttpStatus.CONFLICT,
@@ -965,7 +969,7 @@ export class TasksService {
     date: string | null,
   ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
-      const current = await this.require(tx, user.id, id, false);
+      const current = await this.requireWritable(tx, user, id, false);
       const moved = snoozeDue({
         dueDate: current.dueDate === null ? null : current.dueDate.toISOString(),
         startDate: current.startDate === null ? null : current.startDate.toISOString(),
@@ -1049,7 +1053,7 @@ export class TasksService {
     source: 'manual' | 'api' | 'mcp' = user.sessionId === null ? 'api' : 'manual',
   ): Promise<TaskDetail> {
     return this.transaction(async (tx) => {
-      const current = await this.require(tx, user.id, id, false);
+      const current = await this.requireWritable(tx, user, id, false);
       if (current.repeatRule === null || current.seriesId === null) {
         throw new DomainException(
           HttpStatus.CONFLICT,
@@ -1162,10 +1166,10 @@ export class TasksService {
 
   private async moveIn(tx: Tx, user: AuthUser, id: string, dto: MoveTaskDto): Promise<TaskDetail> {
     {
-      const current = await this.require(tx, user.id, id, false);
+      const current = await this.requireWritable(tx, user, id, false);
       const project = await this.requireProject(tx, user.id, dto.project_id);
       if (current.parentId !== null) {
-        const parent = await this.require(tx, user.id, current.parentId, false);
+        const parent = await this.requireWritable(tx, user, current.parentId, false);
         const resolved = resolveSubtaskProject({
           requestedProjectId: project.id,
           parentProjectId: parent.projectId,
@@ -1434,7 +1438,7 @@ export class TasksService {
       fingerprint: requestFingerprint('POST', `/api/v1/tasks/${taskId}/items`, dto),
       statusCode: 201,
       execute: async (tx) => {
-        await this.require(tx, user.id, taskId, false);
+        await this.requireWritable(tx, user, taskId, false);
         const rows = await tx.checklistItem.findMany({
           where: { ownerId: user.id, taskId, deletedAt: null },
           select: { id: true, sortOrder: true },
@@ -1611,7 +1615,7 @@ export class TasksService {
   }
 
   async listReminders(user: AuthUser, taskId: string): Promise<ReminderJson[]> {
-    await this.require(this.prisma, user.id, taskId, false);
+    await this.requireReminderOwner(this.prisma, user, taskId);
     const rows = await this.prisma.reminder.findMany({
       where: { ownerId: user.id, taskId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
@@ -1632,7 +1636,7 @@ export class TasksService {
       fingerprint: requestFingerprint('POST', `/api/v1/tasks/${taskId}/reminders`, dto),
       statusCode: 201,
       execute: async (tx) => {
-        const task = await this.require(tx, user.id, taskId, false);
+        const task = await this.requireReminderOwner(tx, user, taskId);
         this.assertReminder(dto, task.dueDate, task.startDate);
         const row = await tx.reminder.create({
           data: {
@@ -1661,7 +1665,7 @@ export class TasksService {
 
   async deleteReminder(user: AuthUser, taskId: string, reminderId: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      await this.require(tx, user.id, taskId, false);
+      await this.requireReminderOwner(tx, user, taskId);
       const row = await tx.reminder.findFirst({
         where: { id: reminderId, ownerId: user.id, taskId, deletedAt: null },
       });
@@ -1685,7 +1689,7 @@ export class TasksService {
     until: string | null,
   ): Promise<ReminderJson> {
     return this.prisma.$transaction(async (tx) => {
-      const task = await this.require(tx, user.id, taskId, false);
+      const task = await this.requireReminderOwner(tx, user, taskId);
       const row = await tx.reminder.findFirst({
         where: { id: reminderId, ownerId: user.id, taskId, deletedAt: null },
       });
@@ -1799,10 +1803,20 @@ export class TasksService {
         'project_id is required',
       );
     }
-    const project = await this.requireProject(tx, user.id, projectId);
+    const project = await this.projectForWrite(tx, user, projectId);
+    if (project.ownerId !== user.id && (dto.tag_ids?.length ?? 0) > 0) {
+      throw new DomainException(
+        HttpStatus.FORBIDDEN,
+        'forbidden',
+        'Tags belong to the list owner',
+        {
+          reason: 'owner_only',
+        },
+      );
+    }
     let parentId: string | null = null;
     if (dto.parent_id !== undefined && dto.parent_id !== null) {
-      const parent = await this.require(tx, user.id, dto.parent_id, false);
+      const parent = await this.requireWritable(tx, user, dto.parent_id, false);
       if (parent.parentId !== null) {
         throw new DomainException(
           HttpStatus.BAD_REQUEST,
@@ -1920,7 +1934,7 @@ export class TasksService {
     const row = await tx.task.create({
       data: {
         id,
-        ownerId: user.id,
+        ownerId: project.ownerId,
         projectId: project.id,
         parentId,
         columnId: dto.column_id ?? null,
@@ -2009,7 +2023,7 @@ export class TasksService {
       materializeNext: false,
     },
   ): Promise<CompletedTask> {
-    const current = await this.require(tx, user.id, id, false);
+    const current = await this.requireWritable(tx, user, id, false);
     if (current.status === 'completed') {
       return this.load(tx, user, id, false);
     }
@@ -2496,15 +2510,19 @@ export class TasksService {
       typeof event.data === 'object' && !Array.isArray(event.data)
         ? (event.data as Prisma.InputJsonObject)
         : {};
-    return this.events.record(tx, actorOf(user), {
-      ...event,
-      data: {
-        ...data,
-        source:
-          user.requestSource ??
-          (typeof data.source === 'string' ? data.source : requestSourceOf(user)),
+    return this.events.record(
+      tx,
+      { ...actorOf(user), ownerId: eventOwner(user, event) },
+      {
+        ...event,
+        data: {
+          ...data,
+          source:
+            user.requestSource ??
+            (typeof data.source === 'string' ? data.source : requestSourceOf(user)),
+        },
       },
-    });
+    );
   }
 
   private async emitUpdated(tx: Tx, user: AuthUser, id: string): Promise<void> {
@@ -2528,7 +2546,11 @@ export class TasksService {
     const ownerId = typeof user === 'string' ? user : user.id;
     const listIds = typeof user === 'string' ? null : user.listIds;
     const row = await tx.task.findFirst({
-      where: { id, ownerId, ...(deleted ? { deletedAt: { not: null } } : { deletedAt: null }) },
+      where: {
+        id,
+        ...(typeof user === 'string' ? { ownerId } : {}),
+        ...(deleted ? { deletedAt: { not: null } } : { deletedAt: null }),
+      },
       include: {
         ...taskInclude,
         children: {
@@ -2542,11 +2564,20 @@ export class TasksService {
         },
       },
     });
-    if (row === null || !listVisible(listIds, row.projectId)) {
+    if (row === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
+    if (typeof user !== 'string' && row.ownerId !== user.id) {
+      const role = await this.access.roleFor(user, row.projectId);
+      if (role === null) {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+      }
+    } else if (!listVisible(listIds, row.projectId)) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    const activityOwnerId = row.ownerId;
     const activity = await tx.activityLog.findMany({
-      where: { ownerId, entityType: 'task', entityId: id, deletedAt: null },
+      where: { ownerId: activityOwnerId, entityType: 'task', entityId: id, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 50,
       include: { token: { select: { name: true, oauthClientId: true } } },
@@ -2670,6 +2701,80 @@ export class TasksService {
       children.set(tag.parentId, list);
     }
     return [tagId, ...tagDescendantIds(tagId, children)];
+  }
+
+  private async requireWritable(
+    tx: Tx | PrismaService,
+    user: AuthUser,
+    id: string,
+    deleted: boolean,
+  ): Promise<Task> {
+    const row = await tx.task.findFirst({
+      where: { id, ...(deleted ? { deletedAt: { not: null } } : { deletedAt: null }) },
+    });
+    if (row === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    if (row.ownerId === user.id) {
+      if (!listVisible(user.listIds, row.projectId)) {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+      }
+      return row;
+    }
+    const role = await this.access.roleFor(user, row.projectId);
+    if (role === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    if (!canDo(role, deleted ? 'trash_task' : 'edit_task')) {
+      throw new DomainException(HttpStatus.FORBIDDEN, 'forbidden', 'Not allowed on this list');
+    }
+    return row;
+  }
+
+  private async projectForWrite(
+    tx: Tx,
+    user: AuthUser,
+    id: string,
+  ): Promise<{ id: string; ownerId: string }> {
+    const row = await tx.project.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, ownerId: true },
+    });
+    if (row === null || !listVisible(user.listIds, row.id)) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'project_not_found', 'List was not found');
+    }
+    if (row.ownerId !== user.id) {
+      await this.access.requireRole(user, row.id, 'edit_task');
+    }
+    return row;
+  }
+
+  /** RF-1802. Reminders stay with the list owner. A member sees 403, a stranger 404. */
+  private async requireReminderOwner(
+    tx: Tx | PrismaService,
+    user: AuthUser,
+    taskId: string,
+  ): Promise<Task> {
+    const row = await tx.task.findFirst({ where: { id: taskId, deletedAt: null } });
+    if (row === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    if (row.ownerId === user.id) {
+      if (!listVisible(user.listIds, row.projectId)) {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+      }
+      return row;
+    }
+    const role = await this.access.roleFor(user, row.projectId);
+    if (role === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    throw new DomainException(
+      HttpStatus.FORBIDDEN,
+      'forbidden',
+      'Reminders belong to the list owner',
+      { reason: 'owner_only' },
+    );
   }
 
   private async require(
@@ -3040,4 +3145,18 @@ function intersectIds(left: string[] | null, right: string[] | null): string[] |
   }
   const allowed = new Set(right);
   return left.filter((id) => allowed.has(id));
+}
+
+function eventOwner(user: AuthUser, event: { data: unknown }): string {
+  const data = event.data;
+  if (typeof data === 'object' && data !== null && !Array.isArray(data) && 'task' in data) {
+    const task = (data as { task?: unknown }).task;
+    if (typeof task === 'object' && task !== null && 'owner_id' in task) {
+      const ownerId = (task as { owner_id?: unknown }).owner_id;
+      if (typeof ownerId === 'string') {
+        return ownerId;
+      }
+    }
+  }
+  return user.id;
 }

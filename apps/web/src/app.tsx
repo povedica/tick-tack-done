@@ -77,6 +77,7 @@ import {
   RegisterPage,
   ResetPasswordPage,
 } from './features/auth/AuthPages';
+import { PublicListPage } from './features/public/PublicListPage';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
 import { RepeatPage } from './features/repeat/RepeatPage';
 import { ShutdownPage } from './features/closing/ShutdownPage';
@@ -136,6 +137,7 @@ function Shell() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/s/:token" element={<PublicListPage />} />
         <Route element={<RequireSession />}>
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/today" replace />} />

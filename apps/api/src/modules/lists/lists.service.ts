@@ -10,6 +10,7 @@ import { DomainException } from '../../http/domain.exception.js';
 import { IdempotencyService } from '../../idempotency/idempotency.service.js';
 import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint.js';
 import { placementPlan } from '../../ordering/placement.js';
+import { ListAccessService } from '../collaboration/list-access.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Tx } from '../../prisma/tx.js';
 import type {
@@ -47,6 +48,8 @@ interface ListStateRequest {
   readonly projectStatus: ProjectStatusName | 'keep';
 }
 
+const NO_PROJECT = '00000000-0000-0000-0000-000000000000';
+
 interface Result<T> {
   statusCode: number;
   body: T;
@@ -59,6 +62,7 @@ export class ListsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    @Inject(ListAccessService) private readonly access: ListAccessService,
   ) {}
 
   async listFolders(
@@ -224,6 +228,8 @@ export class ListsService {
     filters: ProjectListFilters = {},
   ): Promise<Page<ProjectResponseDto>> {
     const cursor = this.cursor(cursorRaw);
+    const access = await this.access.snapshot(user);
+    const sharedIds = [...access.shared.keys()];
     const state = filters.state;
     const closedWhere =
       state === 'archived'
@@ -235,34 +241,56 @@ export class ListsService {
             : { closed: false };
     const rows = await this.prisma.project.findMany({
       where: {
-        ownerId: user.id,
         deletedAt: null,
         ...closedWhere,
-        ...(state === 'active' || state === 'paused' ? { projectStatus: state } : {}),
-        ...(filters.isProject === undefined ? {} : { isProject: filters.isProject }),
-        ...(filters.folderId === undefined
-          ? {}
-          : filters.folderId === null
-            ? { folderId: null }
-            : { folderId: filters.folderId }),
-        ...(cursor === undefined
-          ? {}
-          : {
-              OR: [
-                { sortOrder: { gt: cursor.sortOrder } },
-                { sortOrder: cursor.sortOrder, id: { gt: cursor.id } },
-              ],
-            }),
+        AND: [
+          {
+            OR: [
+              {
+                ownerId: user.id,
+                ...(state === 'active' || state === 'paused' ? { projectStatus: state } : {}),
+                ...(filters.isProject === undefined ? {} : { isProject: filters.isProject }),
+                ...(filters.folderId === undefined
+                  ? {}
+                  : filters.folderId === null
+                    ? { folderId: null }
+                    : { folderId: filters.folderId }),
+              },
+              {
+                id: { in: sharedIds.length > 0 ? sharedIds : [NO_PROJECT] },
+                ownerId: { not: user.id },
+              },
+            ],
+          },
+          ...(cursor === undefined
+            ? []
+            : [
+                {
+                  OR: [
+                    { sortOrder: { gt: cursor.sortOrder } },
+                    { sortOrder: cursor.sortOrder, id: { gt: cursor.id } },
+                  ],
+                },
+              ]),
+        ],
       },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
       take: limit + 1,
     });
     const counts = await this.activeCounts(
-      user.id,
+      null,
       rows.map((row) => row.id),
     );
+    const members = await this.memberCounts(rows.map((row) => row.id));
+    const publicLinks = await this.publicLinkIds(rows.map((row) => row.id));
     return slicePage(
-      rows.map((row) => toProjectJson(row, counts.get(row.id) ?? 0)),
+      rows.map((row) =>
+        toProjectJson(
+          row,
+          counts.get(row.id) ?? 0,
+          this.accessOf(user, row, access, members, publicLinks),
+        ),
+      ),
       limit,
     );
   }
@@ -318,9 +346,15 @@ export class ListsService {
   }
 
   async getProject(user: AuthUser, id: string): Promise<ProjectResponseDto> {
-    const row = await this.requireProject(user.id, id);
-    const counts = await this.activeCounts(user.id, [id]);
-    return toProjectJson(row, counts.get(id) ?? 0);
+    const resolved = await this.access.requireRole(user, id, 'view');
+    const counts = await this.activeCounts(null, [id]);
+    const members = await this.memberCounts([id]);
+    const publicLinks = await this.publicLinkIds([id]);
+    return toProjectJson(
+      resolved.project,
+      counts.get(id) ?? 0,
+      this.accessOf(user, resolved.project, await this.access.snapshot(user), members, publicLinks),
+    );
   }
 
   async updateProject(
@@ -866,7 +900,7 @@ export class ListsService {
   }
 
   private async activeCounts(
-    ownerId: string,
+    ownerId: string | null,
     projectIds: string[],
     tx: Tx | PrismaService = this.prisma,
   ): Promise<Map<string, number>> {
@@ -876,7 +910,7 @@ export class ListsService {
     const grouped = await tx.task.groupBy({
       by: ['projectId'],
       where: {
-        ownerId,
+        ...(ownerId === null ? {} : { ownerId }),
         projectId: { in: projectIds },
         status: 'active',
         deletedAt: null,
@@ -885,6 +919,59 @@ export class ListsService {
       _count: { _all: true },
     });
     return new Map(grouped.map((row) => [row.projectId, row._count._all]));
+  }
+
+  private async memberCounts(projectIds: string[]): Promise<Map<string, number>> {
+    if (projectIds.length === 0) {
+      return new Map();
+    }
+    const grouped = await this.prisma.projectMember.groupBy({
+      by: ['projectId'],
+      where: { projectId: { in: projectIds }, deletedAt: null, status: 'accepted' },
+      _count: { _all: true },
+    });
+    return new Map(grouped.map((row) => [row.projectId, row._count._all]));
+  }
+
+  private async publicLinkIds(projectIds: string[]): Promise<ReadonlySet<string>> {
+    if (projectIds.length === 0) {
+      return new Set();
+    }
+    const now = new Date();
+    const rows = await this.prisma.publicListLink.findMany({
+      where: {
+        projectId: { in: projectIds },
+        revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { projectId: true },
+    });
+    return new Set(rows.map((row) => row.projectId));
+  }
+
+  private accessOf(
+    user: AuthUser,
+    row: Project,
+    access: { shared: ReadonlyMap<string, 'read' | 'comment' | 'write'> },
+    members: Map<string, number>,
+    publicLinks: ReadonlySet<string> = new Set(),
+  ): {
+    role: 'owner' | 'read' | 'comment' | 'write';
+    shared: boolean;
+    memberCount: number;
+    publicLinkActive: boolean;
+  } {
+    const memberCount = members.get(row.id) ?? 0;
+    const publicLinkActive = publicLinks.has(row.id);
+    if (row.ownerId === user.id) {
+      return { role: 'owner', shared: memberCount > 0, memberCount, publicLinkActive };
+    }
+    return {
+      role: access.shared.get(row.id) ?? 'read',
+      shared: true,
+      memberCount,
+      publicLinkActive,
+    };
   }
 
   private async applySort(

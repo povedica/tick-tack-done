@@ -736,6 +736,12 @@ function AuthCard({
   readonly titleRef?: { current: HTMLHeadingElement | null };
 }) {
   const m = useMessages();
+  useEffect(() => {
+    document.documentElement.dataset.recaptchaBadge = 'on';
+    return () => {
+      delete document.documentElement.dataset.recaptchaBadge;
+    };
+  }, []);
   return (
     <main className="auth-screen">
       <section className="auth-card">

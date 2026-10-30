@@ -50,6 +50,17 @@ afterEach(() => {
 });
 
 describe('RF-PR-01 login recovery link', () => {
+  it('shows the reCAPTCHA badge only while the access screen is mounted', () => {
+    const view = render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+    expect(document.documentElement.dataset.recaptchaBadge).toBe('on');
+    view.unmount();
+    expect(document.documentElement.dataset.recaptchaBadge).toBeUndefined();
+  });
+
   it('links to forgot-password with the typed email and repeats the link after two failures', async () => {
     api.login.mockRejectedValue(new Error('no'));
     render(

@@ -9,6 +9,23 @@
 
 ## Sin publicar
 
+- Hoy, mañana, los próximos 7 días y el calendario incluyen las tareas compartidas
+  que están asignadas a ti. La búsqueda sigue siendo solo tuya. La vista previa de
+  un filtro ya no enseña todas las tareas de una lista compartida: solo las que
+  te han asignado.
+- Un miembro puede cambiar de permiso, salir, aceptar o rechazar una invitación.
+  El dueño recibe un aviso en Compartir cuando aceptan, rechazan o se van, y
+  quien es mencionado también. Una invitación caduca a los 14 días y el
+  planificador la retira. Los recordatorios de una tarea ajena responden 403.
+- El dueño puede publicar un enlace de solo lectura (`/s/…`). Quien lo abre ve el
+  nombre de la lista y sus tareas, sin iniciar sesión y sin comentarios ni
+  personas. Regenerar o revocar deja el enlace anterior inservible al momento.
+  La fecha concreta del enlace usa un campo de fecha: el selector de tareas
+  también cambia recordatorios, y un enlace público no debe abrirlos.
+- Una lista compartida con otra persona aparece en «Compartidas conmigo» cuando
+  acepta la invitación. Leer solo mira, comentar añade comentarios y escribir
+  crea y completa tareas de esa lista. El dueño invita, cambia el permiso o
+  quita el acceso. Quien no es miembro recibe 404.
 - El editor de filtros usa campos, listas y fechas del propio diseño. Todas y
   Alguna se distinguen, Cancelar es secundario y la pista de guardado solo se
   marca al intentar guardar. Editar condiciones está en el menú. Una condición

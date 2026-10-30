@@ -1,5 +1,5 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import type { Filter, FilterMode } from '@prisma/client';
+import { Prisma, type Filter, type FilterMode } from '@prisma/client';
 import {
   isFilterTagId,
   parseFilterRules,
@@ -19,6 +19,7 @@ import { DomainException } from '../../http/domain.exception.js';
 import { asJson, iso } from '../../http/json.js';
 import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint.js';
 import { IdempotencyService } from '../../idempotency/idempotency.service.js';
+import { ListAccessService } from '../collaboration/list-access.js';
 import { placementPlan } from '../../ordering/placement.js';
 import type { SortPlan } from '../../ordering/plan-sort-order.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -40,6 +41,7 @@ export class FiltersService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    @Inject(ListAccessService) private readonly access: ListAccessService,
   ) {}
 
   async list(
@@ -99,7 +101,16 @@ export class FiltersService {
   ): Promise<ViewPageJson> {
     const rules = await this.resolveRules(this.prisma, user.id, this.parse(dto.mode, dto.rules));
     const clock = this.clock(user);
-    return this.page(user, savedFilterClause(rules, clock), clock, groupBy, sort, limit, cursorRaw);
+    return this.page(
+      user,
+      savedFilterClause(rules, clock),
+      clock,
+      groupBy,
+      sort,
+      limit,
+      cursorRaw,
+      await this.access.assignedSharedWhere(user),
+    );
   }
 
   async get(user: AuthUser, id: string): Promise<FilterResponseDto> {
@@ -314,8 +325,10 @@ export class FiltersService {
     sort: string | undefined,
     limit: number,
     cursorRaw: string | undefined,
+    scope?: Prisma.TaskWhereInput,
   ): Promise<ViewPageJson> {
     const view = this.view(groupBy, sort);
+    const visibility = scope ?? (await this.access.taskVisibility(user));
     return pageViewTasks(this.prisma, {
       ownerId: user.id,
       clause,
@@ -324,6 +337,7 @@ export class FiltersService {
       sort: view.sort,
       limit,
       cursor: this.cursor(cursorRaw),
+      scope: visibility,
     });
   }
 
