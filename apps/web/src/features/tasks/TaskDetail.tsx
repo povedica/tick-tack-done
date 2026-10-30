@@ -26,6 +26,7 @@ import { newMutation, runOrQueue } from '../offline/client';
 import { apiMessage } from './api-message';
 import { collectTags } from './collect';
 import { activityText, relativeTime } from './detail-model';
+import { AssigneeField } from './AssigneeField';
 import { DetailBody } from './DetailBody';
 import { DetailFooter } from './DetailFooter';
 import { FormatBar } from './FormatBar';
@@ -437,6 +438,17 @@ export function TaskDetail({
         }
         metadata={
           <div className="detail-metadata">
+            <AssigneeField
+              taskId={task.id}
+              projectId={task.project_id}
+              assigneeId={task.assignee_id}
+              canAssign={
+                (projects.data?.items ?? []).find((project) => project.id === task.project_id)
+                  ?.role === 'owner' ||
+                (projects.data?.items ?? []).find((project) => project.id === task.project_id)
+                  ?.role === 'write'
+              }
+            />
             <button
               type="button"
               className="detail-meta-chip"

@@ -21,6 +21,7 @@ import {
   ListTodo,
   Funnel,
   List,
+  Share2,
   Globe,
   Settings,
   Search,
@@ -453,6 +454,12 @@ export function Sidebar({
                 <SideLink to="/filters" onNavigate={onNavigate}>
                   <Funnel size={22} aria-hidden="true" />
                   <span className="nav-label">{messages.filtersTitle}</span>
+                </SideLink>
+              </li>
+              <li>
+                <SideLink to="/settings/sharing" onNavigate={onNavigate}>
+                  <Share2 size={22} aria-hidden="true" />
+                  <span className="nav-label">{messages.settingsSharing}</span>
                 </SideLink>
               </li>
             </ul>

@@ -496,15 +496,93 @@ export function SharingSettings() {
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
   const selected = lists.find((list) => list.id === projectId);
   const isOwner = selected !== undefined && selected.owner_id === me.data?.id;
+  const queryClient = useQueryClient();
   const members = useQuery({
     queryKey: ['members', projectId],
     queryFn: () => api.listMembers(projectId),
     enabled: projectId.length > 0,
   });
+  const invitations = useQuery({
+    queryKey: ['share-invitations'],
+    queryFn: () => api.listShareInvitations(),
+  });
+  const notices = useQuery({
+    queryKey: ['share-notices'],
+    queryFn: () => api.listShareNotices(),
+  });
   const people = itemsOf(members.data);
+  const pending = itemsOf(invitations.data);
+  const unread = itemsOf(notices.data);
   return (
     <section className="token-settings">
       <PageTitle title={messages.settingsSharing} lede={messages.sharingHint} />
+      {unread.length > 0 ? (
+        <section className="token-panel is-list" aria-label={messages.shareNotices}>
+          <h2>{messages.shareNotices}</h2>
+          {unread.map((row) => (
+            <article className="token-row" key={text(row.id)}>
+              <p>{noticeText(row, messages)}</p>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  const id = text(row.id);
+                  if (id.length === 0) {
+                    return;
+                  }
+                  void api.readShareNotice(id).then(() => {
+                    runAction(queryClient.invalidateQueries({ queryKey: ['share-notices'] }));
+                  });
+                }}
+              >
+                {messages.shareNoticeRead}
+              </Button>
+            </article>
+          ))}
+        </section>
+      ) : null}
+      <section className="token-panel is-list" aria-label={messages.shareInvitations}>
+        <h2>{messages.shareInvitations}</h2>
+        {pending.length === 0 ? (
+          <p className="token-empty">{messages.shareInvitationsEmpty}</p>
+        ) : null}
+        {pending.map((row) => (
+          <article className="token-row" key={text(row.id)}>
+            <div className="token-head">
+              <div>
+                <h2>{text(row.project_name)}</h2>
+                <p className="token-meta">
+                  {text(row.owner_name)} · {permissionLabel(text(row.permission), messages)}
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                void api.acceptShareInvitation(text(row.id)).then(() => {
+                  runAction(queryClient.invalidateQueries({ queryKey: ['share-invitations'] }));
+                  runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
+                });
+              }}
+            >
+              {messages.shareAccept}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                void api.declineShareInvitation(text(row.id)).then(() => {
+                  runAction(queryClient.invalidateQueries({ queryKey: ['share-invitations'] }));
+                });
+              }}
+            >
+              {messages.shareDecline}
+            </Button>
+          </article>
+        ))}
+      </section>
       <section className="token-panel">
         <form
           className="token-form"
@@ -593,19 +671,95 @@ export function SharingSettings() {
         {members.isSuccess && people.length === 0 ? (
           <p className="token-empty">{messages.shareEmpty}</p>
         ) : null}
-        {people.map((row) => (
-          <article className="token-row" key={text(row.id)}>
-            <div className="token-head">
-              <div>
-                <h2>{text(row.display_name) || text(row.email)}</h2>
-                {text(row.display_name).length > 0 ? (
-                  <p className="token-meta">{text(row.email)}</p>
-                ) : null}
+        {people.map((row) => {
+          const memberId = text(row.id);
+          const status = text(row.status);
+          const permission = text(row.permission);
+          return (
+            <article className="token-row" key={memberId.length > 0 ? memberId : 'owner'}>
+              <div className="token-head">
+                <div>
+                  <h2>{text(row.display_name) || text(row.email)}</h2>
+                  {text(row.display_name).length > 0 ? (
+                    <p className="token-meta">{text(row.email)}</p>
+                  ) : null}
+                </div>
+                <span className="token-chip">
+                  {status === 'pending'
+                    ? messages.sharePending
+                    : permissionLabel(permission, messages)}
+                </span>
               </div>
-              <span className="token-chip">{permissionLabel(text(row.permission), messages)}</span>
-            </div>
-          </article>
-        ))}
+              {isOwner && memberId.length > 0 && permission !== 'owner' ? (
+                <div className="token-head">
+                  <label className="token-label" htmlFor={`role-${memberId}`}>
+                    {messages.sharePermission}
+                  </label>
+                  <select
+                    id={`role-${memberId}`}
+                    className="token-name"
+                    value={permission === 'comment' || permission === 'write' ? permission : 'read'}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      if (next !== 'read' && next !== 'comment' && next !== 'write') {
+                        return;
+                      }
+                      void api.updateMemberRole(projectId, memberId, next).then(() => {
+                        runAction(members.refetch());
+                      });
+                    }}
+                  >
+                    <option value="read">{messages.scopeRead}</option>
+                    <option value="comment">{messages.shareComment}</option>
+                    <option value="write">{messages.scopeWrite}</option>
+                  </select>
+                  {status === 'pending' ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        void api.resendShareInvitation(projectId, memberId).then(() => {
+                          runAction(members.refetch());
+                        });
+                      }}
+                    >
+                      {messages.shareResend}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      void api.removeMember(projectId, memberId).then(() => {
+                        runAction(members.refetch());
+                        runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
+                      });
+                    }}
+                  >
+                    {messages.shareRemove}
+                  </Button>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+        {!isOwner &&
+        (selected?.role === 'read' ||
+          selected?.role === 'comment' ||
+          selected?.role === 'write') ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              void api.leaveProject(projectId).then(() => {
+                setPicked('');
+                runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
+              });
+            }}
+          >
+            {messages.shareLeave}
+          </Button>
+        ) : null}
       </section>
       {isOwner && !selected.is_inbox ? <PublicLinkSettings projectId={projectId} /> : null}
     </section>
@@ -829,6 +983,21 @@ function manifestOf(value: unknown): {
     return null;
   }
   return { name, version, permissions };
+}
+
+function noticeText(row: Record<string, unknown>, messages: Messages): string {
+  const name = text(row.actor_name);
+  const list = text(row.list_name);
+  const kind = text(row.kind);
+  const template =
+    kind === 'invitation_accepted'
+      ? messages.shareNoticeAccepted
+      : kind === 'invitation_declined'
+        ? messages.shareNoticeDeclined
+        : kind === 'member_left'
+          ? messages.shareNoticeLeft
+          : messages.shareNoticeMention;
+  return template.replace('{name}', name).replace('{list}', list);
 }
 
 function permissionLabel(permission: string, messages: Messages): string {

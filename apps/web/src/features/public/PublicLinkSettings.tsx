@@ -123,9 +123,11 @@ export function PublicLinkSettings({ projectId }: { readonly projectId: string }
           <option value="date">{messages.publicLinkDate}</option>
         </select>
       </label>
+      {/* COMP-29. A task DatePopover also edits reminders, which a public link must not expose. */}
       {expiry === 'date' ? (
         <input
           type="date"
+          aria-label={messages.publicLinkDate}
           value={date}
           onChange={(event) => {
             setDate(event.target.value);
