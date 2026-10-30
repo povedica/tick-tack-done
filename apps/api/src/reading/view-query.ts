@@ -21,8 +21,9 @@ export async function countViewTasks(
   clause: FilterClause,
   clock: FilterClock,
   extra?: Prisma.TaskWhereInput,
+  scope?: Prisma.TaskWhereInput,
 ): Promise<number> {
-  return db.task.count({ where: viewWhere(ownerId, clause, clock, extra) });
+  return db.task.count({ where: viewWhere(ownerId, clause, clock, extra, scope) });
 }
 
 /** Applies the clause in SQL, then hydrates tags and checklist only for the page. */

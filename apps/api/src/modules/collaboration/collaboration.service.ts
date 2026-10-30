@@ -1,6 +1,6 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Project } from '@prisma/client';
-import { projectConstraint, type SharePermission } from '@reflexionia/domain';
+import { parseMentions, type SharePermission } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { AttemptLimiter } from '../../auth/attempt-limiter.js';
 import { DomainEvent } from '../../events/domain-events.js';
@@ -61,6 +61,7 @@ export class CollaborationService {
       items: [
         {
           id: null,
+          user_id: project.ownerId,
           permission: 'owner' as const,
           role: 'owner' as const,
           status: 'accepted' as const,
@@ -70,6 +71,7 @@ export class CollaborationService {
         },
         ...rows.map((row) => ({
           id: row.id,
+          user_id: row.memberId,
           permission: row.permission,
           role: row.permission,
           status: row.status,
@@ -211,6 +213,16 @@ export class CollaborationService {
         where: { id: row.id },
         data: { status: 'left', deletedAt: new Date(), respondedAt: new Date() },
       });
+      if (user.id !== row.ownerId) {
+        await this.recordNotice(tx, {
+          userId: row.ownerId,
+          kind: 'member_left',
+          projectId,
+          taskId: null,
+          actorName: await this.actorName(tx, user.id),
+          listName: await this.listName(tx, projectId),
+        });
+      }
       await this.events.record(
         tx,
         { ...actorOf(user), ownerId: row.ownerId },
@@ -273,6 +285,16 @@ export class CollaborationService {
           ? { status: 'accepted', respondedAt: new Date() }
           : { status: 'declined', respondedAt: new Date() },
       });
+      if (user.id !== row.ownerId) {
+        await this.recordNotice(tx, {
+          userId: row.ownerId,
+          kind: accept ? 'invitation_accepted' : 'invitation_declined',
+          projectId: row.projectId,
+          taskId: null,
+          actorName: await this.actorName(tx, user.id),
+          listName: await this.listName(tx, row.projectId),
+        });
+      }
       await this.events.record(
         tx,
         { ...actorOf(user), ownerId: row.ownerId },
@@ -318,19 +340,136 @@ export class CollaborationService {
   }
 
   async owner(user: AuthUser, projectId: string): Promise<Project> {
-    const gate = projectConstraint(user.listIds, projectId);
-    const project = await this.prisma.project.findFirst({
-      where: { id: gate.id ?? projectId, ownerId: user.id, deletedAt: null },
-    });
-    if (project === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'project_not_found', 'List was not found');
-    }
-    return project;
+    const resolved = await this.access.requireRole(user, projectId, 'manage_members');
+    return resolved.project;
   }
 
   async can(user: AuthUser, projectId: string, action: 'read' | 'comment' | 'write') {
     const resolved = await this.access.requireShareAction(user, projectId, action);
     return resolved.project;
+  }
+
+  async notices(user: AuthUser) {
+    const rows = await this.prisma.shareNotice.findMany({
+      where: { userId: user.id, readAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        kind: row.kind,
+        project_id: row.projectId,
+        task_id: row.taskId,
+        actor_name: row.actorName,
+        list_name: row.listName,
+        created_at: row.createdAt.toISOString(),
+      })),
+    };
+  }
+
+  async markNoticeRead(user: AuthUser, id: string): Promise<void> {
+    const updated = await this.prisma.shareNotice.updateMany({
+      where: { id, userId: user.id, readAt: null },
+      data: { readAt: new Date() },
+    });
+    if (updated.count === 0) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'notice_not_found', 'Notice was not found');
+    }
+  }
+
+  /** RF-1802. Only the owner or an accepted member can be assigned. */
+  async assign(user: AuthUser, taskId: string, assigneeId: string | null) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, deletedAt: null } });
+    if (task === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    await this.access.requireRole(user, task.projectId, 'assign');
+    await this.assertAssignee(task.projectId, assigneeId);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const saved = await tx.task.update({
+          where: { id: task.id },
+          data: { assigneeId },
+        });
+        await this.events.record(
+          tx,
+          { ...actorOf(user), ownerId: task.ownerId },
+          {
+            type: DomainEvent.taskAssigned,
+            entityType: 'task',
+            entityId: task.id,
+            action: 'assigned',
+            data: asJson({ assignee_id: assigneeId }),
+            previous: asJson({ assignee_id: task.assigneeId }),
+          },
+        );
+        return { id: saved.id, assignee_id: saved.assigneeId };
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new DomainException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          'invalid_reference',
+          'Assignee is not a member of this list',
+        );
+      }
+      throw error;
+    }
+  }
+
+  async notifyMentions(
+    user: AuthUser,
+    task: { id: string; projectId: string; ownerId: string },
+    body: string,
+  ): Promise<void> {
+    const wanted = new Set(parseMentions(body));
+    if (wanted.size === 0) {
+      return;
+    }
+    const [owner, members, project] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: { id: task.ownerId, deletedAt: null },
+        select: { id: true, displayName: true },
+      }),
+      this.prisma.projectMember.findMany({
+        where: {
+          projectId: task.projectId,
+          status: 'accepted',
+          deletedAt: null,
+          memberId: { not: null },
+        },
+        include: { member: { select: { id: true, displayName: true } } },
+      }),
+      this.prisma.project.findFirst({
+        where: { id: task.projectId },
+        select: { name: true },
+      }),
+    ]);
+    const people = [
+      ...(owner === null ? [] : [{ id: owner.id, name: owner.displayName }]),
+      ...members.flatMap((row) =>
+        row.member === null ? [] : [{ id: row.member.id, name: row.member.displayName }],
+      ),
+    ];
+    const actorName = await this.actorName(this.prisma, user.id);
+    const seen = new Set<string>();
+    for (const person of people) {
+      if (person.id === user.id || seen.has(person.id) || !wanted.has(mentionKey(person.name))) {
+        continue;
+      }
+      seen.add(person.id);
+      await this.prisma.shareNotice.create({
+        data: {
+          userId: person.id,
+          kind: 'mention',
+          projectId: task.projectId,
+          taskId: task.id,
+          actorName,
+          listName: project?.name ?? '',
+        },
+      });
+    }
   }
 
   async previewShare(
@@ -559,6 +698,75 @@ export class CollaborationService {
     });
   }
 
+  private async assertAssignee(projectId: string, assigneeId: string | null): Promise<void> {
+    if (assigneeId === null) {
+      return;
+    }
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, deletedAt: null },
+      select: { ownerId: true },
+    });
+    if (project !== null && assigneeId === project.ownerId) {
+      return;
+    }
+    const seat = await this.prisma.projectMember.findFirst({
+      where: {
+        projectId,
+        memberId: assigneeId,
+        status: 'accepted',
+        deletedAt: null,
+        tokenId: null,
+      },
+      select: { id: true },
+    });
+    if (seat === null) {
+      throw new DomainException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'invalid_reference',
+        'Assignee is not a member of this list',
+      );
+    }
+  }
+
+  private async recordNotice(
+    tx: Tx,
+    input: {
+      readonly userId: string;
+      readonly kind: string;
+      readonly projectId: string;
+      readonly taskId: string | null;
+      readonly actorName: string;
+      readonly listName: string;
+    },
+  ): Promise<void> {
+    await tx.shareNotice.create({
+      data: {
+        userId: input.userId,
+        kind: input.kind,
+        projectId: input.projectId,
+        taskId: input.taskId,
+        actorName: input.actorName,
+        listName: input.listName,
+      },
+    });
+  }
+
+  private async actorName(tx: Tx | PrismaService, userId: string): Promise<string> {
+    const row = await tx.user.findFirst({
+      where: { id: userId },
+      select: { displayName: true },
+    });
+    return row?.displayName ?? '';
+  }
+
+  private async listName(tx: Tx, projectId: string): Promise<string> {
+    const row = await tx.project.findFirst({
+      where: { id: projectId },
+      select: { name: true },
+    });
+    return row?.name ?? '';
+  }
+
   private async notifyInvite(
     account: { locale: string; displayName: string },
     listName: string,
@@ -600,6 +808,11 @@ export async function attachPendingInvites(tx: Tx, userId: string, email: string
 
 function inviteExpiry(): Date {
   return new Date(Date.now() + INVITE_DAYS * 24 * 60 * 60 * 1000);
+}
+
+function mentionKey(name: string): string {
+  const first = name.trim().split(/\s+/)[0] ?? '';
+  return first.toLowerCase();
 }
 
 function shareSettingsUrl(): string {

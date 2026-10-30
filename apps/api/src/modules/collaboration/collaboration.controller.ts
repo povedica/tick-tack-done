@@ -191,6 +191,29 @@ export class CollaborationController {
     res.status(204).end();
   }
 
+  @Get('me/share-notices')
+  @Scopes('lists:read')
+  @ApiOperation({ summary: 'Unread sharing notices (RF-1801, RF-1803)' })
+  async notices(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.collaboration.notices(user), false);
+  }
+
+  @Post('me/share-notices/:id/read')
+  @Scopes('lists:read')
+  @ApiOperation({ summary: 'Mark a sharing notice as read (RF-1801)' })
+  async readNotice(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.collaboration.markNoticeRead(user, id);
+    res.status(204).end();
+  }
+
   @Post('projects/:id/presence')
   @Scopes('lists:read')
   @ApiOperation({ summary: 'Mark that you are looking at the list (RF-1804)' })
@@ -200,7 +223,7 @@ export class CollaborationController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    await this.collaboration.can(user, id, 'read');
+    const project = await this.collaboration.can(user, id, 'read');
     const row = await this.prisma.listPresence.upsert({
       where: { projectId_userId: { projectId: id, userId: user.id } },
       create: { projectId: id, userId: user.id, seenAt: new Date() },
@@ -208,7 +231,7 @@ export class CollaborationController {
     });
     await this.prisma.outboxEvent.create({
       data: {
-        ownerId: user.id,
+        ownerId: project.ownerId,
         type: DomainEvent.presenceUpdated,
         actorKind: 'user',
         actorId: user.id,
@@ -302,6 +325,7 @@ export class CollaborationController {
       );
       return created;
     });
+    await this.collaboration.notifyMentions(user, task, dto.body);
     respondJson(req, res, 201, { id: row.id, mentions: parseMentions(dto.body) }, false);
   }
 
@@ -315,27 +339,13 @@ export class CollaborationController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const task = await this.task(user, id, 'write');
-    const row = await this.prisma.$transaction(async (tx) => {
-      const saved = await tx.task.update({
-        where: { id: task.id },
-        data: { assigneeId: dto.assignee_id },
-      });
-      await this.events.record(
-        tx,
-        { ...actorOf(user), ownerId: task.ownerId },
-        {
-          type: DomainEvent.taskAssigned,
-          entityType: 'task',
-          entityId: task.id,
-          action: 'assigned',
-          data: asJson({ assignee_id: dto.assignee_id }),
-          previous: asJson({ assignee_id: task.assigneeId }),
-        },
-      );
-      return saved;
-    });
-    respondJson(req, res, 200, { id: row.id, assignee_id: row.assigneeId }, false);
+    respondJson(
+      req,
+      res,
+      200,
+      await this.collaboration.assign(user, id, dto.assignee_id ?? null),
+      false,
+    );
   }
 
   private async task(user: AuthUser, taskId: string, action: 'read' | 'comment' | 'write') {

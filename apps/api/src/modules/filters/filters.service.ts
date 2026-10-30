@@ -1,5 +1,5 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import type { Filter, FilterMode } from '@prisma/client';
+import { Prisma, type Filter, type FilterMode } from '@prisma/client';
 import {
   isFilterTagId,
   parseFilterRules,
@@ -101,7 +101,16 @@ export class FiltersService {
   ): Promise<ViewPageJson> {
     const rules = await this.resolveRules(this.prisma, user.id, this.parse(dto.mode, dto.rules));
     const clock = this.clock(user);
-    return this.page(user, savedFilterClause(rules, clock), clock, groupBy, sort, limit, cursorRaw);
+    return this.page(
+      user,
+      savedFilterClause(rules, clock),
+      clock,
+      groupBy,
+      sort,
+      limit,
+      cursorRaw,
+      await this.access.assignedSharedWhere(user),
+    );
   }
 
   async get(user: AuthUser, id: string): Promise<FilterResponseDto> {
@@ -316,9 +325,10 @@ export class FiltersService {
     sort: string | undefined,
     limit: number,
     cursorRaw: string | undefined,
+    scope?: Prisma.TaskWhereInput,
   ): Promise<ViewPageJson> {
     const view = this.view(groupBy, sort);
-    const scope = await this.access.taskVisibility(user);
+    const visibility = scope ?? (await this.access.taskVisibility(user));
     return pageViewTasks(this.prisma, {
       ownerId: user.id,
       clause,
@@ -327,7 +337,7 @@ export class FiltersService {
       sort: view.sort,
       limit,
       cursor: this.cursor(cursorRaw),
-      scope,
+      scope: visibility,
     });
   }
 

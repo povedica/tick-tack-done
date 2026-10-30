@@ -1614,7 +1614,7 @@ export class TasksService {
   }
 
   async listReminders(user: AuthUser, taskId: string): Promise<ReminderJson[]> {
-    await this.require(this.prisma, user.id, taskId, false);
+    await this.requireReminderOwner(this.prisma, user, taskId);
     const rows = await this.prisma.reminder.findMany({
       where: { ownerId: user.id, taskId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
@@ -1635,7 +1635,7 @@ export class TasksService {
       fingerprint: requestFingerprint('POST', `/api/v1/tasks/${taskId}/reminders`, dto),
       statusCode: 201,
       execute: async (tx) => {
-        const task = await this.require(tx, user.id, taskId, false);
+        const task = await this.requireReminderOwner(tx, user, taskId);
         this.assertReminder(dto, task.dueDate, task.startDate);
         const row = await tx.reminder.create({
           data: {
@@ -1664,7 +1664,7 @@ export class TasksService {
 
   async deleteReminder(user: AuthUser, taskId: string, reminderId: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      await this.require(tx, user.id, taskId, false);
+      await this.requireReminderOwner(tx, user, taskId);
       const row = await tx.reminder.findFirst({
         where: { id: reminderId, ownerId: user.id, taskId, deletedAt: null },
       });
@@ -1688,7 +1688,7 @@ export class TasksService {
     until: string | null,
   ): Promise<ReminderJson> {
     return this.prisma.$transaction(async (tx) => {
-      const task = await this.require(tx, user.id, taskId, false);
+      const task = await this.requireReminderOwner(tx, user, taskId);
       const row = await tx.reminder.findFirst({
         where: { id: reminderId, ownerId: user.id, taskId, deletedAt: null },
       });
@@ -2737,6 +2737,34 @@ export class TasksService {
       await this.access.requireRole(user, row.id, 'edit_task');
     }
     return row;
+  }
+
+  /** RF-1802. Reminders stay with the list owner. A member sees 403, a stranger 404. */
+  private async requireReminderOwner(
+    tx: Tx | PrismaService,
+    user: AuthUser,
+    taskId: string,
+  ): Promise<Task> {
+    const row = await tx.task.findFirst({ where: { id: taskId, deletedAt: null } });
+    if (row === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    if (row.ownerId === user.id) {
+      if (!listVisible(user.listIds, row.projectId)) {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+      }
+      return row;
+    }
+    const role = await this.access.roleFor(user, row.projectId);
+    if (role === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    throw new DomainException(
+      HttpStatus.FORBIDDEN,
+      'forbidden',
+      'Reminders belong to the list owner',
+      { reason: 'owner_only' },
+    );
   }
 
   private async require(

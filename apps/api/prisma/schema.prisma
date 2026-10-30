@@ -351,6 +351,7 @@ model User {
   ownedPublicLinks      PublicListLink[]       @relation("PublicLinkOwner")
   createdPublicLinks    PublicListLink[]       @relation("PublicLinkCreator")
   presences             ListPresence[]
+  shareNotices          ShareNotice[]
   plugins               PluginInstall[]
   recoveryCodes         RecoveryCode[]
   notificationPreferences NotificationPreference[]
@@ -1346,6 +1347,23 @@ model ListPresence {
 
   @@unique([projectId, userId])
   @@map("list_presence")
+}
+
+/// RF-1801. In-app notice for the list owner or a mentioned member.
+model ShareNotice {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  projectId String    @map("project_id") @db.Uuid
+  taskId    String?   @map("task_id") @db.Uuid
+  actorName String    @map("actor_name")
+  listName  String    @map("list_name")
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, readAt, createdAt])
+  @@map("share_notices")
 }
 
 model PluginInstall {
