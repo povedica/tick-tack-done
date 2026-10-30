@@ -482,6 +482,19 @@ export interface ResourceClient {
     permission: 'read' | 'comment' | 'write',
   ): Promise<JsonObject>;
   removeMember(projectId: string, memberId: string): Promise<void>;
+  updateMemberRole(
+    projectId: string,
+    memberId: string,
+    permission: 'read' | 'comment' | 'write',
+  ): Promise<JsonObject>;
+  listShareInvitations(): Promise<JsonObject>;
+  acceptShareInvitation(id: string): Promise<void>;
+  declineShareInvitation(id: string): Promise<void>;
+  leaveProject(projectId: string): Promise<void>;
+  resendShareInvitation(projectId: string, memberId: string): Promise<void>;
+  listShareNotices(): Promise<JsonObject>;
+  readShareNotice(id: string): Promise<void>;
+  assignTask(taskId: string, assigneeId: string | null): Promise<JsonObject>;
   shareProject(
     projectId: string,
     email: string,
@@ -996,6 +1009,59 @@ export function resourceMethods(http: Http): ResourceClient {
         isEmpty,
       );
     },
+    updateMemberRole: (projectId, memberId, permission) =>
+      ask(
+        'PATCH',
+        `/api/v1/projects/${projectId}/members/${memberId}`,
+        { permission },
+        undefined,
+        isJsonObject,
+      ),
+    listShareInvitations: () =>
+      ask('GET', '/api/v1/me/share-invitations', undefined, undefined, isJsonObject),
+    async acceptShareInvitation(id) {
+      await ask('POST', `/api/v1/me/share-invitations/${id}/accept`, undefined, undefined, isEmpty);
+    },
+    async declineShareInvitation(id) {
+      await ask(
+        'POST',
+        `/api/v1/me/share-invitations/${id}/decline`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    async leaveProject(projectId) {
+      await ask(
+        'DELETE',
+        `/api/v1/projects/${projectId}/membership`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    async resendShareInvitation(projectId, memberId) {
+      await ask(
+        'POST',
+        `/api/v1/projects/${projectId}/members/${memberId}/resend`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    listShareNotices: () =>
+      ask('GET', '/api/v1/me/share-notices', undefined, undefined, isJsonObject),
+    async readShareNotice(id) {
+      await ask('POST', `/api/v1/me/share-notices/${id}/read`, undefined, undefined, isEmpty);
+    },
+    assignTask: (taskId, assigneeId) =>
+      ask(
+        'POST',
+        `/api/v1/tasks/${taskId}/assignee`,
+        { assignee_id: assigneeId },
+        undefined,
+        isJsonObject,
+      ),
     shareProject: (projectId, email, permission) =>
       ask(
         'POST',
