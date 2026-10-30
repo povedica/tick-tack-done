@@ -356,19 +356,19 @@ export class CollaborationController {
     try {
       await this.collaboration.can(user, task.projectId, action);
     } catch (error) {
-      if (error instanceof DomainException) {
-        const body = error.getResponse();
-        if (
-          typeof body === 'object' &&
-          body !== null &&
-          'code' in body &&
-          body.code === 'project_not_found'
-        ) {
-          throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
-        }
+      if (error instanceof DomainException && responseCode(error) === 'project_not_found') {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
       }
       throw error;
     }
     return task;
   }
+}
+
+function responseCode(error: DomainException): string | null {
+  const body: unknown = error.getResponse();
+  if (typeof body !== 'object' || body === null || !('code' in body)) {
+    return null;
+  }
+  return typeof body.code === 'string' ? body.code : null;
 }
