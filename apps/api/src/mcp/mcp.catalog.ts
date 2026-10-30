@@ -979,8 +979,40 @@ const CATALOG: readonly McpTool[] = [
     inputSchema: objectSchema({ id, member_id: id }, ['id', 'member_id']),
   },
   {
+    name: 'update_project_member',
+    description: 'Change the permission of a member on a list you own.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        member_id: id,
+        permission: { type: 'string', enum: ['read', 'comment', 'write'] },
+      },
+      ['id', 'member_id', 'permission'],
+    ),
+  },
+  {
+    name: 'leave_project',
+    description: 'Leave a list that was shared with you. The owner cannot leave.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'list_share_invitations',
+    description: 'List pending invitations to lists shared with you.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({}),
+  },
+  {
+    name: 'respond_share_invitation',
+    description: 'Accept or decline a pending list invitation. accept=true accepts it.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id, accept: { type: 'boolean' } }, ['id', 'accept']),
+  },
+  {
     name: 'get_project_public_link',
-    description: 'Read whether a list you own has a public read-only link. Never returns the token.',
+    description:
+      'Read whether a list you own has a public read-only link. Never returns the token.',
     scopes: ['lists:read'],
     inputSchema: objectSchema({ id }, ['id']),
   },
@@ -1418,7 +1450,7 @@ const CATALOG: readonly McpTool[] = [
 ];
 
 /** Members follow GET /projects/{id}/members: one id, no page. */
-const UNPAGED_LIST_TOOLS = new Set(['list_project_members']);
+const UNPAGED_LIST_TOOLS = new Set(['list_project_members', 'list_share_invitations']);
 
 /** Every listing shares paging inputs; task activity defaults to a compact summary. */
 const ACTIVITY_TOOLS = new Set([

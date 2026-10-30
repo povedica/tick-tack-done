@@ -240,7 +240,11 @@ export class McpService {
       const record = response as { data: { capture_settings: unknown } };
       data = record.data.capture_settings;
     } else data = await this.run(user, tool.name, args, authorization);
-    if (tool.name.startsWith('list_') && tool.name !== 'list_project_members') {
+    if (
+      tool.name.startsWith('list_') &&
+      tool.name !== 'list_project_members' &&
+      tool.name !== 'list_share_invitations'
+    ) {
       data = listResult(data, args);
     }
     if (args.include_activity !== 'full') data = summarizeActivity(data, tool.name === 'get_task');
@@ -660,23 +664,7 @@ export class McpService {
         const taskId = requiredUuid(args, 'id');
         const assigneeId =
           args.assignee_id === null ? null : (uuidOrEmpty(args.assignee_id) ?? null);
-        const task = await this.tasks.get(user, taskId);
-        const row = await this.prisma.$transaction(async (tx) => {
-          const saved = await tx.task.update({
-            where: { id: taskId },
-            data: { assigneeId },
-          });
-          await this.events.record(tx, actorOf(user), {
-            type: DomainEvent.taskAssigned,
-            entityType: 'task',
-            entityId: taskId,
-            action: 'assigned',
-            data: asJson({ assignee_id: assigneeId }),
-            previous: asJson({ assignee_id: task.assignee_id ?? null }),
-          });
-          return saved;
-        });
-        return { id: row.id, assignee_id: row.assigneeId };
+        return this.collaboration.assign(user, taskId, assigneeId);
       }
       case 'update_task': {
         const id = requiredUuid(args, 'id');
@@ -910,6 +898,29 @@ export class McpService {
         const memberId = requiredUuid(args, 'member_id');
         await this.collaboration.unshare(user, id, memberId);
         return { removed: true, member_id: memberId };
+      }
+      case 'update_project_member':
+        return this.collaboration.updateMember(
+          user,
+          requiredUuid(args, 'id'),
+          requiredUuid(args, 'member_id'),
+          sharePermission(args.permission),
+        );
+      case 'leave_project':
+        await this.collaboration.leave(user, requiredUuid(args, 'id'));
+        return { left: true };
+      case 'list_share_invitations':
+        return this.collaboration.invitations(user);
+      case 'respond_share_invitation': {
+        if (typeof args.accept !== 'boolean') {
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'accept is required',
+          );
+        }
+        await this.collaboration.respond(user, requiredUuid(args, 'id'), args.accept);
+        return { responded: true, accepted: args.accept };
       }
       case 'get_project_public_link':
         return this.publicLinks.state(user, requiredUuid(args, 'id'));
@@ -1928,7 +1939,11 @@ function publicLinkInput(args: Record<string, unknown>): {
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'expires_at is invalid');
   }
   if (notes !== undefined && typeof notes !== 'boolean') {
-    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'include_notes is invalid');
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'include_notes is invalid',
+    );
   }
   return {
     ...(expires === undefined ? {} : { expires_at: expires }),

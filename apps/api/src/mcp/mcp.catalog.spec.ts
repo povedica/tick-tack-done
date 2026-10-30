@@ -203,6 +203,11 @@ describe('MCP tool catalog', () => {
     expect(write).toContain('unshare_project');
     expect(write).toContain('create_project_public_link');
     expect(write).toContain('revoke_project_public_link');
+    expect(write).toContain('update_project_member');
+    expect(read).toContain('list_share_invitations');
+    expect(read).toContain('leave_project');
+    expect(read).toContain('respond_share_invitation');
+    expect(read).not.toContain('update_project_member');
     const writing = [
       'create_folder',
       'update_folder',
@@ -291,8 +296,9 @@ it('TTD-AUD-82: cancellation explains history, reopening and trash separately', 
 });
 
 it('TTD-AUD-83: every list tool declares limit and opaque cursor', () => {
+  const unpaged = new Set(['list_project_members', 'list_share_invitations']);
   for (const tool of MCP_TOOLS.filter(
-    (tool) => tool.name.startsWith('list_') && tool.name !== 'list_project_members',
+    (tool) => tool.name.startsWith('list_') && !unpaged.has(tool.name),
   )) {
     expect(tool.inputSchema.properties, tool.name).toHaveProperty('cursor');
     expect(tool.inputSchema.properties, tool.name).toHaveProperty('limit');
