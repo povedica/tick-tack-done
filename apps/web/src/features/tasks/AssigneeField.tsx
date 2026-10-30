@@ -37,9 +37,10 @@ export function AssigneeField({
         value={assigneeId ?? ''}
         onChange={(event) => {
           const next = event.target.value;
-          void api.assignTask(taskId, next.length === 0 ? null : next).then(() => {
-            return queryClient.invalidateQueries({ queryKey: ['task', taskId] });
-          });
+          void api
+            .assignTask(taskId, next.length === 0 ? null : next)
+            .then(() => queryClient.invalidateQueries({ queryKey: ['task', taskId] }))
+            .catch(() => undefined);
         }}
       >
         <option value="">{messages.assigneeNone}</option>

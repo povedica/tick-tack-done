@@ -530,9 +530,12 @@ export function SharingSettings() {
                   if (id.length === 0) {
                     return;
                   }
-                  void api.readShareNotice(id).then(() => {
-                    runAction(queryClient.invalidateQueries({ queryKey: ['share-notices'] }));
-                  });
+                  void api
+                    .readShareNotice(id)
+                    .then(() => {
+                      runAction(queryClient.invalidateQueries({ queryKey: ['share-notices'] }));
+                    })
+                    .catch(() => undefined);
                 }}
               >
                 {messages.shareNoticeRead}
@@ -561,10 +564,13 @@ export function SharingSettings() {
               size="sm"
               variant="primary"
               onClick={() => {
-                void api.acceptShareInvitation(text(row.id)).then(() => {
-                  runAction(queryClient.invalidateQueries({ queryKey: ['share-invitations'] }));
-                  runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
-                });
+                void api
+                  .acceptShareInvitation(text(row.id))
+                  .then(() => {
+                    runAction(queryClient.invalidateQueries({ queryKey: ['share-invitations'] }));
+                    runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
+                  })
+                  .catch(() => undefined);
               }}
             >
               {messages.shareAccept}
@@ -573,9 +579,12 @@ export function SharingSettings() {
               type="button"
               size="sm"
               onClick={() => {
-                void api.declineShareInvitation(text(row.id)).then(() => {
-                  runAction(queryClient.invalidateQueries({ queryKey: ['share-invitations'] }));
-                });
+                void api
+                  .declineShareInvitation(text(row.id))
+                  .then(() => {
+                    runAction(queryClient.invalidateQueries({ queryKey: ['share-invitations'] }));
+                  })
+                  .catch(() => undefined);
               }}
             >
               {messages.shareDecline}
@@ -704,9 +713,12 @@ export function SharingSettings() {
                       if (next !== 'read' && next !== 'comment' && next !== 'write') {
                         return;
                       }
-                      void api.updateMemberRole(projectId, memberId, next).then(() => {
-                        runAction(members.refetch());
-                      });
+                      void api
+                        .updateMemberRole(projectId, memberId, next)
+                        .then(() => {
+                          runAction(members.refetch());
+                        })
+                        .catch(() => undefined);
                     }}
                   >
                     <option value="read">{messages.scopeRead}</option>
@@ -718,9 +730,12 @@ export function SharingSettings() {
                       type="button"
                       size="sm"
                       onClick={() => {
-                        void api.resendShareInvitation(projectId, memberId).then(() => {
-                          runAction(members.refetch());
-                        });
+                        void api
+                          .resendShareInvitation(projectId, memberId)
+                          .then(() => {
+                            runAction(members.refetch());
+                          })
+                          .catch(() => undefined);
                       }}
                     >
                       {messages.shareResend}
@@ -730,10 +745,13 @@ export function SharingSettings() {
                     type="button"
                     size="sm"
                     onClick={() => {
-                      void api.removeMember(projectId, memberId).then(() => {
-                        runAction(members.refetch());
-                        runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
-                      });
+                      void api
+                        .removeMember(projectId, memberId)
+                        .then(() => {
+                          runAction(members.refetch());
+                          runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
+                        })
+                        .catch(() => undefined);
                     }}
                   >
                     {messages.shareRemove}
@@ -751,10 +769,13 @@ export function SharingSettings() {
             type="button"
             size="sm"
             onClick={() => {
-              void api.leaveProject(projectId).then(() => {
-                setPicked('');
-                runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
-              });
+              void api
+                .leaveProject(projectId)
+                .then(() => {
+                  setPicked('');
+                  runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
+                })
+                .catch(() => undefined);
             }}
           >
             {messages.shareLeave}
