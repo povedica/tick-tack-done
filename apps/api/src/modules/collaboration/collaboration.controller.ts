@@ -353,7 +353,22 @@ export class CollaborationController {
     if (task === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
-    await this.collaboration.can(user, task.projectId, action);
+    try {
+      await this.collaboration.can(user, task.projectId, action);
+    } catch (error) {
+      if (error instanceof DomainException) {
+        const body = error.getResponse();
+        if (
+          typeof body === 'object' &&
+          body !== null &&
+          'code' in body &&
+          body.code === 'project_not_found'
+        ) {
+          throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+        }
+      }
+      throw error;
+    }
     return task;
   }
 }

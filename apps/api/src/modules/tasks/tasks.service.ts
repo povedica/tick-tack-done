@@ -34,6 +34,7 @@ import {
   normalizeReminderTrigger,
   endFromDuration,
   reminderFireAt,
+  canDo,
   listVisible,
   projectConstraint,
   resolveDefaultReminder,
@@ -2567,7 +2568,10 @@ export class TasksService {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
     if (typeof user !== 'string' && row.ownerId !== user.id) {
-      await this.access.requireRole(user, row.projectId, 'view');
+      const role = await this.access.roleFor(user, row.projectId);
+      if (role === null) {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+      }
     } else if (!listVisible(listIds, row.projectId)) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
@@ -2717,7 +2721,13 @@ export class TasksService {
       }
       return row;
     }
-    await this.access.requireRole(user, row.projectId, deleted ? 'trash_task' : 'edit_task');
+    const role = await this.access.roleFor(user, row.projectId);
+    if (role === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    if (!canDo(role, deleted ? 'trash_task' : 'edit_task')) {
+      throw new DomainException(HttpStatus.FORBIDDEN, 'forbidden', 'Not allowed on this list');
+    }
     return row;
   }
 

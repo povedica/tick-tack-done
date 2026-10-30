@@ -205,12 +205,12 @@ describe('shared list access', () => {
       .get(`/api/v1/tasks/${taskId}`)
       .set('X-Dev-User-Email', must(emails, 'e'))
       .expect(404);
-    expect(stranger.body.error.code).toBe('project_not_found');
+    expect(stranger.body.error.code).toBe('task_not_found');
     const pending = await request(server)
       .get(`/api/v1/tasks/${taskId}`)
       .set('X-Dev-User-Email', must(emails, 'f'))
       .expect(404);
-    expect(pending.body.error.code).toBe('project_not_found');
+    expect(pending.body.error.code).toBe('task_not_found');
 
     const limited = newPersonalAccessToken();
     await prisma.personalAccessToken.create({
