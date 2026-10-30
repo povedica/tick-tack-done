@@ -2047,6 +2047,22 @@
     "request_body": {}
   },
   {
+    "method": "GET",
+    "path": "/api/v1/me/share-notices",
+    "summary": "Unread sharing notices (RF-1801, RF-1803)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/share-notices/{id}/read",
+    "summary": "Mark a sharing notice as read (RF-1801)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
     "method": "POST",
     "path": "/api/v1/projects/{id}/presence",
     "summary": "Mark that you are looking at the list (RF-1804)",

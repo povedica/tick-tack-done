@@ -3694,6 +3694,55 @@
         ]
       }
     },
+    "/api/v1/me/share-notices": {
+      "get": {
+        "operationId": "CollaborationController_notices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Unread sharing notices (RF-1801, RF-1803)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/share-notices/{id}/read": {
+      "post": {
+        "operationId": "CollaborationController_readNotice",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Mark a sharing notice as read (RF-1801)",
+        "tags": [
+          "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/projects/{id}/presence": {
       "post": {
         "operationId": "CollaborationController_presence",
