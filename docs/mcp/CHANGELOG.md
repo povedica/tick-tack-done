@@ -2,6 +2,10 @@
 
 ## Compartir listas
 
+- `update_project_member` (`lists:write`) cambia el permiso de un miembro.
+- `leave_project` (`lists:read`) abandona una lista compartida. El dueño no puede salir.
+- `list_share_invitations` (`lists:read`) lista las invitaciones pendientes.
+- `respond_share_invitation` (`lists:read`) acepta o rechaza con `accept`.
 - Una invitación por email queda `pending` hasta que la persona acepta (`POST /me/share-invitations/{id}/accept`). Un token sigue siendo miembro al momento.
 - `share_project` devuelve `status` (`pending` o `accepted`) además de `changed`.
 - `get_project_public_link`, `create_project_public_link`, `regenerate_project_public_link` y `revoke_project_public_link`. El token solo se devuelve al crear o regenerar, y hace falta `confirm:true`.
