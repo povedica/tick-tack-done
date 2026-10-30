@@ -816,7 +816,10 @@
 }
 
 .detail-panel textarea:not(.detail-title):not(.detail-content):not(.comment-input),
-.detail-panel input:not(.task-check):not(.sr-only):not(.check-edit):not(.check-add-input):not([type='checkbox']):not([type='radio']):not(.popover-search),
+.detail-panel
+  input:not(.task-check):not(.sr-only):not(.check-edit):not(.check-add-input):not(
+    [type='checkbox']
+  ):not([type='radio']):not(.popover-search),
 .detail-panel select:not(.sr-only),
 .settings-layout input:not([type='radio']):not([type='checkbox']),
 .settings-layout select,

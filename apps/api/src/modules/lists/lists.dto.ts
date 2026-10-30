@@ -326,7 +326,9 @@ export class ProjectResponseDto {
   @ApiProperty({ enum: ['owner', 'read', 'comment', 'write'] })
   role!: 'owner' | 'read' | 'comment' | 'write';
 
-  @ApiProperty({ description: 'True when the list has an accepted member or belongs to someone else.' })
+  @ApiProperty({
+    description: 'True when the list has an accepted member or belongs to someone else.',
+  })
   shared!: boolean;
 
   @ApiProperty()
