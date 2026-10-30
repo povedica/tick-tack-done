@@ -2584,6 +2584,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendar/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Day or month density for a calendar window. Reads tasks and external events. Max 400 days. */
+        get: operations["CalendarController_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/range": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Compact or full calendar entries for a window. Keyset (local_start_day, starts_at, id). Max 62 days, limit 500. */
+        get: operations["CalendarController_rangeZoom"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/calendar/google/calendars": {
         parameters: {
             query?: never;
@@ -10135,8 +10169,77 @@ export interface operations {
             query: {
                 from: string;
                 to: string;
+                /** @description external omits tasks, tasks omits external events. Default all. */
+                include?: "external" | "tasks" | "all";
                 /** @description Filters tasks only. External events stay visible. Default all. */
                 context?: "all" | "work" | "personal" | "auto";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarController_summary: {
+        parameters: {
+            query: {
+                /** @description tasks, events, projections. Projections add no rows. */
+                include?: unknown;
+                /** @description Comma-separated subscription ids */
+                cals?: unknown;
+                /** @description Comma-separated tag ids */
+                tags?: unknown;
+                /** @description Comma-separated list ids */
+                lists?: unknown;
+                context?: "all" | "work" | "personal" | "auto";
+                granularity?: "day" | "month";
+                /** @description Inclusive civil day YYYY-MM-DD */
+                to: unknown;
+                /** @description Inclusive civil day YYYY-MM-DD */
+                from: unknown;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarController_rangeZoom: {
+        parameters: {
+            query: {
+                /** @description 1 to 500. Page size, not a silent cut. */
+                limit?: unknown;
+                cursor?: unknown;
+                /** @description Comma-separated subscription ids */
+                cals?: unknown;
+                /** @description Comma-separated tag ids */
+                tags?: unknown;
+                /** @description Comma-separated list ids */
+                lists?: unknown;
+                context?: "all" | "work" | "personal" | "auto";
+                /** @description tasks, events, projections. Default both tasks and events. Projections add no rows. */
+                include?: unknown;
+                fields?: "compact" | "full";
+                /** @description Inclusive civil day YYYY-MM-DD */
+                to: unknown;
+                /** @description Inclusive civil day YYYY-MM-DD */
+                from: unknown;
             };
             header?: never;
             path?: never;

@@ -36,6 +36,8 @@ describe('MCP tool catalog', () => {
       'list_smart_list_tasks',
       'get_day_load',
       'list_calendar_events',
+      'calendar_summary',
+      'calendar_range',
       'get_day_plan',
     ]) {
       const tool = MCP_TOOLS.find((item) => item.name === name);
@@ -110,13 +112,20 @@ describe('MCP tool catalog', () => {
   it('RF-2532: calendar tools follow calendar scopes', () => {
     const read = visibleTools(['calendar:read']).map((tool) => tool.name);
     expect(read).toEqual(
-      expect.arrayContaining(['list_external_calendars', 'list_calendar_events']),
+      expect.arrayContaining([
+        'list_external_calendars',
+        'list_calendar_events',
+        'calendar_summary',
+        'calendar_range',
+      ]),
     );
     expect(read).not.toContain('sync_calendar');
     expect(read).not.toContain('add_external_calendar');
     const write = visibleTools(['calendar:write']).map((tool) => tool.name);
     expect(write).toContain('sync_calendar');
     expect(write).not.toContain('list_calendar_events');
+    expect(write).not.toContain('calendar_summary');
+    expect(write).not.toContain('calendar_range');
     const tasks = visibleTools(['tasks:read']).map((tool) => tool.name);
     expect(tasks).not.toContain('list_external_calendars');
   });

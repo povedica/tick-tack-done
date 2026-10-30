@@ -1,5 +1,19 @@
 # Historial de cambios
 
+## Summary y range del calendario (F6, sin activar en la web)
+
+- `GET /api/v1/calendar/summary` y `GET /api/v1/calendar/range` leen `tasks` y
+  `external_events`. No hay `calendar_entries`. El calendario público sigue en
+  el camino anterior.
+- `calendar_versions` sube en la misma transacción que un cambio que afecta al
+  calendario. El ETag se calcula antes de la consulta principal. `Cache-Control:
+private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
+- Un token limitado a una lista no mete las otras listas en el resumen ni en
+  las páginas. Los eventos externos visibles no desaparecen por ese límite.
+- El conteo del año usa un índice de `external_events` sobre el dueño y los
+  días locales. No copia filas. Un día con varios calendarios visibles conserva
+  el orden de inicio.
+
 ## Decisión B0 del calendario (sin read model)
 
 - En el seed efímero ×100, el resumen del año y la primera página de un mes

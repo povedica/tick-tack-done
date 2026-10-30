@@ -20,6 +20,7 @@ import {
 } from '../../integrations/google-calendar.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
+import { bumpCalendarVersion } from './calendar-version.js';
 import { eventLocalDayColumns } from '../../prisma/local-day-columns.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Tx } from '../../prisma/tx.js';
@@ -480,6 +481,7 @@ export class GoogleSyncService {
     counts: Counts,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      const before = { ...counts };
       for (const item of items) {
         const source = item as GoogleEventSource;
         const mapped = mapGoogleEvent(source, zone);
@@ -530,6 +532,13 @@ export class GoogleSyncService {
           await tx.externalEvent.update({ where: { id: existing.id }, data });
           counts.updated += 1;
         }
+      }
+      if (
+        counts.imported !== before.imported ||
+        counts.updated !== before.updated ||
+        counts.deleted !== before.deleted
+      ) {
+        await bumpCalendarVersion(tx, user.id);
       }
     });
   }

@@ -53,6 +53,22 @@ export type {
   LocalDayContext,
   TaskLocalInput,
 } from './calendar/local-days';
+export {
+  EVENT_COLOR_CAP,
+  RANGE_MAX_DAYS,
+  RANGE_MAX_LIMIT,
+  SUMMARY_MAX_DAYS,
+  TASK_COLOR_CAP,
+  authorizedLists,
+  calendarScopeKey,
+  decodeCalendarCursor,
+  encodeCalendarCursor,
+  inclusiveCivilDays,
+  listScopeKey,
+  parseCivilDay,
+  zoomDensity,
+} from './calendar/zoom';
+export type { CalendarCursorKey, CalendarScope, ZoomCell, ZoomMark } from './calendar/zoom';
 export { parseTaskInstant } from './dates/parse-instant';
 export type { ParsedTaskInstant } from './dates/parse-instant';
 export { isOverdue, plannedForLater, snoozeDue } from './dates/schedule';

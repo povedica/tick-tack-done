@@ -1,6 +1,6 @@
 import { GOOGLE_ACCESS_SELECT } from '../../integrations/google-access.js';
 import { createHash, randomBytes } from 'node:crypto';
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
 import { formatInTimeZone } from 'date-fns-tz';
 import { parseIcal, projectConstraint, tasksToIcal, type IcalTask } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
@@ -14,6 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { googleConfigured } from '../../integrations/config.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
+import { CalendarZoomService } from './calendar-zoom.service.js';
 import { GoogleSyncService, type SubscriptionJson } from './google-sync.service.js';
 import { taskRangeWhere } from '../../reading/task-range.js';
 import { workFilterFor, type WorkContextMode } from '../../work/work-context.js';
@@ -35,6 +36,9 @@ export class CalendarService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(GoogleSyncService) private readonly googleSync: GoogleSyncService,
+    @Optional()
+    @Inject(CalendarZoomService)
+    private readonly zoom: CalendarZoomService | null = null,
   ) {}
 
   async range(
@@ -116,6 +120,53 @@ export class CalendarService {
       select: TASK_RANGE_SELECT,
       orderBy: { dueDate: 'asc' },
     });
+  }
+
+  summary(
+    user: AuthUser,
+    raw: {
+      readonly from?: string | undefined;
+      readonly to?: string | undefined;
+      readonly granularity?: string | undefined;
+      readonly context?: string | undefined;
+      readonly lists?: string | undefined;
+      readonly tags?: string | undefined;
+      readonly cals?: string | undefined;
+      readonly include?: string | undefined;
+    },
+    ifNoneMatch?: string,
+  ) {
+    return this.zoomOf().summary(user, raw, ifNoneMatch);
+  }
+
+  zoomRange(
+    user: AuthUser,
+    raw: {
+      readonly from?: string | undefined;
+      readonly to?: string | undefined;
+      readonly fields?: string | undefined;
+      readonly include?: string | undefined;
+      readonly context?: string | undefined;
+      readonly lists?: string | undefined;
+      readonly tags?: string | undefined;
+      readonly cals?: string | undefined;
+      readonly cursor?: string | undefined;
+      readonly limit?: string | undefined;
+    },
+    ifNoneMatch?: string,
+  ) {
+    return this.zoomOf().range(user, raw, ifNoneMatch);
+  }
+
+  private zoomOf(): CalendarZoomService {
+    if (this.zoom === null) {
+      throw new DomainException(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        'calendar_zoom_missing',
+        'Calendar zoom is not configured',
+      );
+    }
+    return this.zoom;
   }
 
   listGoogleCalendars(user: AuthUser) {

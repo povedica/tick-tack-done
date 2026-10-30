@@ -60,6 +60,10 @@ export async function main(): Promise<void> {
     writeSecret(tokenPath, token.token);
     writeSecret(sessionPath, JSON.stringify({ token: session.token, csrf: session.csrf }));
     writeJson(manifestPath, manifestOf(fixture));
+    await prisma.$executeRawUnsafe('ANALYZE tasks');
+    await prisma.$executeRawUnsafe('ANALYZE external_events');
+    await prisma.$executeRawUnsafe('ANALYZE projects');
+    await prisma.$executeRawUnsafe('ANALYZE calendar_subscriptions');
     console.info(
       `seed-perf profile=${profile.name} tasks=${String(fixture.tasks.length)} events=${String(fixture.events.length)} projects=${String(fixture.projects.length)}`,
     );

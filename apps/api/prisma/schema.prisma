@@ -310,6 +310,7 @@ model User {
   stickyNotes           StickyNote[]
   calendarSubscriptions CalendarSubscription[]
   externalEvents        ExternalEvent[]
+  calendarVersion       CalendarVersion?
   taskLinks             TaskLink[]
   attachments           Attachment[]           @relation("AttachmentOwner")
   uploadedAttachments   Attachment[]           @relation("AttachmentUploadedBy")
@@ -764,7 +765,18 @@ model ExternalEvent {
   @@unique([subscriptionId, externalUid])
   @@index([ownerId, startsAt])
   @@index([ownerId, localStartDay], map: "external_events_owner_local_start_day_idx")
+  @@index([ownerId, deletedAt, localStartDay, localEndDay, subscriptionId], map: "external_events_summary_idx")
   @@map("external_events")
+}
+
+/// Cheap ETag counter. One row per owner. It does not copy calendar rows.
+model CalendarVersion {
+  ownerId   String   @id @map("owner_id") @db.Uuid
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  version   BigInt   @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("calendar_versions")
 }
 
 model Attachment {

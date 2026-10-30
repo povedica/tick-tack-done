@@ -1186,6 +1186,46 @@ const CATALOG: readonly McpTool[] = [
     inputSchema: objectSchema({ include_available: { type: 'boolean' } }),
   },
   {
+    name: 'calendar_summary',
+    description:
+      'Read-only day or month density for a calendar window. from and to are civil days YYYY-MM-DD, at most 400 days. Tasks follow the token list restriction. External events stay visible. Projections are not returned.',
+    scopes: ['calendar:read'],
+    inputSchema: objectSchema(
+      {
+        from: { type: 'string', description: 'Inclusive civil day YYYY-MM-DD' },
+        to: { type: 'string', description: 'Inclusive civil day YYYY-MM-DD' },
+        granularity: { type: 'string', enum: ['day', 'month'] },
+        context: { type: 'string', enum: ['all', 'work', 'personal', 'auto'] },
+        lists: { type: 'string', description: 'Comma-separated list ids' },
+        tags: { type: 'string', description: 'Comma-separated tag ids' },
+        cals: { type: 'string', description: 'Comma-separated subscription ids' },
+        include: { type: 'string', description: 'tasks, events, projections' },
+      },
+      ['from', 'to'],
+    ),
+  },
+  {
+    name: 'calendar_range',
+    description:
+      'Read-only calendar entries for a window of at most 62 days. Keyset cursor is (local_start_day, starts_at, id). limit is 1 to 500 and is a page size. Tasks follow the token list restriction. External events stay visible. Projections are not returned.',
+    scopes: ['calendar:read'],
+    inputSchema: objectSchema(
+      {
+        from: { type: 'string', description: 'Inclusive civil day YYYY-MM-DD' },
+        to: { type: 'string', description: 'Inclusive civil day YYYY-MM-DD' },
+        fields: { type: 'string', enum: ['compact', 'full'] },
+        include: { type: 'string', description: 'tasks, events, projections' },
+        context: { type: 'string', enum: ['all', 'work', 'personal', 'auto'] },
+        lists: { type: 'string', description: 'Comma-separated list ids' },
+        tags: { type: 'string', description: 'Comma-separated tag ids' },
+        cals: { type: 'string', description: 'Comma-separated subscription ids' },
+        cursor: { type: 'string' },
+        limit: { type: 'integer', minimum: 1, maximum: 500 },
+      },
+      ['from', 'to'],
+    ),
+  },
+  {
     name: 'list_calendar_events',
     description:
       'List tasks and read-only external events in a range. include=external|tasks|all (default all). include_external=false is the older way to omit external events. External events cannot be edited. Times are ISO 8601 with an offset, in the user time zone when the event is all-day. Task rows respect the token list restriction.',

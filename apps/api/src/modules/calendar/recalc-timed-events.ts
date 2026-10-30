@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { eventLocalDayColumns } from '../../prisma/local-day-columns.js';
+import { bumpCalendarVersion } from './calendar-version.js';
 import { LOCAL_DAY_BATCH, writeLocalDays } from './local-day-batch.js';
 
 interface TimedEventRow {
@@ -44,7 +45,7 @@ export async function recalcTimedEventLocalDays(
       return updated;
     }
     for (const row of rows) {
-      await writeTimedEvent(prisma, row, profileTimeZone);
+      await writeTimedEvent(prisma, ownerId, row, profileTimeZone);
     }
     updated += rows.length;
     const last = rows[rows.length - 1];
@@ -57,6 +58,7 @@ export async function recalcTimedEventLocalDays(
 
 async function writeTimedEvent(
   prisma: PrismaClient,
+  ownerId: string,
   row: TimedEventRow,
   profileTimeZone: string,
 ): Promise<void> {
@@ -72,13 +74,17 @@ async function writeTimedEvent(
   await writeLocalDays(
     row,
     columnsOf(row, profileTimeZone),
-    async (updatedAt, data) => {
-      const result = await prisma.externalEvent.updateMany({
-        where: { id: row.id, updatedAt, deletedAt: null },
-        data,
-      });
-      return result.count;
-    },
+    async (updatedAt, data) =>
+      prisma.$transaction(async (tx) => {
+        const result = await tx.externalEvent.updateMany({
+          where: { id: row.id, updatedAt, deletedAt: null },
+          data,
+        });
+        if (result.count > 0) {
+          await bumpCalendarVersion(tx, ownerId);
+        }
+        return result.count;
+      }),
     () => prisma.externalEvent.findFirst({ where: { id: row.id, deletedAt: null }, select }),
     (fresh) => columnsOf(fresh, profileTimeZone),
   );

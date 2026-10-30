@@ -36,7 +36,9 @@ describe('timed event recalc queue', () => {
     };
     let zone = 'Europe/Madrid';
     let reads = 0;
-    const prisma = {
+    const db = {
+      $executeRaw: () => Promise.resolve(0),
+      $transaction: (fn: (tx: unknown) => Promise<number>) => fn(db),
       user: {
         findUnique: () => {
           reads += 1;
@@ -64,7 +66,7 @@ describe('timed event recalc queue', () => {
       },
     } as unknown as PrismaClient;
 
-    await runTimedRecalc(prisma, 'owner-1');
+    await runTimedRecalc(db, 'owner-1');
     const span = entryLocalDays(
       {
         kind: 'event',

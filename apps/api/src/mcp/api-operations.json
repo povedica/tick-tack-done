@@ -4424,6 +4424,138 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/calendar/summary",
+    "summary": "Day or month density for a calendar window. Reads tasks and external events. Max 400 days.",
+    "parameters": [
+      {
+        "name": "include",
+        "required": false,
+        "in": "query",
+        "description": "tasks, events, projections. Projections add no rows.",
+        "schema": {}
+      },
+      {
+        "name": "cals",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated subscription ids",
+        "schema": {}
+      },
+      {
+        "name": "tags",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated tag ids",
+        "schema": {}
+      },
+      {
+        "name": "lists",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated list ids",
+        "schema": {}
+      },
+      {
+        "name": "context",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["all", "work", "personal", "auto"], "type": "string" }
+      },
+      {
+        "name": "granularity",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["day", "month"], "type": "string" }
+      },
+      {
+        "name": "to",
+        "required": true,
+        "in": "query",
+        "description": "Inclusive civil day YYYY-MM-DD",
+        "schema": {}
+      },
+      {
+        "name": "from",
+        "required": true,
+        "in": "query",
+        "description": "Inclusive civil day YYYY-MM-DD",
+        "schema": {}
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/calendar/range",
+    "summary": "Compact or full calendar entries for a window. Keyset (local_start_day, starts_at, id). Max 62 days, limit 500.",
+    "parameters": [
+      {
+        "name": "limit",
+        "required": false,
+        "in": "query",
+        "description": "1 to 500. Page size, not a silent cut.",
+        "schema": {}
+      },
+      { "name": "cursor", "required": false, "in": "query", "schema": {} },
+      {
+        "name": "cals",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated subscription ids",
+        "schema": {}
+      },
+      {
+        "name": "tags",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated tag ids",
+        "schema": {}
+      },
+      {
+        "name": "lists",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated list ids",
+        "schema": {}
+      },
+      {
+        "name": "context",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["all", "work", "personal", "auto"], "type": "string" }
+      },
+      {
+        "name": "include",
+        "required": false,
+        "in": "query",
+        "description": "tasks, events, projections. Default both tasks and events. Projections add no rows.",
+        "schema": {}
+      },
+      {
+        "name": "fields",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["compact", "full"], "type": "string" }
+      },
+      {
+        "name": "to",
+        "required": true,
+        "in": "query",
+        "description": "Inclusive civil day YYYY-MM-DD",
+        "schema": {}
+      },
+      {
+        "name": "from",
+        "required": true,
+        "in": "query",
+        "description": "Inclusive civil day YYYY-MM-DD",
+        "schema": {}
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/calendar/google/calendars",
     "summary": "List Google calendars the account can subscribe to (RF-2501)",
     "parameters": [],

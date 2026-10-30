@@ -1153,6 +1153,34 @@ export class McpService {
         const available = await this.calendars.listGoogleCalendars(user);
         return { ...subscriptions, available };
       }
+      case 'calendar_summary':
+        return (
+          await this.calendars.summary(user, {
+            from: requiredString(args, 'from', 10),
+            to: requiredString(args, 'to', 10),
+            ...(typeof args.granularity === 'string' ? { granularity: args.granularity } : {}),
+            ...(typeof args.context === 'string' ? { context: args.context } : {}),
+            ...(typeof args.lists === 'string' ? { lists: args.lists } : {}),
+            ...(typeof args.tags === 'string' ? { tags: args.tags } : {}),
+            ...(typeof args.cals === 'string' ? { cals: args.cals } : {}),
+            ...(typeof args.include === 'string' ? { include: args.include } : {}),
+          })
+        ).body;
+      case 'calendar_range':
+        return (
+          await this.calendars.zoomRange(user, {
+            from: requiredString(args, 'from', 10),
+            to: requiredString(args, 'to', 10),
+            ...(typeof args.fields === 'string' ? { fields: args.fields } : {}),
+            ...(typeof args.include === 'string' ? { include: args.include } : {}),
+            ...(typeof args.context === 'string' ? { context: args.context } : {}),
+            ...(typeof args.lists === 'string' ? { lists: args.lists } : {}),
+            ...(typeof args.tags === 'string' ? { tags: args.tags } : {}),
+            ...(typeof args.cals === 'string' ? { cals: args.cals } : {}),
+            ...(typeof args.cursor === 'string' ? { cursor: args.cursor } : {}),
+            ...(typeof args.limit === 'number' ? { limit: String(args.limit) } : {}),
+          })
+        ).body;
       case 'list_calendar_events': {
         return this.calendars.range(
           user,
