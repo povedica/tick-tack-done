@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## Decisión B0 del calendario (sin read model)
+
+- En el seed efímero ×100, el resumen del año y la primera página de un mes
+  sobre `tasks` y `external_events` quedan por debajo de 50 ms (p95) y de
+  200 ms (p99). No se crea `calendar_entries`. El calendario público sigue
+  leyendo el camino anterior. Se reproduce con `bash scripts/perf-b0.sh`.
+
 ## Días locales del calendario (F4, sin activar)
 
 - El cambio de zona del perfil encola el recálculo de los eventos con hora.
