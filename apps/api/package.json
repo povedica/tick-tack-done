@@ -33,7 +33,7 @@
     "cookie-parser": "^1.4.7",
     "date-fns-tz": "^3.2.0",
     "helmet": "^8.0.0",
-    "ioredis": "^5.4.0",
+    "ioredis": "^6.0.0",
     "multer": "2.4.0",
     "nodemailer": "^10.0.6",
     "reflect-metadata": "^0.2.2",
