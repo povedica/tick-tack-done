@@ -111,6 +111,63 @@ export async function listEvents(
   };
 }
 
+export interface GoogleWatchChannel {
+  readonly id: string;
+  readonly resourceId: string;
+  readonly expiration: Date;
+}
+
+/** events.watch. The address must already be a public HTTPS URL (RF-2566). */
+export async function watchCalendarEvents(
+  calendarId: string,
+  channel: {
+    readonly id: string;
+    readonly address: string;
+    readonly token: string;
+    readonly expiration: number;
+  },
+  options: GoogleFetchOptions,
+): Promise<GoogleWatchChannel> {
+  const url = new URL(`${CALENDAR_HOST}/calendars/${encodeURIComponent(calendarId)}/events/watch`);
+  const body = await googleJson(url, options, {
+    method: 'POST',
+    body: {
+      id: channel.id,
+      type: 'web_hook',
+      address: channel.address,
+      token: channel.token,
+      expiration: channel.expiration,
+    },
+  });
+  const id = stringField(body, 'id') ?? channel.id;
+  const resourceId = stringField(body, 'resourceId');
+  if (resourceId === null) {
+    throw new GoogleApiError(0, 'watch', 'Google Calendar did not return a watch resource');
+  }
+  const expiration = expirationOf(body) ?? new Date(channel.expiration);
+  return { id, resourceId, expiration };
+}
+
+/** channels.stop. A 404 means Google already dropped the channel (RF-2566). */
+export async function stopCalendarChannel(
+  channelId: string,
+  resourceId: string,
+  options: GoogleFetchOptions,
+): Promise<void> {
+  const url = new URL(`${CALENDAR_HOST}/channels/stop`);
+  try {
+    await googleJson(url, options, {
+      method: 'POST',
+      body: { id: channelId, resourceId },
+    });
+  } catch (error) {
+    if (error instanceof GoogleApiError && error.status === 404) {
+      return;
+    }
+    throw error;
+  }
+}
+
 /** RF-2516. True when the access token includes the Calendar scope. */
 export async function tokenHasCalendarScope(accessToken: string): Promise<boolean> {
   const url = new URL(TOKENINFO);
@@ -135,7 +192,11 @@ export function primaryCalendar(
   return entries.find((entry) => entry.primary) ?? entries[0] ?? null;
 }
 
-async function googleJson(url: URL, options: GoogleFetchOptions): Promise<unknown> {
+async function googleJson(
+  url: URL,
+  options: GoogleFetchOptions,
+  init?: { readonly method: 'POST'; readonly body: unknown },
+): Promise<unknown> {
   const delay = options.retryDelayMs ?? 2_000;
   let token = options.accessToken;
   let refreshed = false;
@@ -143,7 +204,12 @@ async function googleJson(url: URL, options: GoogleFetchOptions): Promise<unknow
   for (;;) {
     try {
       const response = await fetch(url, {
-        headers: { authorization: `Bearer ${token}` },
+        method: init?.method ?? 'GET',
+        headers: {
+          authorization: `Bearer ${token}`,
+          ...(init === undefined ? {} : { 'content-type': 'application/json' }),
+        },
+        ...(init === undefined ? {} : { body: JSON.stringify(init.body) }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (response.status === 401 && !refreshed && options.refresh !== undefined) {
@@ -164,7 +230,14 @@ async function googleJson(url: URL, options: GoogleFetchOptions): Promise<unknow
           shortError(response.status, text),
         );
       }
-      const body: unknown = await response.json();
+      if (response.status === 204) {
+        return null;
+      }
+      const text = await response.text();
+      if (text.length === 0) {
+        return null;
+      }
+      const body: unknown = JSON.parse(text);
       return body;
     } catch (error) {
       if (error instanceof GoogleApiError) {
@@ -194,6 +267,18 @@ function stringField(body: unknown, key: string): string | null {
   }
   const value = (body as Record<string, unknown>)[key];
   return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function expirationOf(body: unknown): Date | null {
+  if (typeof body !== 'object' || body === null || !('expiration' in body)) {
+    return null;
+  }
+  const value = (body as { expiration?: unknown }).expiration;
+  const ms = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  if (!Number.isFinite(ms)) {
+    return null;
+  }
+  return new Date(ms);
 }
 
 function calendarEntry(value: unknown): GoogleCalendarEntry | null {

@@ -15,6 +15,7 @@ export const PUBLIC_OPERATIONS = [
   'get /browser-oauth/authorize',
   'post /api/v1/integrations/telegram/webhook',
   'post /api/v1/integrations/telegram/webhook/{ownerId}',
+  'post /api/v1/integrations/google/calendar/notifications',
   'get /api/v1/integrations/google/callback',
   'post /api/v1/inbound/email',
   'get /feeds/{token}',

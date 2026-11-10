@@ -9,6 +9,18 @@
 
 ## Sin publicar
 
+- La salud de Google Calendar (`ok`, `error`, `reconnect_required`) sale en
+  `GET /api/v1/calendar/sync-status`, en el campo `sync` de los eventos y en
+  MCP (`get_calendar_sync_status`, `sync_calendar`). Calendario y Hoy avisan
+  sin ocultar los eventos. El sondeo de Google pasa a 5 minutos; abrir
+  Calendario o Hoy sincroniza como mucho una vez por minuto, y el botón y el
+  atajo «.» llaman a `POST /calendar/sync` (RF-2563, RF-2564, RF-2565, RF-2567).
+- Google puede avisar con `events.watch`: un canal por suscripción de lectura,
+  webhook público verificado, renovación si queda menos de un día y
+  `channels.stop` al quitar la suscripción o desconectar. Sin `PUBLIC_URL`
+  https no se abre canal, queda `calendar_watch_unavailable` y el sondeo sigue.
+  No hay `robots.txt` restrictivo (RF-2566). Migración
+  `add_calendar_watch_channels`: el `down.sql` quita las columnas del canal.
 - Google Calendar borra las ocurrencias que ya no existen cuando una serie se
   acorta o termina (`UNTIL`). La sync incremental pide `singleEvents` y
   `showDeleted`, conserva el `syncToken` al paginar, y un maestro cancelado

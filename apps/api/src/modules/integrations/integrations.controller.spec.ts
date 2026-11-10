@@ -7,6 +7,7 @@ import { IntegrationsController } from './integrations.controller.js';
 import type { TelegramBotService } from './telegram-bot.service.js';
 import type { TelegramSettingsService } from './telegram-settings.service.js';
 import type { TasksService } from '../tasks/tasks.service.js';
+import type { GoogleSyncService } from '../calendar/google-sync.service.js';
 import type { AuthUser } from '../../auth/auth-user.js';
 import type { Response } from 'express';
 import { sealField } from '../../security/field-cipher.js';
@@ -30,12 +31,14 @@ describe('TTD-AUD-97 Google disconnect', () => {
         $transaction: vi.fn().mockImplementation((fn: (value: unknown) => unknown) => fn(tx)),
       } as unknown as PrismaService;
       const events = { record: vi.fn().mockResolvedValue(undefined) } as unknown as EventRecorder;
+      const watches = vi.fn().mockResolvedValue(undefined);
       const controller = new IntegrationsController(
         prisma,
         events,
         {} as TelegramBotService,
         {} as TelegramSettingsService,
         {} as TasksService,
+        { releaseOwnerWatches: watches } as unknown as GoogleSyncService,
       );
       const status = vi.fn().mockReturnThis();
       const res = { status, end: vi.fn() } as unknown as Response;
@@ -65,6 +68,7 @@ describe('TTD-AUD-97 Google disconnect', () => {
           }),
         );
       else expect(tx.externalEvent.updateMany).not.toHaveBeenCalled();
+      expect(watches).toHaveBeenCalledWith({ id: 'owner' });
       expect(status).toHaveBeenCalledWith(204);
     },
   );
@@ -105,6 +109,7 @@ describe('TTD-AUD-86 / RF-2006 user credential isolation', () => {
             ),
           ),
       } as unknown as TasksService,
+      {} as GoogleSyncService,
     );
     await expect(
       // eslint-disable-next-line @typescript-eslint/dot-notation -- Test the private credential boundary without exposing it publicly.

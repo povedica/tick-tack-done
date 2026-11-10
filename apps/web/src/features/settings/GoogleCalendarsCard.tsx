@@ -44,7 +44,7 @@ export function GoogleCalendarsCard() {
   const local = useQuery({
     queryKey: ['calendar-subscriptions'],
     queryFn: () => api.listCalendarSubscriptions(),
-    enabled: connected,
+    enabled: google.data !== undefined,
   });
   const [busy, setBusy] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
@@ -80,13 +80,29 @@ export function GoogleCalendarsCard() {
     );
   }
   if (!connected) {
+    const reconnect = needsReconnect(google.data);
     return (
-      <section className="token-panel">
+      <section className="token-panel" aria-label={messages.googleCalendars}>
         <h2>{messages.googleCalendars}</h2>
-        <p>
-          {messages.googleConnectHint}{' '}
-          <Link to="/settings/integrations">{messages.settingsIntegrations}</Link>
+        <p role="alert">
+          {reconnect ? messages.calendarReconnectBanner : messages.googleConnectHint}{' '}
+          <Link to="/settings/integrations">{messages.googleReconnect}</Link>
         </p>
+        {local.isPending ? <SkeletonRows /> : null}
+        {subscriptions.map((subscription) => (
+          <article className="token-row" key={subscription.id}>
+            <div className="token-head">
+              <p>{subscription.summary ?? subscription.calendar_id}</p>
+              <p className="token-meta">
+                {messages.lastSync.replace(
+                  '{when}',
+                  relative(subscription.last_synced_at, locale, messages),
+                )}
+              </p>
+              <SyncProblem error={subscription.last_error} messages={messages} />
+            </div>
+          </article>
+        ))}
       </section>
     );
   }
@@ -219,9 +235,7 @@ export function GoogleCalendarsCard() {
                   {subscription.event_count}
                 </p>
               ) : null}
-              {subscription?.last_error !== null && subscription?.last_error !== undefined ? (
-                <p className="ui-danger">{messages.syncError}</p>
-              ) : null}
+              <SyncProblem error={subscription?.last_error ?? null} messages={messages} />
             </div>
             {subscription !== null ? (
               <span className="token-actions">
@@ -314,6 +328,42 @@ export function GoogleCalendarsCard() {
       })}
     </section>
   );
+}
+
+const RECONNECT_ERRORS = new Set([
+  'google_reconnect_required',
+  'google_not_connected',
+  'google_permission_required',
+  'google_scope_missing',
+]);
+
+function needsReconnect(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || !('status' in value)) {
+    return false;
+  }
+  const status = (value as { status?: unknown }).status;
+  return status === 'reauth_required' || status === 'permission_required';
+}
+
+function SyncProblem({
+  error,
+  messages,
+}: {
+  readonly error: string | null;
+  readonly messages: Messages;
+}) {
+  if (error === null || error.length === 0) {
+    return null;
+  }
+  if (RECONNECT_ERRORS.has(error)) {
+    return (
+      <p role="alert">
+        {messages.calendarReconnectBanner}{' '}
+        <Link to="/settings/integrations">{messages.googleReconnect}</Link>
+      </p>
+    );
+  }
+  return <p className="ui-danger">{messages.syncError}</p>;
 }
 
 function relative(iso: string | null, locale: string, messages: Messages): string {

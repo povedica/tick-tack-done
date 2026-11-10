@@ -401,6 +401,8 @@ export interface ResourceClient {
   refreshCalendarSubscription(id: string): Promise<JsonObject>;
   deleteCalendarSubscription(id: string): Promise<void>;
   syncCalendars(): Promise<JsonObject>;
+  /** Health, last_synced_at, last_error and last_reconciled_at (RF-2563). */
+  getCalendarSyncStatus(): Promise<JsonObject>;
   matrixRules(): Promise<JsonObject>;
   saveMatrixRule(body: JsonObject): Promise<JsonObject>;
   getViewPreferences(key: string): Promise<JsonObject>;
@@ -798,6 +800,8 @@ export function resourceMethods(http: Http): ResourceClient {
       await ask('DELETE', `/api/v1/calendar/subscriptions/${id}`, undefined, undefined, isEmpty);
     },
     syncCalendars: () => ask('POST', '/api/v1/calendar/sync', undefined, undefined, isJsonObject),
+    getCalendarSyncStatus: () =>
+      ask('GET', '/api/v1/calendar/sync-status', undefined, undefined, isJsonObject),
     matrixRules: () => ask('GET', '/api/v1/matrix/rules', undefined, undefined, isJsonObject),
     saveMatrixRule: (body) => ask('PUT', '/api/v1/matrix/rules', body, undefined, isJsonObject),
     getViewPreferences: (key) =>

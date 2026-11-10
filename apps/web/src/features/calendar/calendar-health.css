@@ -1,0 +1,24 @@
+.calendar-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warning) 16%, var(--surface));
+  color: var(--ink);
+  font-size: var(--fs-sm);
+}
+
+.calendar-health a,
+.calendar-health button {
+  min-height: var(--tap);
+  min-width: var(--tap);
+}
+
+.calendar-toolbar > .calendar-sync.ui-button {
+  min-height: var(--tap);
+  min-width: var(--tap);
+}

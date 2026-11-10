@@ -1231,11 +1231,16 @@ export class McpService {
       }
       case 'list_external_calendars': {
         const subscriptions = await this.calendars.listSubscriptions(user);
+        const account = await this.calendars.syncStatus(user);
+        const listed = {
+          ...subscriptions,
+          google: account.google,
+        };
         if (args.include_available !== true) {
-          return subscriptions;
+          return listed;
         }
         const available = await this.calendars.listGoogleCalendars(user);
-        return { ...subscriptions, available };
+        return { ...listed, available };
       }
       case 'list_calendar_events': {
         const page = await this.calendars.range(
@@ -1270,9 +1275,11 @@ export class McpService {
           ...(typeof args.color === 'string' ? { color: args.color } : {}),
         });
       }
+      case 'get_calendar_sync_status':
+        return this.calendars.syncStatus(user);
       case 'sync_calendar':
         if (typeof args.subscription_id === 'string') {
-          return this.calendars.refresh(user, requiredUuid(args, 'subscription_id'));
+          return this.calendars.syncReported(user, requiredUuid(args, 'subscription_id'));
         }
         return this.calendars.syncAll(user);
       case 'update_external_calendar':

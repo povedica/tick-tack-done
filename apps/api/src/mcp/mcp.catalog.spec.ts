@@ -126,7 +126,11 @@ describe('MCP tool catalog', () => {
   it('RF-2532: calendar tools follow calendar scopes', () => {
     const read = visibleTools(['calendar:read']).map((tool) => tool.name);
     expect(read).toEqual(
-      expect.arrayContaining(['list_external_calendars', 'list_calendar_events']),
+      expect.arrayContaining([
+        'list_external_calendars',
+        'list_calendar_events',
+        'get_calendar_sync_status',
+      ]),
     );
     expect(read).not.toContain('sync_calendar');
     expect(read).not.toContain('add_external_calendar');
