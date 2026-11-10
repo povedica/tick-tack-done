@@ -89,6 +89,10 @@ export const DomainEvent = {
   calendarSynced: 'calendar.synced@v1',
   calendarSubscriptionResynced: 'calendar.subscription_resynced@v1',
   calendarSyncFailed: 'calendar.sync_failed@v1',
+  /** Catalog §11.1. Payload has no channel token, resource id or account email. */
+  calendarWatchStarted: 'calendar.watch_started@v1',
+  calendarWatchStopped: 'calendar.watch_stopped@v1',
+  calendarWatchUnavailable: 'calendar.watch_unavailable@v1',
   stickyNoteCreated: 'sticky_note.created@v1',
   stickyNoteUpdated: 'sticky_note.updated@v1',
   stickyNoteDeleted: 'sticky_note.deleted@v1',

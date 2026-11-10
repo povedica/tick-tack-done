@@ -1,12 +1,16 @@
 import { Module } from '@nestjs/common';
 import { CollaborationModule } from '../collaboration/collaboration.module.js';
-import { CalendarController, FeedsController } from './calendar.controller.js';
+import {
+  CalendarController,
+  FeedsController,
+  GoogleCalendarNotificationsController,
+} from './calendar.controller.js';
 import { CalendarService } from './calendar.service.js';
 import { GoogleSyncService } from './google-sync.service.js';
 
 @Module({
   imports: [CollaborationModule],
-  controllers: [CalendarController, FeedsController],
+  controllers: [CalendarController, FeedsController, GoogleCalendarNotificationsController],
   providers: [CalendarService, GoogleSyncService],
   exports: [CalendarService, GoogleSyncService],
 })

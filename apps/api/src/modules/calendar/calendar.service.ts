@@ -13,7 +13,12 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { googleConfigured } from '../../integrations/config.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
-import { GoogleSyncService, type SubscriptionJson } from './google-sync.service.js';
+import { subscriptionHealth, worstHealth, type CalendarHealth } from './calendar-health.js';
+import {
+  GoogleSyncService,
+  type SubscriptionJson,
+  type SyncReport,
+} from './google-sync.service.js';
 import { workFilterFor, type WorkContextMode } from '../../work/work-context.js';
 import { ListAccessService } from '../collaboration/list-access.js';
 
@@ -94,7 +99,77 @@ export class CalendarService {
           event.status === 'tentative' || event.status === 'cancelled' ? event.status : 'confirmed',
         editable: false,
       })),
+      sync: await this.syncSummary(user.id, subscriptionId),
     };
+  }
+
+  async syncStatus(user: AuthUser) {
+    const google = await this.googleSync.googleAccount(user.id);
+    const rows = await this.prisma.calendarSubscription.findMany({
+      where: { ownerId: user.id, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    const counts = await this.eventCounts(
+      user.id,
+      rows.map((row) => row.id),
+    );
+    return {
+      google: { status: google.status, connected: google.connected, account: google.account },
+      subscriptions: rows.map((row) => ({
+        id: row.id,
+        summary: row.summary,
+        provider: row.provider,
+        health: subscriptionHealth({
+          provider: row.provider,
+          lastError: row.lastError,
+          googleStatus: google.googleStatus,
+        }),
+        last_synced_at: row.lastSyncedAt?.toISOString() ?? null,
+        last_reconciled_at: row.lastReconciledAt?.toISOString() ?? null,
+        last_error: row.lastError,
+        event_count: counts.get(row.id) ?? 0,
+      })),
+    };
+  }
+
+  /** MCP sync_calendar: recoverable Google errors stay in the JSON (RF-2563). */
+  async syncReported(user: AuthUser, id: string): Promise<{ id?: string } & SyncReport> {
+    try {
+      const body = await this.refresh(user, id);
+      return { id, ...body };
+    } catch (error) {
+      if (!(error instanceof DomainException)) {
+        throw error;
+      }
+      const code = exceptionCode(error);
+      if (code === 'subscription_not_found' || code === 'validation_failed') {
+        throw error;
+      }
+      const row = await this.prisma.calendarSubscription.findFirst({
+        where: { id, ownerId: user.id, deletedAt: null },
+      });
+      if (row === null) {
+        throw error;
+      }
+      const google = await this.googleSync.googleAccount(user.id);
+      const health = subscriptionHealth({
+        provider: row.provider,
+        lastError: row.lastError ?? code,
+        googleStatus: google.googleStatus,
+      });
+      return {
+        id: row.id,
+        imported: 0,
+        updated: 0,
+        deleted: 0,
+        skipped: 0,
+        synced_at: row.lastSyncedAt?.toISOString() ?? new Date().toISOString(),
+        health,
+        error: code,
+        last_error: row.lastError ?? code,
+        last_synced_at: row.lastSyncedAt?.toISOString() ?? null,
+      };
+    }
   }
 
   listGoogleCalendars(user: AuthUser) {
@@ -195,6 +270,7 @@ export class CalendarService {
             _count: { _all: true },
           });
     const countOf = new Map(counts.map((row) => [row.subscriptionId, row._count._all]));
+    const google = await this.googleSync.googleAccount(user.id);
     return {
       items: rows.map((row) => ({
         id: row.id,
@@ -206,7 +282,13 @@ export class CalendarService {
         color: row.color,
         visible: row.visible,
         last_synced_at: row.lastSyncedAt?.toISOString() ?? null,
+        last_reconciled_at: row.lastReconciledAt?.toISOString() ?? null,
         last_error: row.lastError,
+        health: subscriptionHealth({
+          provider: row.provider,
+          lastError: row.lastError,
+          googleStatus: google.googleStatus,
+        }),
         event_count: countOf.get(row.id) ?? 0,
       })),
       google_configured: googleConfigured(),
@@ -233,6 +315,9 @@ export class CalendarService {
         'Subscription was not found',
       );
     }
+    if (row.provider === 'google') {
+      await this.googleSync.releaseWatch(user, row);
+    }
     const now = new Date();
     await this.prisma.$transaction(async (tx) => {
       await tx.externalEvent.updateMany({
@@ -241,8 +326,28 @@ export class CalendarService {
       });
       await tx.calendarSubscription.update({
         where: { id },
-        data: { deletedAt: now },
+        data: {
+          deletedAt: now,
+          watchChannelId: null,
+          watchResourceId: null,
+          watchTokenHash: null,
+          watchExpiresAt: null,
+        },
       });
+      if (row.watchChannelId !== null) {
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.calendarWatchStopped,
+          entityType: 'calendar_subscription',
+          entityId: id,
+          action: 'updated',
+          data: asJson({
+            provider: row.provider,
+            calendar_id: row.calendarId,
+            channel_id: row.watchChannelId,
+          }),
+          previous: null,
+        });
+      }
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.calendarSubscriptionDeleted,
         entityType: 'calendar_subscription',
@@ -317,10 +422,7 @@ export class CalendarService {
     return { pushed };
   }
 
-  async refresh(
-    user: AuthUser,
-    id: string,
-  ): Promise<{ imported: number; updated: number; deleted: number; synced_at: string }> {
+  async refresh(user: AuthUser, id: string): Promise<SyncReport> {
     const row = await this.prisma.calendarSubscription.findFirst({
       where: { id, ownerId: user.id, deletedAt: null },
     });
@@ -333,21 +435,18 @@ export class CalendarService {
     }
     if (row.provider === 'google' && row.syncDirection !== 'two_way') {
       const stats = await this.googleSync.syncOne(user, row.id);
-      return {
-        imported: stats.imported,
-        updated: stats.updated,
-        deleted: stats.deleted,
-        synced_at: stats.synced_at,
-      };
+      return this.reported(user.id, row.id, stats, null);
     }
     if (row.provider === 'google') {
-      return this.refreshGoogle(user, row.id);
+      const stats = await this.refreshGoogle(user, row.id);
+      return this.reported(user.id, row.id, stats, null);
     }
     if (row.url == null) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Nothing to fetch');
     }
     const text = await this.fetchIcal(row.url);
-    return this.storeIcal(user, row.id, text);
+    const stats = await this.storeIcal(user, row.id, text);
+    return this.reported(user.id, row.id, stats, null);
   }
 
   private async storeIcal(
@@ -726,6 +825,116 @@ export class CalendarService {
       );
     }
   }
+
+  private async reported(
+    userId: string,
+    id: string,
+    stats: {
+      imported: number;
+      updated: number;
+      deleted: number;
+      skipped?: number;
+      synced_at: string;
+    },
+    error: string | null,
+  ): Promise<SyncReport> {
+    const row = await this.prisma.calendarSubscription.findUnique({ where: { id } });
+    const google = await this.googleSync.googleAccount(userId);
+    const lastError = row?.lastError ?? error;
+    return {
+      imported: stats.imported,
+      updated: stats.updated,
+      deleted: stats.deleted,
+      skipped: stats.skipped ?? 0,
+      synced_at: stats.synced_at,
+      health: subscriptionHealth({
+        provider: row?.provider ?? null,
+        lastError,
+        googleStatus: google.googleStatus,
+      }),
+      error,
+      last_error: lastError,
+      last_synced_at: row?.lastSyncedAt?.toISOString() ?? stats.synced_at,
+    };
+  }
+
+  private async syncSummary(userId: string, subscriptionId?: string) {
+    const google = await this.googleSync.googleAccount(userId);
+    const rows = await this.prisma.calendarSubscription.findMany({
+      where: {
+        ownerId: userId,
+        deletedAt: null,
+        visible: true,
+        ...(subscriptionId === undefined ? {} : { id: subscriptionId }),
+      },
+    });
+    const healths = rows.map((row) =>
+      subscriptionHealth({
+        provider: row.provider,
+        lastError: row.lastError,
+        googleStatus: google.googleStatus,
+      }),
+    );
+    const health = worstHealth(healths);
+    const ranked = rows
+      .map((row) => ({
+        row,
+        health: subscriptionHealth({
+          provider: row.provider,
+          lastError: row.lastError,
+          googleStatus: google.googleStatus,
+        }),
+      }))
+      .sort((left, right) => healthRank(right.health) - healthRank(left.health));
+    const chosen = ranked[0];
+    const stalest = rows.reduce<Date | null>((oldest, row) => {
+      if (row.lastSyncedAt === null) {
+        return oldest;
+      }
+      if (oldest === null || row.lastSyncedAt.getTime() < oldest.getTime()) {
+        return row.lastSyncedAt;
+      }
+      return oldest;
+    }, null);
+    return {
+      health,
+      reconnect_required: health === 'reconnect_required',
+      last_synced_at:
+        (health === 'ok' ? stalest : (chosen?.row.lastSyncedAt ?? null))?.toISOString() ?? null,
+      last_error: health === 'ok' ? null : (chosen?.row.lastError ?? null),
+    };
+  }
+
+  private async eventCounts(userId: string, ids: readonly string[]): Promise<Map<string, number>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+    const counts = await this.prisma.externalEvent.groupBy({
+      by: ['subscriptionId'],
+      where: { ownerId: userId, deletedAt: null, subscriptionId: { in: [...ids] } },
+      _count: { _all: true },
+    });
+    return new Map(counts.map((row) => [row.subscriptionId, row._count._all]));
+  }
+}
+
+function healthRank(health: CalendarHealth): number {
+  if (health === 'reconnect_required') {
+    return 2;
+  }
+  if (health === 'error') {
+    return 1;
+  }
+  return 0;
+}
+
+function exceptionCode(error: DomainException): string {
+  const body: unknown = error.getResponse();
+  if (typeof body !== 'object' || body === null || !('code' in body)) {
+    return 'calendar_fetch_failed';
+  }
+  const code = (body as { code?: unknown }).code;
+  return typeof code === 'string' ? code : 'calendar_fetch_failed';
 }
 
 function metadataRecord(value: unknown): Record<string, unknown> {

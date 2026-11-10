@@ -2,6 +2,7 @@ import { runAction } from '../components/run-action';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { syncCalendarsNow } from '../features/calendar/sync-calendars';
 import { GO_PATHS, isTypingTarget } from './shortcuts';
 
 export function GlobalKeys({ onHelp }: { readonly onHelp: () => void }) {
@@ -19,7 +20,11 @@ export function GlobalKeys({ onHelp }: { readonly onHelp: () => void }) {
       }
       if (event.key === '.' && !typing && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
-        runAction(queryClient.invalidateQueries());
+        if (queryClient.getQueryData(['me']) === undefined) {
+          runAction(queryClient.invalidateQueries());
+          return;
+        }
+        runAction(syncCalendarsNow(queryClient));
         return;
       }
       if (typing) {

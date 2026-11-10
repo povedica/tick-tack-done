@@ -1384,14 +1384,14 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'list_external_calendars',
     description:
-      'List read-only external calendars. Events cannot be edited. With include_available, also list Google calendars that can be added. Times elsewhere are ISO 8601 with an offset.',
+      'List read-only external calendars. Each item includes health and last_reconciled_at. A top-level google field reports the account connection. Events cannot be edited. With include_available, also list Google calendars that can be added. Times elsewhere are ISO 8601 with an offset.',
     scopes: ['calendar:read'],
     inputSchema: objectSchema({ include_available: { type: 'boolean' } }),
   },
   {
     name: 'list_calendar_events',
     description:
-      'List tasks and read-only external events in a range. External events cannot be edited. Times are ISO 8601 with an offset, in the user time zone when the event is all-day.',
+      'List tasks and read-only external events in a range. The sync object reports aggregated health, reconnect_required, last_synced_at and last_error. Events stay listed when health is not ok. External events cannot be edited. Times are ISO 8601 with an offset, in the user time zone when the event is all-day.',
     scopes: ['calendar:read'],
     inputSchema: objectSchema(
       {
@@ -1421,9 +1421,16 @@ const CATALOG: readonly McpTool[] = [
     ),
   },
   {
+    name: 'get_calendar_sync_status',
+    description:
+      'Read Google Calendar connection health and each subscription last_synced_at, last_error and last_reconciled_at. Health is ok, error or reconnect_required. Events stay readable when health is not ok.',
+    scopes: ['calendar:read'],
+    inputSchema: objectSchema({}),
+  },
+  {
     name: 'sync_calendar',
     description:
-      'Sync one external calendar, or every external calendar when subscription_id is omitted. Read-only for Google events.',
+      'Sync one external calendar, or every external calendar when subscription_id is omitted. Each result includes health, error and last_synced_at. google_reconnect_required is returned in that JSON. subscription_not_found stays a tool error. Read-only for Google events.',
     scopes: ['calendar:write'],
     inputSchema: objectSchema({ subscription_id: id }),
   },

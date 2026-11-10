@@ -142,6 +142,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       // syncDue isolates each subscription; this only guards a listing failure.
     }
     try {
+      await this.googleSync.renewWatches(now);
+    } catch {
+      // A watch renewal failure must not stop reminders or the poll.
+    }
+    try {
       await this.calendars.syncIcalDue(now, catchUp);
     } catch {
       // iCal rows record their own last_error.

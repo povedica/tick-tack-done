@@ -13,20 +13,41 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { respondJson } from '../../http/respond.js';
-import { FeedDto, SubscribeDto, UpdateSubscriptionDto } from './calendar.dto.js';
+import { FeedDto, SubscribeDto, SyncStatusDto, UpdateSubscriptionDto } from './calendar.dto.js';
 import { CalendarService } from './calendar.service.js';
+import { GoogleSyncService } from './google-sync.service.js';
 import { parseWorkContext } from '../../work/work-context.js';
 
 @ApiTags('calendar')
 @Controller('calendar')
 export class CalendarController {
   constructor(@Inject(CalendarService) private readonly calendar: CalendarService) {}
+
+  @Get('sync-status')
+  @Scopes('calendar:read')
+  @ApiOperation({
+    summary: 'Google connection and per-subscription sync health (RF-2563)',
+  })
+  @ApiOkResponse({ type: SyncStatusDto })
+  async syncStatus(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.calendar.syncStatus(user), false);
+  }
 
   @Get('events')
   @Scopes('calendar:read')
@@ -204,6 +225,29 @@ export class CalendarController {
   ): Promise<void> {
     await this.calendar.revokeFeed(user, id);
     res.status(204).end();
+  }
+}
+
+/** Public Google push target. The body is ignored; the channel token is the credential (RF-2566). */
+@ApiTags('integrations')
+@Controller('integrations/google/calendar')
+export class GoogleCalendarNotificationsController {
+  constructor(@Inject(GoogleSyncService) private readonly google: GoogleSyncService) {}
+
+  @Post('notifications')
+  @Public()
+  @ApiOperation({
+    summary: 'Google Calendar push notification. Verified in constant time; no bearer (RF-2566).',
+  })
+  @ApiNoContentResponse({ description: 'The channel was accepted. Sync runs after the response.' })
+  async notify(@Req() req: Request, @Res() res: Response): Promise<void> {
+    const accepted = await this.google.ingestNotification({
+      channelId: req.header('x-goog-channel-id') ?? '',
+      token: req.header('x-goog-channel-token') ?? '',
+      resourceId: req.header('x-goog-resource-id') ?? '',
+      state: req.header('x-goog-resource-state') ?? '',
+    });
+    res.status(accepted ? 204 : 404).end();
   }
 }
 

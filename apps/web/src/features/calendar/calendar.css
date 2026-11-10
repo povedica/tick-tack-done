@@ -1162,7 +1162,7 @@
   .screen-page.calendar-page > .calendar-toolbar {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto auto;
-    grid-template-rows: var(--calendar-mobile-header-h);
+    grid-template-rows: var(--calendar-mobile-header-h) auto;
     gap: var(--sp-1);
     padding-block: 0;
     flex-shrink: 0;
@@ -1202,6 +1202,13 @@
   }
   .calendar-toolbar > .calendar-add {
     display: none;
+  }
+  .calendar-toolbar > .calendar-sync {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+    min-height: var(--tap);
+    min-width: var(--tap);
   }
   .calendar-page.calendar-week {
     height: 100%;

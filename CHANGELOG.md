@@ -9,6 +9,27 @@
 
 ## Sin publicar
 
+## 0.2.0 (10 de noviembre de 2026)
+
+- La salud de Google Calendar (`ok`, `error`, `reconnect_required`) sale en
+  `GET /api/v1/calendar/sync-status`, en el campo `sync` de los eventos y en
+  MCP (`get_calendar_sync_status`, `sync_calendar`). Calendario y Hoy avisan
+  sin ocultar los eventos. El sondeo de Google pasa a 5 minutos; abrir
+  Calendario o Hoy sincroniza como mucho una vez por minuto, y el botón y el
+  atajo «.» llaman a `POST /calendar/sync` (RF-2563, RF-2564, RF-2565, RF-2567).
+- Google puede avisar con `events.watch`: un canal por suscripción de lectura,
+  webhook público verificado, renovación si queda menos de un día y
+  `channels.stop` al quitar la suscripción o desconectar. Sin `PUBLIC_URL`
+  https no se abre canal, queda `calendar_watch_unavailable` y el sondeo sigue.
+  No hay `robots.txt` restrictivo (RF-2566). Migración
+  `add_calendar_watch_channels`: el `down.sql` quita las columnas del canal.
+- Google Calendar borra las ocurrencias que ya no existen cuando una serie se
+  acorta o termina (`UNTIL`). La sync incremental pide `singleEvents` y
+  `showDeleted`, conserva el `syncToken` al paginar, y un maestro cancelado
+  borra también sus instancias. La primera sync tras el despliegue reconcilia
+  la ventana aunque el incremental venga vacío (RF-2560, RF-2561, RF-2562).
+  Migración `add_calendar_last_reconciled_at`: su `down.sql` quita solo
+  `last_reconciled_at`.
 - Hoy, mañana, los próximos 7 días y el calendario incluyen las tareas compartidas
   que están asignadas a ti. La búsqueda sigue siendo solo tuya. La vista previa de
   un filtro ya no enseña todas las tareas de una lista compartida: solo las que

@@ -8604,6 +8604,33 @@
         ]
       }
     },
+    "/api/v1/calendar/sync-status": {
+      "get": {
+        "operationId": "CalendarController_syncStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Google connection and per-subscription sync health (RF-2563)",
+        "tags": [
+          "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/calendar/events": {
       "get": {
         "operationId": "CalendarController_events",
@@ -8995,6 +9022,22 @@
         "summary": "Read-only iCal feed (RF-1104)",
         "tags": [
           "Feeds"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/integrations/google/calendar/notifications": {
+      "post": {
+        "operationId": "GoogleCalendarNotificationsController_notify",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "The channel was accepted. Sync runs after the response."
+          }
+        },
+        "summary": "Google Calendar push notification. Verified in constant time; no bearer (RF-2566).",
+        "tags": [
+          "integrations"
         ],
         "security": []
       }
@@ -21155,6 +21198,93 @@
         },
         "required": [
           "expected_revision"
+        ]
+      },
+      "SyncGoogleDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "account": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "status",
+          "connected",
+          "account"
+        ]
+      },
+      "SyncSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "provider": {
+            "type": "string",
+            "nullable": true
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error",
+              "reconnect_required"
+            ]
+          },
+          "last_synced_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "last_reconciled_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "event_count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "summary",
+          "provider",
+          "health",
+          "last_synced_at",
+          "last_reconciled_at",
+          "last_error",
+          "event_count"
+        ]
+      },
+      "SyncStatusDto": {
+        "type": "object",
+        "properties": {
+          "google": {
+            "$ref": "#/components/schemas/SyncGoogleDto"
+          },
+          "subscriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncSubscriptionDto"
+            }
+          }
+        },
+        "required": [
+          "google",
+          "subscriptions"
         ]
       },
       "SubscribeDto": {

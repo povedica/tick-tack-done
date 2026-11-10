@@ -1,5 +1,6 @@
 import { TelegramSettingsService } from './telegram-settings.service.js';
 import { Module } from '@nestjs/common';
+import { CalendarModule } from '../calendar/calendar.module.js';
 import { ListsModule } from '../lists/lists.module.js';
 import { TasksModule } from '../tasks/tasks.module.js';
 import { FocusTelegramListener } from './focus-telegram.listener.js';
@@ -10,7 +11,7 @@ import { TelegramBotService } from './telegram-bot.service.js';
 // The bot is an inbound adapter. Task writes go through TasksService so NLP and events stay one path.
 // List creation uses ListsService the same way. TasksModule does not import ListsModule.
 @Module({
-  imports: [TasksModule, ListsModule],
+  imports: [TasksModule, ListsModule, CalendarModule],
   controllers: [IntegrationsController],
   providers: [TelegramSettingsService, TelegramBotService, TelegramApi, FocusTelegramListener],
 })

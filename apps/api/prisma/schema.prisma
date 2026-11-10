@@ -740,6 +740,13 @@ model CalendarSubscription {
   /// Incremental sync cursor (RF-2510). Not a credential.
   syncToken     String?               @map("sync_token")
   lastSyncedAt  DateTime?             @map("last_synced_at") @db.Timestamptz(6)
+  /// Last window reconciliation (RF-2560). Null means the next sync must drop orphans.
+  lastReconciledAt DateTime?          @map("last_reconciled_at") @db.Timestamptz(6)
+  /// Current events.watch channel (RF-2566). Nulls are not a channel.
+  watchChannelId  String?             @unique @map("watch_channel_id")
+  watchResourceId String?             @map("watch_resource_id")
+  watchTokenHash  String?             @map("watch_token_hash")
+  watchExpiresAt  DateTime?           @map("watch_expires_at") @db.Timestamptz(6)
   lastError     String?               @map("last_error")
   /// Consecutive sync failures. After 3, retryAfter holds the one-hour backoff (RF-2513).
   syncFailures  Int                   @default(0) @map("sync_failures")
@@ -1092,7 +1099,7 @@ model Session {
 
 /// RF-PR-03. Only the SHA-256 of the reset secret is stored. One live token per user.
 model PasswordResetToken {
-  id                 String    @id @default(uuid()) @db.Uuid
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId             String    @map("user_id") @db.Uuid
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash          String    @unique @map("token_hash")

@@ -61,6 +61,51 @@ export class UpdateSubscriptionDto {
   visible?: boolean;
 }
 
+export class SyncSubscriptionDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  summary!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  provider!: string | null;
+
+  @ApiProperty({ enum: ['ok', 'error', 'reconnect_required'] })
+  health!: 'ok' | 'error' | 'reconnect_required';
+
+  @ApiProperty({ nullable: true, type: String })
+  last_synced_at!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  last_reconciled_at!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  last_error!: string | null;
+
+  @ApiProperty()
+  event_count!: number;
+}
+
+export class SyncGoogleDto {
+  @ApiProperty()
+  status!: string;
+
+  @ApiProperty()
+  connected!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  account!: string | null;
+}
+
+export class SyncStatusDto {
+  @ApiProperty({ type: SyncGoogleDto })
+  google!: SyncGoogleDto;
+
+  @ApiProperty({ type: [SyncSubscriptionDto] })
+  subscriptions!: SyncSubscriptionDto[];
+}
+
 export class FeedDto {
   @ApiProperty({ required: false })
   @IsOptional()

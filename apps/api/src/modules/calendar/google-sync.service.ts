@@ -1,4 +1,5 @@
-import { GOOGLE_ACCESS_SELECT } from '../../integrations/google-access.js';
+import { GOOGLE_ACCESS_SELECT, googleServiceAccess } from '../../integrations/google-access.js';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import type { CalendarSubscription } from '@prisma/client';
 import { mapGoogleEvent, type GoogleEventSource } from '@reflexionia/domain';
@@ -15,9 +16,12 @@ import {
   listCalendars,
   listEvents,
   primaryCalendar,
+  stopCalendarChannel,
   tokenHasCalendarScope,
+  watchCalendarEvents,
   type GoogleCalendarEntry,
 } from '../../integrations/google-calendar.js';
+import { subscriptionHealth, type CalendarHealth } from './calendar-health.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -25,9 +29,25 @@ import type { Tx } from '../../prisma/tx.js';
 
 const WINDOW_PAST_MS = 30 * 24 * 60 * 60 * 1000;
 const BACKOFF_MS = 60 * 60 * 1000;
-const STALE_MS = 15 * 60 * 1000;
+const STALE_MS = 5 * 60 * 1000;
+const RECONCILE_EVERY_MS = 6 * 60 * 60 * 1000;
 const MAX_PAGES = 40;
+const WATCH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const WATCH_RENEW_BEFORE_MS = 24 * 60 * 60 * 1000;
+const WATCH_NOTIFY_GAP_MS = 10_000;
+const WATCH_UNAVAILABLE = 'calendar_watch_unavailable';
+const WATCH_DUMMY_HASH = createHash('sha256').update('calendar-watch-dummy').digest('hex');
 const SCOPE_MESSAGE = 'Vuelve a conectar Google desde Ajustes > Integraciones';
+/** Google Calendar v3 instance id: `{master}_{YYYYMMDDTHHmmssZ}` (RF-2562). */
+const INSTANCE_UID = /_[0-9]{8}T[0-9]{6}Z$/;
+
+/** Incremental list rejected the stored syncToken. The caller does a full resync (RF-2561). */
+class StaleSyncTokenError extends Error {
+  constructor(readonly reason: GoogleApiError) {
+    super(reason.message);
+    this.name = 'StaleSyncTokenError';
+  }
+}
 
 export interface SyncStats {
   readonly imported: number;
@@ -35,6 +55,20 @@ export interface SyncStats {
   readonly deleted: number;
   readonly skipped: number;
   readonly synced_at: string;
+}
+
+export interface SyncReport extends SyncStats {
+  readonly health: CalendarHealth;
+  readonly error: string | null;
+  readonly last_error: string | null;
+  readonly last_synced_at: string | null;
+}
+
+export interface GoogleConnectionSummary {
+  readonly status: string;
+  readonly connected: boolean;
+  readonly account: string | null;
+  readonly googleStatus: string | null;
 }
 
 export interface SubscriptionJson {
@@ -47,7 +81,9 @@ export interface SubscriptionJson {
   readonly color: string | null;
   readonly visible: boolean;
   readonly last_synced_at: string | null;
+  readonly last_reconciled_at: string | null;
   readonly last_error: string | null;
+  readonly health: CalendarHealth;
   readonly event_count: number;
   readonly google_configured?: boolean;
   readonly imported?: number;
@@ -63,6 +99,9 @@ interface Counts {
 @Injectable()
 export class GoogleSyncService {
   private readonly logger = new Logger(GoogleSyncService.name);
+  private readonly lanes = new Map<string, Promise<void>>();
+  private readonly notifiedAt = new Map<string, number>();
+  private pending: Promise<void> = Promise.resolve();
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
@@ -221,55 +260,56 @@ export class GoogleSyncService {
   async syncOne(user: AuthUser, id: string): Promise<SyncStats> {
     const row = await this.owned(user.id, id);
     if (row.provider === 'google') {
-      return this.syncRow(user, row, true);
+      return this.lane(row.id, () => this.syncRow(user, row, true));
     }
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Nothing to fetch');
   }
 
   async syncAll(user: AuthUser): Promise<{
-    subscriptions: {
-      id: string;
-      imported: number;
-      updated: number;
-      deleted: number;
-      error: string | null;
-    }[];
+    google: { status: string; connected: boolean };
+    subscriptions: ({ id: string } & SyncReport)[];
   }> {
+    const google = await this.googleAccount(user.id);
     const rows = await this.prisma.calendarSubscription.findMany({
       where: { ownerId: user.id, deletedAt: null, provider: { in: ['google', 'ical'] } },
     });
     const subscriptions = [];
     for (const row of rows) {
       if (row.provider !== 'google') {
-        subscriptions.push({ id: row.id, imported: 0, updated: 0, deleted: 0, error: null });
+        subscriptions.push(
+          this.syncBody(row, emptyCounts(), null, new Date().toISOString(), google),
+        );
         continue;
       }
       try {
-        const stats = await this.syncRow(user, row, true);
-        subscriptions.push({
-          id: row.id,
-          imported: stats.imported,
-          updated: stats.updated,
-          deleted: stats.deleted,
-          error: null,
-        });
+        const stats = await this.lane(row.id, () => this.syncRow(user, row, true));
+        const fresh = await this.reload(row.id);
+        subscriptions.push(this.syncBody(fresh, stats, null, stats.synced_at, google));
       } catch (error) {
-        subscriptions.push({
-          id: row.id,
-          imported: 0,
-          updated: 0,
-          deleted: 0,
-          error: error instanceof DomainException ? error.message : 'calendar_fetch_failed',
-        });
+        const fresh = await this.reload(row.id).catch(() => row);
+        const code =
+          error instanceof DomainException ? this.codeOf(error) : 'calendar_fetch_failed';
+        subscriptions.push(
+          this.syncBody(
+            fresh,
+            emptyCounts(),
+            code,
+            fresh.lastSyncedAt?.toISOString() ?? new Date().toISOString(),
+            google,
+          ),
+        );
       }
     }
-    return { subscriptions };
+    return {
+      google: { status: google.status, connected: google.connected },
+      subscriptions,
+    };
   }
 
-  /** RF-2513. One failing subscription does not stop the others. */
+  /** RF-2513. One failing subscription does not stop the others. Google polls every 5 minutes (RF-2565). */
   async syncDue(now: Date, catchUp: boolean): Promise<void> {
-    const quarter = now.getMinutes() % 15 === 0;
-    if (!catchUp && !quarter) {
+    const due = now.getMinutes() % 5 === 0;
+    if (!catchUp && !due) {
       return;
     }
     const rows = await this.prisma.calendarSubscription.findMany({
@@ -281,7 +321,7 @@ export class GoogleSyncService {
       }
       const stale =
         row.lastSyncedAt === null || now.getTime() - row.lastSyncedAt.getTime() >= STALE_MS;
-      if (catchUp && !quarter && !stale) {
+      if (catchUp && !due && !stale) {
         continue;
       }
       if (row.provider !== 'google' || row.syncDirection !== 'read') {
@@ -292,7 +332,7 @@ export class GoogleSyncService {
         continue;
       }
       try {
-        await this.syncRow(user, row, false);
+        await this.lane(row.id, () => this.syncRow(user, row, false));
       } catch (error) {
         const code =
           error instanceof DomainException ? this.codeOf(error) : 'calendar_fetch_failed';
@@ -334,24 +374,34 @@ export class GoogleSyncService {
       const current = await this.reload(row.id);
       const ahead = new Date(nowWindow());
       ahead.setMonth(ahead.getMonth() + 12);
+      const repeatWatchGap = row.lastError === WATCH_UNAVAILABLE;
       const stats =
         current.syncToken === null || current.syncToken.length === 0
           ? await this.initial(user, current, token, calendarId, zone, ahead)
-          : await this.incremental(user, current, token, calendarId, zone);
+          : await this.incremental(user, current, token, calendarId, zone, manual);
+      try {
+        await this.ensureWatch(user, await this.reload(row.id), repeatWatchGap);
+      } catch (watchError) {
+        this.logger.warn(
+          `calendar watch setup failed ${watchError instanceof Error ? watchError.name : 'error'}`,
+        );
+      }
       return stats;
     } catch (error) {
+      const google = error instanceof StaleSyncTokenError ? error.reason : error;
       if (
-        error instanceof GoogleApiError &&
-        error.status === 410 &&
+        google instanceof GoogleApiError &&
+        (google.status === 410 ||
+          (error instanceof StaleSyncTokenError && google.status === 400)) &&
         allowResync &&
         calendarId !== null
       ) {
         return this.resync(user, row, calendarId);
       }
       if (
-        error instanceof GoogleApiError &&
-        error.status === 403 &&
-        error.reason === 'insufficientPermissions'
+        google instanceof GoogleApiError &&
+        google.status === 403 &&
+        google.reason === 'insufficientPermissions'
       ) {
         const token = await this.accessToken(user.id).catch(() => '');
         if (token.length > 0 && !(await tokenHasCalendarScope(token).catch(() => false))) {
@@ -359,12 +409,12 @@ export class GoogleSyncService {
           throw new DomainException(HttpStatus.CONFLICT, 'google_scope_missing', SCOPE_MESSAGE);
         }
       }
-      const code = this.failureCode(error);
+      const code = this.failureCode(google);
       await this.fail(user, await this.reload(row.id), code);
       if (!manual) {
         this.logger.warn(`calendar sync failed ${code}`);
       }
-      throw this.asDomain(error);
+      throw this.asDomain(google);
     }
   }
 
@@ -403,8 +453,9 @@ export class GoogleSyncService {
       }
       pageToken = result.nextPageToken;
     }
+    const reconciledAt = await this.reconcileWindow(user, row, token, calendarId, zone, counts);
     const syncedAt = new Date();
-    await this.finish(user, row, counts, syncToken, syncedAt);
+    await this.finish(user, row, counts, syncToken, syncedAt, reconciledAt);
     return { ...counts, synced_at: syncedAt.toISOString() };
   }
 
@@ -414,21 +465,34 @@ export class GoogleSyncService {
     token: string,
     calendarId: string,
     zone: string,
+    manual: boolean,
   ): Promise<SyncStats> {
     const counts = emptyCounts();
     let pageToken: string | undefined;
+    const requestToken = row.syncToken;
     let syncToken = row.syncToken;
     for (let page = 0; page < MAX_PAGES; page += 1) {
-      const result = await listEvents(
-        calendarId,
-        {
-          ...(pageToken === undefined
-            ? { ...(syncToken === null ? {} : { syncToken }) }
-            : { pageToken }),
-          maxResults: 2500,
-        },
-        { accessToken: token, refresh: () => this.accessToken(user.id) },
-      );
+      let result: Awaited<ReturnType<typeof listEvents>>;
+      try {
+        result = await listEvents(
+          calendarId,
+          {
+            ...(requestToken === null || requestToken.length === 0
+              ? {}
+              : { syncToken: requestToken }),
+            ...(pageToken === undefined ? {} : { pageToken }),
+            singleEvents: true,
+            showDeleted: true,
+            maxResults: 2500,
+          },
+          { accessToken: token, refresh: () => this.accessToken(user.id) },
+        );
+      } catch (error) {
+        if (error instanceof GoogleApiError && (error.status === 410 || error.status === 400)) {
+          throw new StaleSyncTokenError(error);
+        }
+        throw error;
+      }
       await this.applyPage(user, row, result.items, zone, counts);
       if (result.nextSyncToken !== null) {
         syncToken = result.nextSyncToken;
@@ -438,8 +502,11 @@ export class GoogleSyncService {
       }
       pageToken = result.nextPageToken;
     }
+    const reconciledAt = this.shouldReconcile(row, counts, manual)
+      ? await this.reconcileWindow(user, row, token, calendarId, zone, counts)
+      : null;
     const syncedAt = new Date();
-    await this.finish(user, row, counts, syncToken, syncedAt);
+    await this.finish(user, row, counts, syncToken, syncedAt, reconciledAt);
     return { ...counts, synced_at: syncedAt.toISOString() };
   }
 
@@ -492,6 +559,17 @@ export class GoogleSyncService {
             data: { deletedAt: new Date(), status: 'cancelled' },
           });
           counts.deleted += removed.count;
+          if (!INSTANCE_UID.test(mapped.uid)) {
+            const instances = await tx.externalEvent.updateMany({
+              where: {
+                subscriptionId: row.id,
+                deletedAt: null,
+                externalUid: { startsWith: `${mapped.uid}_` },
+              },
+              data: { deletedAt: new Date(), status: 'cancelled' },
+            });
+            counts.deleted += instances.count;
+          }
           continue;
         }
         const existing = await tx.externalEvent.findUnique({
@@ -522,12 +600,86 @@ export class GoogleSyncService {
     });
   }
 
+  /** RF-2560. Current singleEvents photo of the sync window, then drop local rows it does not list. */
+  private async reconcileWindow(
+    user: AuthUser,
+    row: CalendarSubscription,
+    token: string,
+    calendarId: string,
+    zone: string,
+    counts: Counts,
+  ): Promise<Date> {
+    const now = new Date();
+    const timeMin = new Date(now.getTime() - WINDOW_PAST_MS);
+    const timeMax = new Date(now);
+    timeMax.setMonth(timeMax.getMonth() + 12);
+    const live = new Set<string>();
+    let pageToken: string | undefined;
+    for (let page = 0; page < MAX_PAGES; page += 1) {
+      const result = await listEvents(
+        calendarId,
+        {
+          timeMin: timeMin.toISOString(),
+          timeMax: timeMax.toISOString(),
+          timeZone: zone,
+          singleEvents: true,
+          showDeleted: true,
+          maxResults: 2500,
+          ...(pageToken === undefined ? {} : { pageToken }),
+        },
+        { accessToken: token, refresh: () => this.accessToken(user.id) },
+      );
+      await this.applyPage(user, row, result.items, zone, counts);
+      for (const item of result.items) {
+        const mapped = mapGoogleEvent(item as GoogleEventSource, zone);
+        if (mapped !== null && mapped.status !== 'cancelled') {
+          live.add(mapped.uid);
+        }
+      }
+      if (result.nextPageToken === null) {
+        break;
+      }
+      pageToken = result.nextPageToken;
+    }
+    const locals = await this.prisma.externalEvent.findMany({
+      where: {
+        subscriptionId: row.id,
+        deletedAt: null,
+        startsAt: { gte: timeMin, lt: timeMax },
+      },
+      select: { id: true, externalUid: true },
+    });
+    const orphanIds = locals
+      .filter((event) => !live.has(event.externalUid))
+      .map((event) => event.id);
+    if (orphanIds.length > 0) {
+      const removed = await this.prisma.externalEvent.updateMany({
+        where: { id: { in: orphanIds }, subscriptionId: row.id, deletedAt: null },
+        data: { deletedAt: now, status: 'cancelled' },
+      });
+      counts.deleted += removed.count;
+    }
+    return now;
+  }
+
+  private shouldReconcile(row: CalendarSubscription, counts: Counts, manual: boolean): boolean {
+    if (manual) {
+      return true;
+    }
+    const activity = counts.imported + counts.updated + counts.deleted + counts.skipped;
+    if (activity > 0 || row.lastReconciledAt === null) {
+      return true;
+    }
+    return Date.now() - row.lastReconciledAt.getTime() >= RECONCILE_EVERY_MS;
+  }
+
   private async finish(
     user: AuthUser,
     row: CalendarSubscription,
     counts: Counts,
     syncToken: string | null,
     syncedAt: Date,
+    reconciledAt: Date | null,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await tx.calendarSubscription.update({
@@ -538,6 +690,7 @@ export class GoogleSyncService {
           lastError: null,
           syncFailures: 0,
           retryAfter: null,
+          ...(reconciledAt === null ? {} : { lastReconciledAt: reconciledAt }),
         },
       });
       await this.events.record(tx, actorOf(user), {
@@ -743,6 +896,7 @@ export class GoogleSyncService {
     const eventCount = await this.prisma.externalEvent.count({
       where: { subscriptionId: row.id, deletedAt: null },
     });
+    const google = await this.googleAccount(row.ownerId);
     return {
       id: row.id,
       provider: row.provider,
@@ -753,11 +907,160 @@ export class GoogleSyncService {
       color: row.color,
       visible: row.visible,
       last_synced_at: row.lastSyncedAt?.toISOString() ?? null,
+      last_reconciled_at: row.lastReconciledAt?.toISOString() ?? null,
       last_error: row.lastError,
+      health: subscriptionHealth({
+        provider: row.provider,
+        lastError: row.lastError,
+        googleStatus: google.googleStatus,
+      }),
       event_count: eventCount,
       google_configured: googleConfigured(),
       ...(imported === undefined ? {} : { imported }),
     };
+  }
+
+  async googleAccount(userId: string): Promise<GoogleConnectionSummary> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { ...GOOGLE_ACCESS_SELECT, googleAccountEmail: true },
+    });
+    const access = googleServiceAccess(row, 'calendar');
+    return {
+      status: access.status,
+      connected: access.connected,
+      account: row?.googleAccountEmail ?? null,
+      googleStatus: row?.googleStatus ?? null,
+    };
+  }
+
+  /** Verifies a push and schedules one incremental. The HTTP handler must not wait for Google (RF-2566). */
+  async ingestNotification(input: {
+    readonly channelId: string;
+    readonly token: string;
+    readonly resourceId: string;
+    readonly state: string;
+  }): Promise<boolean> {
+    const row = await this.verifiedChannel(input.channelId, input.resourceId, input.token);
+    if (row === null) {
+      return false;
+    }
+    if (input.state !== 'exists' && input.state !== 'not_exists') {
+      return true;
+    }
+    const now = Date.now();
+    const last = this.notifiedAt.get(row.id) ?? 0;
+    if (now - last < WATCH_NOTIFY_GAP_MS) {
+      return true;
+    }
+    this.notifiedAt.set(row.id, now);
+    setImmediate(() => {
+      const work = this.lane(row.id, () => this.syncNotified(row)).then(
+        () => undefined,
+        (error: unknown) => {
+          const code =
+            error instanceof DomainException ? this.codeOf(error) : 'calendar_fetch_failed';
+          this.logger.warn(`calendar watch sync failed ${code}`);
+        },
+      );
+      this.track(work);
+    });
+    return true;
+  }
+
+  /** Test hook: resolves when notification work queued so far has settled. */
+  async whenIdle(): Promise<void> {
+    await this.pending;
+  }
+
+  /** Stops the remote channel. A missing or already-dead channel is not an error (RF-2566). */
+  async releaseWatch(user: AuthUser, row: CalendarSubscription): Promise<void> {
+    const channelId = row.watchChannelId;
+    const resourceId = row.watchResourceId;
+    if (channelId === null || resourceId === null || !googleConfigured()) {
+      return;
+    }
+    try {
+      const token = await this.accessToken(user.id);
+      await stopCalendarChannel(channelId, resourceId, {
+        accessToken: token,
+        refresh: () => this.accessToken(user.id),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `calendar watch stop failed ${error instanceof GoogleApiError ? String(error.status) : 'error'}`,
+      );
+    }
+  }
+
+  async releaseOwnerWatches(user: AuthUser): Promise<void> {
+    const rows = await this.prisma.calendarSubscription.findMany({
+      where: { ownerId: user.id, deletedAt: null, provider: 'google' },
+    });
+    for (const row of rows) {
+      if (row.watchChannelId === null) {
+        continue;
+      }
+      await this.releaseWatch(user, row);
+      await this.prisma.$transaction(async (tx) => {
+        await tx.calendarSubscription.update({
+          where: { id: row.id },
+          data: {
+            watchChannelId: null,
+            watchResourceId: null,
+            watchTokenHash: null,
+            watchExpiresAt: null,
+          },
+        });
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.calendarWatchStopped,
+          entityType: 'calendar_subscription',
+          entityId: row.id,
+          action: 'updated',
+          data: asJson({
+            provider: 'google',
+            calendar_id: row.calendarId,
+            channel_id: row.watchChannelId,
+          }),
+          previous: null,
+        });
+      });
+    }
+  }
+
+  /** Creates or replaces channels that are missing or inside the 24 hour renewal window (RF-2566). */
+  async renewWatches(now: Date): Promise<void> {
+    const horizon = new Date(now.getTime() + WATCH_RENEW_BEFORE_MS);
+    const rows = await this.prisma.calendarSubscription.findMany({
+      where: {
+        deletedAt: null,
+        provider: 'google',
+        syncDirection: 'read',
+        OR: [
+          { watchChannelId: null },
+          { watchExpiresAt: null },
+          { watchExpiresAt: { lt: horizon } },
+        ],
+      },
+    });
+    for (const row of rows) {
+      if (row.watchChannelId === null && watchAddress() === null) {
+        continue;
+      }
+      const user = await this.actor(row.ownerId);
+      if (user === null) {
+        continue;
+      }
+      try {
+        await this.lane(row.id, () =>
+          this.ensureWatch(user, row, row.lastError === WATCH_UNAVAILABLE),
+        );
+      } catch (error) {
+        this.logger.warn(
+          `calendar watch renew failed ${error instanceof Error ? error.name : 'error'}`,
+        );
+      }
+    }
   }
 
   private async remember(
@@ -819,6 +1122,236 @@ export class GoogleSyncService {
     }
     const code = body.code;
     return typeof code === 'string' ? code : 'calendar_fetch_failed';
+  }
+
+  private syncBody(
+    row: CalendarSubscription,
+    counts: Counts,
+    error: string | null,
+    syncedAt: string,
+    google: GoogleConnectionSummary,
+  ): { id: string } & SyncReport {
+    return {
+      id: row.id,
+      imported: counts.imported,
+      updated: counts.updated,
+      deleted: counts.deleted,
+      skipped: counts.skipped,
+      synced_at: syncedAt,
+      health: subscriptionHealth({
+        provider: row.provider,
+        lastError: row.lastError ?? error,
+        googleStatus: google.googleStatus,
+      }),
+      error,
+      last_error: row.lastError ?? error,
+      last_synced_at: row.lastSyncedAt?.toISOString() ?? null,
+    };
+  }
+
+  private async lane<T>(id: string, work: () => Promise<T>): Promise<T> {
+    const previous = this.lanes.get(id) ?? Promise.resolve();
+    let release = (): void => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const tail = previous.then(() => gate);
+    this.lanes.set(id, tail);
+    await previous.catch(() => undefined);
+    try {
+      return await work();
+    } finally {
+      release();
+      void tail.then(() => {
+        if (this.lanes.get(id) === tail) {
+          this.lanes.delete(id);
+        }
+      });
+    }
+  }
+
+  private track(work: Promise<unknown>): void {
+    this.pending = this.pending
+      .then(() => work)
+      .then(
+        () => undefined,
+        () => undefined,
+      );
+  }
+
+  private async syncNotified(row: CalendarSubscription): Promise<void> {
+    const user = await this.actor(row.ownerId);
+    if (user === null) {
+      return;
+    }
+    const fresh = await this.reload(row.id);
+    if (fresh.deletedAt !== null || fresh.provider !== 'google') {
+      return;
+    }
+    await this.syncRow(user, fresh, false);
+  }
+
+  private async verifiedChannel(
+    channelId: string,
+    resourceId: string,
+    token: string,
+  ): Promise<CalendarSubscription | null> {
+    const row =
+      channelId.length === 0
+        ? null
+        : await this.prisma.calendarSubscription.findFirst({
+            where: { watchChannelId: channelId, deletedAt: null },
+          });
+    const stored = row?.watchTokenHash ?? WATCH_DUMMY_HASH;
+    const presented = hashWatchToken(token);
+    const tokenOk = sameSecret(stored, presented);
+    const resourceOk = row !== null && row.watchResourceId === resourceId && resourceId.length > 0;
+    const fresh =
+      row?.watchExpiresAt !== null &&
+      row?.watchExpiresAt !== undefined &&
+      row.watchExpiresAt.getTime() > Date.now();
+    if (row === null || !tokenOk || !resourceOk || !fresh) {
+      return null;
+    }
+    return row;
+  }
+
+  private async ensureWatch(
+    user: AuthUser,
+    row: CalendarSubscription,
+    repeatUnavailable: boolean,
+  ): Promise<void> {
+    if (row.provider !== 'google' || row.syncDirection !== 'read' || row.deletedAt !== null) {
+      return;
+    }
+    const expiresAt = row.watchExpiresAt;
+    const current =
+      row.watchChannelId !== null &&
+      row.watchResourceId !== null &&
+      expiresAt !== null &&
+      expiresAt.getTime() - Date.now() >= WATCH_RENEW_BEFORE_MS;
+    if (current) {
+      return;
+    }
+    const address = watchAddress();
+    if (address === null) {
+      await this.noteWatchUnavailable(user, row, repeatUnavailable);
+      return;
+    }
+    const calendarId = row.calendarId;
+    if (calendarId === null || calendarId.length === 0) {
+      return;
+    }
+    const previousId = row.watchChannelId;
+    const previousResource = row.watchResourceId;
+    const channelId = randomUUID();
+    const secret = randomBytes(32).toString('base64url');
+    const token = await this.accessToken(user.id);
+    const channel = await watchCalendarEvents(
+      calendarId,
+      {
+        id: channelId,
+        address,
+        token: secret,
+        expiration: Date.now() + WATCH_TTL_MS,
+      },
+      { accessToken: token, refresh: () => this.accessToken(user.id) },
+    );
+    await this.prisma.$transaction(async (tx) => {
+      await tx.calendarSubscription.update({
+        where: { id: row.id },
+        data: {
+          watchChannelId: channel.id,
+          watchResourceId: channel.resourceId,
+          watchTokenHash: hashWatchToken(secret),
+          watchExpiresAt: channel.expiration,
+          ...(row.lastError === WATCH_UNAVAILABLE ? { lastError: null } : {}),
+        },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.calendarWatchStarted,
+        entityType: 'calendar_subscription',
+        entityId: row.id,
+        action: 'updated',
+        data: asJson({
+          provider: 'google',
+          calendar_id: calendarId,
+          channel_id: channel.id,
+          expires_at: channel.expiration.toISOString(),
+        }),
+        previous: null,
+      });
+    });
+    if (
+      previousId !== null &&
+      previousResource !== null &&
+      (previousId !== channel.id || previousResource !== channel.resourceId)
+    ) {
+      await this.releaseWatch(user, {
+        ...row,
+        watchChannelId: previousId,
+        watchResourceId: previousResource,
+      });
+      await this.prisma.$transaction(async (tx) => {
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.calendarWatchStopped,
+          entityType: 'calendar_subscription',
+          entityId: row.id,
+          action: 'updated',
+          data: asJson({ provider: 'google', calendar_id: calendarId, channel_id: previousId }),
+          previous: null,
+        });
+      });
+    }
+  }
+
+  private async noteWatchUnavailable(
+    user: AuthUser,
+    row: CalendarSubscription,
+    repeat: boolean,
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.calendarSubscription.update({
+        where: { id: row.id },
+        data: { lastError: WATCH_UNAVAILABLE },
+      });
+      if (!repeat) {
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.calendarWatchUnavailable,
+          entityType: 'calendar_subscription',
+          entityId: row.id,
+          action: 'updated',
+          data: asJson({ provider: 'google', calendar_id: row.calendarId, reason: 'public_url' }),
+          previous: null,
+        });
+      }
+    });
+  }
+}
+
+function hashWatchToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function sameSecret(left: string, right: string): boolean {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+function watchAddress(): string | null {
+  const configured = process.env.PUBLIC_URL?.trim() ?? '';
+  if (!configured.startsWith('https://')) {
+    return null;
+  }
+  try {
+    const url = new URL(configured);
+    if (url.protocol !== 'https:' || url.hostname.length === 0) {
+      return null;
+    }
+    return `${url.origin}/api/v1/integrations/google/calendar/notifications`;
+  } catch {
+    return null;
   }
 }
 
