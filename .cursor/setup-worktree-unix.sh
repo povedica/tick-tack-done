@@ -3,12 +3,12 @@
 # Levanta un entorno identico pero aislado: puertos desplazados, stack docker
 # propio (Postgres/Redis/Mailpit), migraciones y seed. No toca el checkout principal.
 #
-# Los checkouts de este Mac viven bajo /Users/pablo/Projects
-# (antes /Users/pablo.poveda/CodeProjects). Cursor puede crear el directorio
-# en otro sitio; la config se copia desde el checkout principal.
+# Los checkouts de este Mac viven bajo el directorio Projects de la cuenta.
+# Cursor puede crear el directorio en otro sitio; la config se copia desde
+# el checkout principal.
 set -euo pipefail
 
-WORKTREES_ROOT="${WORKTREES_ROOT:-/Users/pablo/Projects}"
+WORKTREES_ROOT="${WORKTREES_ROOT:-${HOME}/Projects}"
 WT_OFFSET="${WT_OFFSET:-100}"
 PROJECT="ttd-wt${WT_OFFSET}"
 API_PORT=$((3000 + WT_OFFSET))
