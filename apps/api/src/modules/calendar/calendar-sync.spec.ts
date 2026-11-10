@@ -14,6 +14,7 @@ interface Row {
   syncDirection: string;
   syncToken: string | null;
   lastSyncedAt: Date | null;
+  lastReconciledAt: Date | null;
   lastError: string | null;
   syncFailures: number;
   retryAfter: Date | null;
@@ -27,8 +28,17 @@ interface EventRow {
   subscriptionId: string;
   externalUid: string;
   title: string;
+  startsAt: Date | null;
   deletedAt: Date | null;
   status: string;
+}
+
+interface EventWhere {
+  subscriptionId?: string;
+  externalUid?: string | { startsWith: string };
+  deletedAt?: null;
+  id?: { in: string[] };
+  startsAt?: { gte?: Date; lt?: Date };
 }
 
 const user = {
@@ -92,6 +102,7 @@ function memory() {
           syncDirection: 'read',
           syncToken: null,
           lastSyncedAt: null,
+          lastReconciledAt: null,
           lastError: null,
           syncFailures: 0,
           retryAfter: null,
@@ -113,6 +124,9 @@ function memory() {
     },
     externalEvent: {
       count: vi.fn(async () => [...events.values()].filter((row) => row.deletedAt === null).length),
+      findMany: vi.fn(async ({ where }: { where: EventWhere }) => {
+        return [...events.values()].filter((row) => eventMatches(row, where));
+      }),
       findUnique: vi.fn(
         async ({
           where,
@@ -130,7 +144,12 @@ function memory() {
       ),
       create: vi.fn(async ({ data }: { data: EventRow }) => {
         n += 1;
-        const row = { ...data, id: `evt-${String(n)}`, deletedAt: data.deletedAt ?? null };
+        const row = {
+          ...data,
+          id: `evt-${String(n)}`,
+          startsAt: data.startsAt ?? null,
+          deletedAt: data.deletedAt ?? null,
+        };
         events.set(row.id, row);
         return row;
       }),
@@ -142,28 +161,17 @@ function memory() {
         Object.assign(row, data);
         return row;
       }),
-      updateMany: vi.fn(
-        async ({
-          where,
-          data,
-        }: {
-          where: { subscriptionId: string; externalUid?: string; deletedAt: null };
-          data: Partial<EventRow>;
-        }) => {
-          let count = 0;
-          for (const row of events.values()) {
-            if (row.subscriptionId !== where.subscriptionId || row.deletedAt !== null) {
-              continue;
-            }
-            if (where.externalUid !== undefined && row.externalUid !== where.externalUid) {
-              continue;
-            }
-            Object.assign(row, data);
-            count += 1;
+      updateMany: vi.fn(async ({ where, data }: { where: EventWhere; data: Partial<EventRow> }) => {
+        let count = 0;
+        for (const row of events.values()) {
+          if (!eventMatches(row, where)) {
+            continue;
           }
-          return { count };
-        },
-      ),
+          Object.assign(row, data);
+          count += 1;
+        }
+        return { count };
+      }),
     },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
   };
@@ -175,6 +183,39 @@ function serviceOf(prisma: ReturnType<typeof memory>['prisma']) {
     lookup: vi.fn(async () => null),
     store: vi.fn(async () => undefined),
   } as never);
+}
+
+function eventMatches(row: EventRow, where: EventWhere): boolean {
+  if (where.subscriptionId !== undefined && row.subscriptionId !== where.subscriptionId) {
+    return false;
+  }
+  if (where.deletedAt === null && row.deletedAt !== null) {
+    return false;
+  }
+  if (typeof where.externalUid === 'string' && row.externalUid !== where.externalUid) {
+    return false;
+  }
+  if (
+    typeof where.externalUid === 'object' &&
+    !row.externalUid.startsWith(where.externalUid.startsWith)
+  ) {
+    return false;
+  }
+  if (where.id !== undefined && !where.id.in.includes(row.id)) {
+    return false;
+  }
+  if (where.startsAt !== undefined) {
+    if (row.startsAt === null) {
+      return false;
+    }
+    if (where.startsAt.gte !== undefined && row.startsAt.getTime() < where.startsAt.gte.getTime()) {
+      return false;
+    }
+    if (where.startsAt.lt !== undefined && row.startsAt.getTime() >= where.startsAt.lt.getTime()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 describe('Google calendar sync', () => {
@@ -270,7 +311,7 @@ describe('Google calendar sync', () => {
   it('RF-2512: a 410 clears the sync token and imports again without duplicates', async () => {
     process.env.GOOGLE_CLIENT_ID = 'client';
     process.env.GOOGLE_CLIENT_SECRET = 'secret';
-    const { prisma, subs } = memory();
+    const { prisma, subs, events } = memory();
     const row = await prisma.calendarSubscription.create({
       data: {
         ownerId: user.id,
@@ -285,6 +326,18 @@ describe('Google calendar sync', () => {
         subscriptionId: row.id,
         externalUid: 'a',
         title: 'Viejo',
+        startsAt: atDays(1),
+        deletedAt: null,
+        status: 'confirmed',
+      } as EventRow,
+    });
+    await prisma.externalEvent.create({
+      data: {
+        ownerId: user.id,
+        subscriptionId: row.id,
+        externalUid: 'clase_20261117T183000Z',
+        title: 'Huérfana',
+        startsAt: atDays(3),
         deletedAt: null,
         status: 'confirmed',
       } as EventRow,
@@ -303,7 +356,13 @@ describe('Google calendar sync', () => {
       }),
     );
     const stats = await serviceOf(prisma).syncOne(user, row.id);
-    expect(stats.imported + stats.updated).toBe(1);
+    const live = [...events.values()].filter((event) => event.deletedAt === null);
+    expect(live.map((event) => event.externalUid)).toEqual(['a']);
+    expect(
+      [...events.values()].find((event) => event.externalUid === 'clase_20261117T183000Z')
+        ?.deletedAt,
+    ).toBeInstanceOf(Date);
+    expect(stats.imported + stats.updated).toBeGreaterThan(0);
     expect(subs.get(row.id)?.syncToken).toBe('sync-3');
   });
 
@@ -342,6 +401,276 @@ describe('Google calendar sync', () => {
       serviceOf(prisma).subscribe(user, { calendar_id: 'ada@gmail.com' }, undefined),
     ).rejects.toBeInstanceOf(DomainException);
   });
+
+  it('RF-2560: UNTIL on a finished series deletes orphaned instances (Lenguaje musical)', async () => {
+    const { prisma, events } = googleEnv();
+    const row = await seedSubscription(prisma, { syncToken: 'old', lastReconciledAt: null });
+    const orphans = [
+      'clase_20261110T183000Z',
+      'clase_20261112T183000Z',
+      'clase_20261117T183000Z',
+      'clase_20261119T183000Z',
+    ];
+    for (const uid of orphans) {
+      await storeEvent(prisma, row.id, uid, atDays(2));
+    }
+    await storeEvent(prisma, row.id, 'clase_20260901T183000Z', atDays(-40));
+    await storeEvent(prisma, row.id, 'clase_20271220T183000Z', atDays(400));
+    const other = await seedSubscription(prisma, {
+      ownerId: 'user-2',
+      calendarId: 'other-calendar',
+      syncToken: 'other',
+    });
+    await storeEvent(prisma, other.id, 'clase_20261110T183000Z', atDays(2), 'user-2');
+    stubGoogle(() => ({
+      items: [seriesMaster('RRULE:FREQ=WEEKLY;BYDAY=TU,TH;UNTIL=20261102T225959Z')],
+      nextSyncToken: 'new',
+    }));
+    const stats = await serviceOf(prisma).syncOne(user, row.id);
+    expect(stats.deleted).toBe(4);
+    expect(stats.imported).toBe(1);
+    for (const uid of orphans) {
+      expect(eventOf(events, row.id, uid)?.deletedAt).toBeInstanceOf(Date);
+    }
+    expect(eventOf(events, row.id, 'clase_20260901T183000Z')?.deletedAt).toBeNull();
+    expect(eventOf(events, row.id, 'clase_20271220T183000Z')?.deletedAt).toBeNull();
+    expect(eventOf(events, other.id, 'clase_20261110T183000Z')?.deletedAt).toBeNull();
+    const saved = await prisma.calendarSubscription.findUnique({ where: { id: row.id } });
+    expect(saved?.lastReconciledAt).toBeInstanceOf(Date);
+    expect(saved?.syncToken).toBe('new');
+  });
+
+  it('RF-2560: a shortened RRULE keeps instances still inside the UNTIL', async () => {
+    const { prisma, events } = googleEnv();
+    const row = await seedSubscription(prisma, { syncToken: 'old', lastReconciledAt: new Date() });
+    const kept = ['clase_20261110T183000Z', 'clase_20261112T183000Z'];
+    const dropped = ['clase_20261117T183000Z', 'clase_20261119T183000Z'];
+    const keptStarts = new Map<string, Date>();
+    for (const uid of kept) {
+      const starts = atDays(2);
+      keptStarts.set(uid, starts);
+      await storeEvent(prisma, row.id, uid, starts);
+    }
+    for (const uid of dropped) {
+      await storeEvent(prisma, row.id, uid, atDays(8));
+    }
+    await storeEvent(prisma, row.id, 'clase_20260901T183000Z', atDays(-40));
+    stubGoogle((url) => {
+      if (url.includes('timeMin=')) {
+        return { items: kept.map((uid) => confirmed(uid, keptStarts.get(uid) ?? atDays(2))) };
+      }
+      return {
+        items: [seriesMaster('RRULE:FREQ=WEEKLY;BYDAY=TU,TH;UNTIL=20261113T225959Z')],
+        nextSyncToken: 'short',
+      };
+    });
+    const stats = await serviceOf(prisma).syncOne(user, row.id);
+    expect(stats.deleted).toBe(2);
+    for (const uid of kept) {
+      expect(eventOf(events, row.id, uid)?.deletedAt).toBeNull();
+    }
+    for (const uid of dropped) {
+      expect(eventOf(events, row.id, uid)?.deletedAt).toBeInstanceOf(Date);
+    }
+    expect(eventOf(events, row.id, 'clase_20260901T183000Z')?.deletedAt).toBeNull();
+  });
+
+  it('RF-2562: cancelling a master deletes its instances and not another calendar', async () => {
+    const { prisma, events } = googleEnv();
+    const row = await seedSubscription(prisma, { syncToken: 'old' });
+    await storeEvent(prisma, row.id, 'clase', atDays(-40));
+    await storeEvent(prisma, row.id, 'clase_20261110T183000Z', atDays(2));
+    await storeEvent(prisma, row.id, 'clase_20261112T183000Z', atDays(400));
+    const other = await seedSubscription(prisma, {
+      ownerId: 'user-2',
+      calendarId: 'other-calendar',
+      syncToken: 'other',
+    });
+    await storeEvent(prisma, other.id, 'clase_20261110T183000Z', atDays(2), 'user-2');
+    stubGoogle((url) => {
+      if (url.includes('timeMin=')) {
+        return { items: [] };
+      }
+      return { items: [{ id: 'clase', status: 'cancelled' }], nextSyncToken: 'gone' };
+    });
+    const stats = await serviceOf(prisma).syncOne(user, row.id);
+    expect(stats.deleted).toBe(3);
+    expect(eventOf(events, row.id, 'clase')?.deletedAt).toBeInstanceOf(Date);
+    expect(eventOf(events, row.id, 'clase_20261110T183000Z')?.deletedAt).toBeInstanceOf(Date);
+    expect(eventOf(events, row.id, 'clase_20261112T183000Z')?.deletedAt).toBeInstanceOf(Date);
+    expect(eventOf(events, other.id, 'clase_20261110T183000Z')?.deletedAt).toBeNull();
+  });
+
+  it('RF-2511: a single cancelled instance does not delete its siblings', async () => {
+    const { prisma, events } = googleEnv();
+    const row = await seedSubscription(prisma, { syncToken: 'old' });
+    const siblingStarts = atDays(3);
+    await storeEvent(prisma, row.id, 'clase_20261110T183000Z', atDays(1));
+    await storeEvent(prisma, row.id, 'clase_20261112T183000Z', siblingStarts);
+    stubGoogle((url) => {
+      if (url.includes('timeMin=')) {
+        return { items: [confirmed('clase_20261112T183000Z', siblingStarts)] };
+      }
+      return {
+        items: [{ id: 'clase_20261110T183000Z', status: 'cancelled' }],
+        nextSyncToken: 'next',
+      };
+    });
+    const stats = await serviceOf(prisma).syncOne(user, row.id);
+    expect(stats.deleted).toBe(1);
+    expect(eventOf(events, row.id, 'clase_20261110T183000Z')?.deletedAt).toBeInstanceOf(Date);
+    expect(eventOf(events, row.id, 'clase_20261112T183000Z')?.deletedAt).toBeNull();
+  });
+
+  it('RF-2561: incremental sends singleEvents and keeps syncToken across pages', async () => {
+    const { prisma } = googleEnv();
+    const row = await seedSubscription(prisma, { syncToken: 'old-token' });
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.includes('oauth2.googleapis.com/token')) {
+          return json({ access_token: 'access' });
+        }
+        if (url.includes('pageToken=')) {
+          return json({ items: [], nextSyncToken: 'new-token' });
+        }
+        if (url.includes('syncToken=')) {
+          return json({ items: [timed('a', 'Uno')], nextPageToken: 'p2' });
+        }
+        return json({ items: [timed('a', 'Uno')] });
+      }),
+    );
+    await serviceOf(prisma).syncOne(user, row.id);
+    const incremental = calls.filter(
+      (url) => url.includes('/events') && url.includes('syncToken='),
+    );
+    expect(incremental.length).toBeGreaterThanOrEqual(2);
+    const first = incremental[0] ?? '';
+    const second = incremental[1] ?? '';
+    expect(first).toContain('syncToken=old-token');
+    expect(first).toContain('singleEvents=true');
+    expect(first).toContain('showDeleted=true');
+    expect(first).not.toContain('timeMin');
+    expect(first).not.toContain('timeMax');
+    expect(second).toContain('syncToken=old-token');
+    expect(second).toContain('pageToken=p2');
+    expect(second).toContain('singleEvents=true');
+    expect(second).not.toContain('timeMin');
+  });
+
+  it('RF-2561: a 400 from an incompatible syncToken resyncs like a 410', async () => {
+    const { prisma, subs, events } = googleEnv();
+    const row = await seedSubscription(prisma, { syncToken: 'stale' });
+    await storeEvent(prisma, row.id, 'a', atDays(1));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        if (url.includes('oauth2.googleapis.com/token')) {
+          return json({ access_token: 'access' });
+        }
+        if (url.includes('syncToken=')) {
+          return new Response('bad token', { status: 400 });
+        }
+        return json({ items: [timed('a', 'Actual')], nextSyncToken: 'sync-new' });
+      }),
+    );
+    const stats = await serviceOf(prisma).syncOne(user, row.id);
+    expect(subs.get(row.id)?.syncToken).toBe('sync-new');
+    expect(stats.deleted).toBe(0);
+    const live = [...events.values()].filter((event) => event.deletedAt === null);
+    expect(live).toHaveLength(1);
+    expect(live[0]?.externalUid).toBe('a');
+  });
+
+  it('RF-2560: the first sync after deploy reconciles even when the incremental is empty', async () => {
+    const { prisma, events } = googleEnv();
+    const row = await seedSubscription(prisma, {
+      syncToken: 'old',
+      lastReconciledAt: null,
+      lastSyncedAt: new Date('2026-11-01T00:00:00.000Z'),
+    });
+    await storeEvent(prisma, row.id, 'clase_20261110T183000Z', atDays(2));
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.includes('oauth2.googleapis.com/token')) {
+          return json({ access_token: 'access' });
+        }
+        return json({ items: [], nextSyncToken: 'same' });
+      }),
+    );
+    await serviceOf(prisma).syncDue(new Date('2026-11-10T10:00:00.000Z'), false);
+    expect(calls.some((url) => url.includes('timeMin='))).toBe(true);
+    expect(eventOf(events, row.id, 'clase_20261110T183000Z')?.deletedAt).toBeInstanceOf(Date);
+    const saved = await prisma.calendarSubscription.findUnique({ where: { id: row.id } });
+    expect(saved?.lastReconciledAt).toBeInstanceOf(Date);
+  });
+
+  it('RF-2560: an empty incremental skips the window when reconciliation is recent', async () => {
+    const { prisma, events } = googleEnv();
+    const reconciled = new Date();
+    const row = await seedSubscription(prisma, {
+      syncToken: 'old',
+      lastReconciledAt: reconciled,
+      lastSyncedAt: new Date('2026-11-01T00:00:00.000Z'),
+    });
+    await storeEvent(prisma, row.id, 'clase_20261110T183000Z', atDays(2));
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.includes('oauth2.googleapis.com/token')) {
+          return json({ access_token: 'access' });
+        }
+        return json({ items: [], nextSyncToken: 'same' });
+      }),
+    );
+    await serviceOf(prisma).syncDue(new Date('2026-11-10T10:15:00.000Z'), false);
+    expect(calls.some((url) => url.includes('timeMin='))).toBe(false);
+    expect(eventOf(events, row.id, 'clase_20261110T183000Z')?.deletedAt).toBeNull();
+    const saved = await prisma.calendarSubscription.findUnique({ where: { id: row.id } });
+    expect(saved?.lastReconciledAt).toBe(reconciled);
+  });
+
+  it('RF-2560: a changed incremental reconciles even when the last window was recent', async () => {
+    const { prisma, events } = googleEnv();
+    const row = await seedSubscription(prisma, {
+      syncToken: 'old',
+      lastReconciledAt: new Date(),
+      lastSyncedAt: new Date('2026-11-01T00:00:00.000Z'),
+    });
+    await storeEvent(prisma, row.id, 'clase_20261110T183000Z', atDays(2));
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.includes('oauth2.googleapis.com/token')) {
+          return json({ access_token: 'access' });
+        }
+        if (url.includes('timeMin=')) {
+          return json({ items: [] });
+        }
+        return json({
+          items: [seriesMaster('RRULE:FREQ=WEEKLY;BYDAY=TU,TH;UNTIL=20261102T225959Z')],
+          nextSyncToken: 'new',
+        });
+      }),
+    );
+    await serviceOf(prisma).syncDue(new Date('2026-11-10T10:00:00.000Z'), false);
+    expect(calls.some((url) => url.includes('timeMin='))).toBe(true);
+    expect(eventOf(events, row.id, 'clase_20261110T183000Z')?.deletedAt).toBeInstanceOf(Date);
+  });
 });
 
 function json(body: unknown): Response {
@@ -356,6 +685,98 @@ function timed(id: string, summary: string): unknown {
     start: { dateTime: '2026-10-20T09:00:00+02:00', timeZone: 'Europe/Madrid' },
     end: { dateTime: '2026-10-20T10:00:00+02:00', timeZone: 'Europe/Madrid' },
   };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function atDays(days: number): Date {
+  return new Date(Date.now() + days * DAY_MS);
+}
+
+function googleEnv(): ReturnType<typeof memory> {
+  process.env.GOOGLE_CLIENT_ID = 'client';
+  process.env.GOOGLE_CLIENT_SECRET = 'secret';
+  return memory();
+}
+
+async function seedSubscription(
+  prisma: ReturnType<typeof memory>['prisma'],
+  data: Partial<Row>,
+): Promise<Row> {
+  return prisma.calendarSubscription.create({
+    data: {
+      ownerId: user.id,
+      provider: 'google',
+      calendarId: 'ada@gmail.com',
+      syncDirection: 'read',
+      ...data,
+    },
+  });
+}
+
+async function storeEvent(
+  prisma: ReturnType<typeof memory>['prisma'],
+  subscriptionId: string,
+  externalUid: string,
+  startsAt: Date,
+  ownerId = user.id,
+): Promise<void> {
+  await prisma.externalEvent.create({
+    data: {
+      ownerId,
+      subscriptionId,
+      externalUid,
+      title: 'Lenguaje musical',
+      startsAt,
+      deletedAt: null,
+      status: 'confirmed',
+    } as EventRow,
+  });
+}
+
+function eventOf(
+  events: Map<string, EventRow>,
+  subscriptionId: string,
+  externalUid: string,
+): EventRow | undefined {
+  return [...events.values()].find(
+    (event) => event.subscriptionId === subscriptionId && event.externalUid === externalUid,
+  );
+}
+
+function seriesMaster(rrule: string): unknown {
+  return {
+    id: 'clase',
+    summary: 'Lenguaje musical',
+    status: 'confirmed',
+    recurrence: [rrule],
+    start: { dateTime: '2020-01-07T18:30:00Z', timeZone: 'Europe/Madrid' },
+    end: { dateTime: '2020-01-07T19:30:00Z', timeZone: 'Europe/Madrid' },
+  };
+}
+
+function confirmed(id: string, startsAt: Date): unknown {
+  const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
+  return {
+    id,
+    summary: 'Lenguaje musical',
+    status: 'confirmed',
+    start: { dateTime: startsAt.toISOString(), timeZone: 'Europe/Madrid' },
+    end: { dateTime: endsAt.toISOString(), timeZone: 'Europe/Madrid' },
+  };
+}
+
+function stubGoogle(bodyFor: (url: string) => unknown): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url.includes('oauth2.googleapis.com/token')) {
+        return json({ access_token: 'access' });
+      }
+      return json(bodyFor(url));
+    }),
+  );
 }
 
 async function page(url: string): Promise<Response> {

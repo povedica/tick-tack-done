@@ -9,6 +9,13 @@
 
 ## Sin publicar
 
+- Google Calendar borra las ocurrencias que ya no existen cuando una serie se
+  acorta o termina (`UNTIL`). La sync incremental pide `singleEvents` y
+  `showDeleted`, conserva el `syncToken` al paginar, y un maestro cancelado
+  borra también sus instancias. La primera sync tras el despliegue reconcilia
+  la ventana aunque el incremental venga vacío (RF-2560, RF-2561, RF-2562).
+  Migración `add_calendar_last_reconciled_at`: su `down.sql` quita solo
+  `last_reconciled_at`.
 - Hoy, mañana, los próximos 7 días y el calendario incluyen las tareas compartidas
   que están asignadas a ti. La búsqueda sigue siendo solo tuya. La vista previa de
   un filtro ya no enseña todas las tareas de una lista compartida: solo las que

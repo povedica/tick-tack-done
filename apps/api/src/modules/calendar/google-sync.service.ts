@@ -26,8 +26,19 @@ import type { Tx } from '../../prisma/tx.js';
 const WINDOW_PAST_MS = 30 * 24 * 60 * 60 * 1000;
 const BACKOFF_MS = 60 * 60 * 1000;
 const STALE_MS = 15 * 60 * 1000;
+const RECONCILE_EVERY_MS = 6 * 60 * 60 * 1000;
 const MAX_PAGES = 40;
 const SCOPE_MESSAGE = 'Vuelve a conectar Google desde Ajustes > Integraciones';
+/** Google Calendar v3 instance id: `{master}_{YYYYMMDDTHHmmssZ}` (RF-2562). */
+const INSTANCE_UID = /_[0-9]{8}T[0-9]{6}Z$/;
+
+/** Incremental list rejected the stored syncToken. The caller does a full resync (RF-2561). */
+class StaleSyncTokenError extends Error {
+  constructor(readonly reason: GoogleApiError) {
+    super(reason.message);
+    this.name = 'StaleSyncTokenError';
+  }
+}
 
 export interface SyncStats {
   readonly imported: number;
@@ -337,21 +348,23 @@ export class GoogleSyncService {
       const stats =
         current.syncToken === null || current.syncToken.length === 0
           ? await this.initial(user, current, token, calendarId, zone, ahead)
-          : await this.incremental(user, current, token, calendarId, zone);
+          : await this.incremental(user, current, token, calendarId, zone, manual);
       return stats;
     } catch (error) {
+      const google = error instanceof StaleSyncTokenError ? error.reason : error;
       if (
-        error instanceof GoogleApiError &&
-        error.status === 410 &&
+        google instanceof GoogleApiError &&
+        (google.status === 410 ||
+          (error instanceof StaleSyncTokenError && google.status === 400)) &&
         allowResync &&
         calendarId !== null
       ) {
         return this.resync(user, row, calendarId);
       }
       if (
-        error instanceof GoogleApiError &&
-        error.status === 403 &&
-        error.reason === 'insufficientPermissions'
+        google instanceof GoogleApiError &&
+        google.status === 403 &&
+        google.reason === 'insufficientPermissions'
       ) {
         const token = await this.accessToken(user.id).catch(() => '');
         if (token.length > 0 && !(await tokenHasCalendarScope(token).catch(() => false))) {
@@ -359,12 +372,12 @@ export class GoogleSyncService {
           throw new DomainException(HttpStatus.CONFLICT, 'google_scope_missing', SCOPE_MESSAGE);
         }
       }
-      const code = this.failureCode(error);
+      const code = this.failureCode(google);
       await this.fail(user, await this.reload(row.id), code);
       if (!manual) {
         this.logger.warn(`calendar sync failed ${code}`);
       }
-      throw this.asDomain(error);
+      throw this.asDomain(google);
     }
   }
 
@@ -403,8 +416,9 @@ export class GoogleSyncService {
       }
       pageToken = result.nextPageToken;
     }
+    const reconciledAt = await this.reconcileWindow(user, row, token, calendarId, zone, counts);
     const syncedAt = new Date();
-    await this.finish(user, row, counts, syncToken, syncedAt);
+    await this.finish(user, row, counts, syncToken, syncedAt, reconciledAt);
     return { ...counts, synced_at: syncedAt.toISOString() };
   }
 
@@ -414,21 +428,34 @@ export class GoogleSyncService {
     token: string,
     calendarId: string,
     zone: string,
+    manual: boolean,
   ): Promise<SyncStats> {
     const counts = emptyCounts();
     let pageToken: string | undefined;
+    const requestToken = row.syncToken;
     let syncToken = row.syncToken;
     for (let page = 0; page < MAX_PAGES; page += 1) {
-      const result = await listEvents(
-        calendarId,
-        {
-          ...(pageToken === undefined
-            ? { ...(syncToken === null ? {} : { syncToken }) }
-            : { pageToken }),
-          maxResults: 2500,
-        },
-        { accessToken: token, refresh: () => this.accessToken(user.id) },
-      );
+      let result: Awaited<ReturnType<typeof listEvents>>;
+      try {
+        result = await listEvents(
+          calendarId,
+          {
+            ...(requestToken === null || requestToken.length === 0
+              ? {}
+              : { syncToken: requestToken }),
+            ...(pageToken === undefined ? {} : { pageToken }),
+            singleEvents: true,
+            showDeleted: true,
+            maxResults: 2500,
+          },
+          { accessToken: token, refresh: () => this.accessToken(user.id) },
+        );
+      } catch (error) {
+        if (error instanceof GoogleApiError && (error.status === 410 || error.status === 400)) {
+          throw new StaleSyncTokenError(error);
+        }
+        throw error;
+      }
       await this.applyPage(user, row, result.items, zone, counts);
       if (result.nextSyncToken !== null) {
         syncToken = result.nextSyncToken;
@@ -438,8 +465,11 @@ export class GoogleSyncService {
       }
       pageToken = result.nextPageToken;
     }
+    const reconciledAt = this.shouldReconcile(row, counts, manual)
+      ? await this.reconcileWindow(user, row, token, calendarId, zone, counts)
+      : null;
     const syncedAt = new Date();
-    await this.finish(user, row, counts, syncToken, syncedAt);
+    await this.finish(user, row, counts, syncToken, syncedAt, reconciledAt);
     return { ...counts, synced_at: syncedAt.toISOString() };
   }
 
@@ -492,6 +522,17 @@ export class GoogleSyncService {
             data: { deletedAt: new Date(), status: 'cancelled' },
           });
           counts.deleted += removed.count;
+          if (!INSTANCE_UID.test(mapped.uid)) {
+            const instances = await tx.externalEvent.updateMany({
+              where: {
+                subscriptionId: row.id,
+                deletedAt: null,
+                externalUid: { startsWith: `${mapped.uid}_` },
+              },
+              data: { deletedAt: new Date(), status: 'cancelled' },
+            });
+            counts.deleted += instances.count;
+          }
           continue;
         }
         const existing = await tx.externalEvent.findUnique({
@@ -522,12 +563,86 @@ export class GoogleSyncService {
     });
   }
 
+  /** RF-2560. Current singleEvents photo of the sync window, then drop local rows it does not list. */
+  private async reconcileWindow(
+    user: AuthUser,
+    row: CalendarSubscription,
+    token: string,
+    calendarId: string,
+    zone: string,
+    counts: Counts,
+  ): Promise<Date> {
+    const now = new Date();
+    const timeMin = new Date(now.getTime() - WINDOW_PAST_MS);
+    const timeMax = new Date(now);
+    timeMax.setMonth(timeMax.getMonth() + 12);
+    const live = new Set<string>();
+    let pageToken: string | undefined;
+    for (let page = 0; page < MAX_PAGES; page += 1) {
+      const result = await listEvents(
+        calendarId,
+        {
+          timeMin: timeMin.toISOString(),
+          timeMax: timeMax.toISOString(),
+          timeZone: zone,
+          singleEvents: true,
+          showDeleted: true,
+          maxResults: 2500,
+          ...(pageToken === undefined ? {} : { pageToken }),
+        },
+        { accessToken: token, refresh: () => this.accessToken(user.id) },
+      );
+      await this.applyPage(user, row, result.items, zone, counts);
+      for (const item of result.items) {
+        const mapped = mapGoogleEvent(item as GoogleEventSource, zone);
+        if (mapped !== null && mapped.status !== 'cancelled') {
+          live.add(mapped.uid);
+        }
+      }
+      if (result.nextPageToken === null) {
+        break;
+      }
+      pageToken = result.nextPageToken;
+    }
+    const locals = await this.prisma.externalEvent.findMany({
+      where: {
+        subscriptionId: row.id,
+        deletedAt: null,
+        startsAt: { gte: timeMin, lt: timeMax },
+      },
+      select: { id: true, externalUid: true },
+    });
+    const orphanIds = locals
+      .filter((event) => !live.has(event.externalUid))
+      .map((event) => event.id);
+    if (orphanIds.length > 0) {
+      const removed = await this.prisma.externalEvent.updateMany({
+        where: { id: { in: orphanIds }, subscriptionId: row.id, deletedAt: null },
+        data: { deletedAt: now, status: 'cancelled' },
+      });
+      counts.deleted += removed.count;
+    }
+    return now;
+  }
+
+  private shouldReconcile(row: CalendarSubscription, counts: Counts, manual: boolean): boolean {
+    if (manual) {
+      return true;
+    }
+    const activity = counts.imported + counts.updated + counts.deleted + counts.skipped;
+    if (activity > 0 || row.lastReconciledAt === null) {
+      return true;
+    }
+    return Date.now() - row.lastReconciledAt.getTime() >= RECONCILE_EVERY_MS;
+  }
+
   private async finish(
     user: AuthUser,
     row: CalendarSubscription,
     counts: Counts,
     syncToken: string | null,
     syncedAt: Date,
+    reconciledAt: Date | null,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await tx.calendarSubscription.update({
@@ -538,6 +653,7 @@ export class GoogleSyncService {
           lastError: null,
           syncFailures: 0,
           retryAfter: null,
+          ...(reconciledAt === null ? {} : { lastReconciledAt: reconciledAt }),
         },
       });
       await this.events.record(tx, actorOf(user), {

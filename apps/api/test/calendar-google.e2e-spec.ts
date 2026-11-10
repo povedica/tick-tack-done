@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
@@ -182,4 +183,190 @@ describe('Google calendar subscriptions', () => {
       delete process.env.GOOGLE_CLIENT_SECRET;
     }
   });
+
+  it('RF-2560: an ended series drops orphaned instances and counts the real deletes', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'client';
+    process.env.GOOGLE_CLIENT_SECRET = 'secret';
+    await prisma.user.update({
+      where: { id: ownerId },
+      data: {
+        googleRefreshToken: 'stored-refresh',
+        googleGrantedScopes: [
+          'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+          'https://www.googleapis.com/auth/calendar.events',
+          'https://www.googleapis.com/auth/drive.file',
+        ],
+        googleCalendarEnabled: true,
+        googleDriveEnabled: true,
+      },
+    });
+    const row = await prisma.calendarSubscription.create({
+      data: {
+        ownerId,
+        provider: 'google',
+        calendarId: 'clase@example.test',
+        summary: 'Clase',
+        syncDirection: 'read',
+        syncToken: 'old',
+        visible: true,
+      },
+    });
+    const soon = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    const ends = new Date(soon.getTime() + 60 * 60 * 1000);
+    const orphans = [
+      'clase_20261110T183000Z',
+      'clase_20261112T183000Z',
+      'clase_20261117T183000Z',
+      'clase_20261119T183000Z',
+    ];
+    for (const externalUid of orphans) {
+      await prisma.externalEvent.create({
+        data: {
+          ownerId,
+          subscriptionId: row.id,
+          externalUid,
+          title: 'Lenguaje musical',
+          startsAt: soon,
+          endsAt: ends,
+          timeZone: 'Europe/Madrid',
+          status: 'confirmed',
+        },
+      });
+    }
+    await prisma.externalEvent.create({
+      data: {
+        ownerId,
+        subscriptionId: row.id,
+        externalUid: 'clase_20260901T183000Z',
+        title: 'Lenguaje musical',
+        startsAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+        endsAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000),
+        timeZone: 'Europe/Madrid',
+        status: 'confirmed',
+      },
+    });
+    const other = await prisma.user.create({
+      data: {
+        email: `gcal-other-${randomUUID()}@reflexionia.test`,
+        displayName: 'gcal-other',
+        timeZone: 'Europe/Madrid',
+      },
+    });
+    const otherRow = await prisma.calendarSubscription.create({
+      data: {
+        ownerId: other.id,
+        provider: 'google',
+        calendarId: 'otro@example.test',
+        summary: 'Otro',
+        syncDirection: 'read',
+        syncToken: 'other',
+        visible: true,
+      },
+    });
+    await prisma.externalEvent.create({
+      data: {
+        ownerId: other.id,
+        subscriptionId: otherRow.id,
+        externalUid: 'clase_20261110T183000Z',
+        title: 'Lenguaje musical',
+        startsAt: soon,
+        endsAt: ends,
+        timeZone: 'Europe/Madrid',
+        status: 'confirmed',
+      },
+    });
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', (input: string | URL) => {
+      const url = String(input);
+      if (url.includes('oauth2.googleapis.com/token')) {
+        return new Response(JSON.stringify({ access_token: 'access' }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: 'clase',
+              summary: 'Lenguaje musical',
+              status: 'confirmed',
+              recurrence: ['RRULE:FREQ=WEEKLY;BYDAY=TU,TH;UNTIL=20261102T225959Z'],
+              start: { dateTime: '2020-01-07T18:30:00Z', timeZone: 'Europe/Madrid' },
+              end: { dateTime: '2020-01-07T19:30:00Z', timeZone: 'Europe/Madrid' },
+            },
+          ],
+          nextSyncToken: 'new',
+        }),
+        { status: 200 },
+      );
+    });
+    try {
+      const refreshed = await authed()
+        .post(`/api/v1/calendar/subscriptions/${row.id}/refresh`)
+        .expect(200);
+      expect(refreshed.body.deleted).toBe(4);
+      const listed = await authed()
+        .get('/api/v1/calendar/events')
+        .query({
+          from: new Date().toISOString(),
+          to: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .expect(200);
+      const titles = (listed.body.external as { title: string }[]).map((event) => event.title);
+      expect(titles).not.toContain('Lenguaje musical');
+      const outside = await prisma.externalEvent.findFirst({
+        where: { subscriptionId: row.id, externalUid: 'clase_20260901T183000Z' },
+      });
+      expect(outside?.deletedAt).toBeNull();
+      const foreign = await prisma.externalEvent.findFirst({
+        where: { subscriptionId: otherRow.id, externalUid: 'clase_20261110T183000Z' },
+      });
+      expect(foreign?.deletedAt).toBeNull();
+      const saved = await prisma.calendarSubscription.findUnique({ where: { id: row.id } });
+      expect(saved?.lastReconciledAt).not.toBeNull();
+      expect(saved?.syncToken).toBe('new');
+    } finally {
+      globalThis.fetch = original;
+      vi.unstubAllGlobals();
+      delete process.env.GOOGLE_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_SECRET;
+      await prisma.externalEvent.deleteMany({ where: { ownerId: other.id } });
+      await prisma.calendarSubscription.deleteMany({ where: { ownerId: other.id } });
+      await prisma.user.delete({ where: { id: other.id } });
+    }
+  });
+
+  it('RF-2560: last_reconciled_at migration applies and rolls back', async () => {
+    const name = readdirSync('prisma/migrations').find((entry) =>
+      entry.endsWith('_add_calendar_last_reconciled_at'),
+    );
+    expect(name).toBeDefined();
+    const down = readFileSync(`prisma/migrations/${name ?? ''}/down.sql`, 'utf8');
+    const up = readFileSync(`prisma/migrations/${name ?? ''}/migration.sql`, 'utf8');
+    const present = async () => {
+      const rows = await prisma.$queryRaw<{ column_name: string }[]>`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'calendar_subscriptions'
+          AND column_name = 'last_reconciled_at'
+      `;
+      return rows.length;
+    };
+    expect(await present()).toBe(1);
+    try {
+      await executeSql(down);
+      expect(await present()).toBe(0);
+    } finally {
+      await executeSql(up);
+    }
+    expect(await present()).toBe(1);
+  });
 });
+
+async function executeSql(script: string): Promise<void> {
+  for (const statement of script
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)) {
+    await prisma.$executeRawUnsafe(statement);
+  }
+}

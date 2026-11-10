@@ -740,6 +740,8 @@ model CalendarSubscription {
   /// Incremental sync cursor (RF-2510). Not a credential.
   syncToken     String?               @map("sync_token")
   lastSyncedAt  DateTime?             @map("last_synced_at") @db.Timestamptz(6)
+  /// Last window reconciliation (RF-2560). Null means the next sync must drop orphans.
+  lastReconciledAt DateTime?          @map("last_reconciled_at") @db.Timestamptz(6)
   lastError     String?               @map("last_error")
   /// Consecutive sync failures. After 3, retryAfter holds the one-hour backoff (RF-2513).
   syncFailures  Int                   @default(0) @map("sync_failures")

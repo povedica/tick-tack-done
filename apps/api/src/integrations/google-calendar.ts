@@ -68,13 +68,17 @@ export async function listEvents(
     readonly pageToken?: string;
     readonly maxResults?: number;
     readonly singleEvents?: boolean;
+    readonly showDeleted?: boolean;
     readonly orderBy?: string;
   },
   options: GoogleFetchOptions,
 ): Promise<GoogleEventPage> {
   const url = new URL(`${CALENDAR_HOST}/calendars/${encodeURIComponent(calendarId)}/events`);
-  if (query.syncToken !== undefined && query.syncToken.length > 0) {
-    url.searchParams.set('syncToken', query.syncToken);
+  // syncToken forbids timeMin, timeMax, orderBy and timeZone. singleEvents and
+  // showDeleted stay, including on later pages (RF-2561).
+  const syncToken = query.syncToken;
+  if (syncToken !== undefined && syncToken.length > 0) {
+    url.searchParams.set('syncToken', syncToken);
   } else {
     if (query.timeMin !== undefined) {
       url.searchParams.set('timeMin', query.timeMin);
@@ -85,12 +89,15 @@ export async function listEvents(
     if (query.timeZone !== undefined) {
       url.searchParams.set('timeZone', query.timeZone);
     }
-    if (query.singleEvents === true) {
-      url.searchParams.set('singleEvents', 'true');
-    }
     if (query.orderBy !== undefined) {
       url.searchParams.set('orderBy', query.orderBy);
     }
+  }
+  if (query.singleEvents === true) {
+    url.searchParams.set('singleEvents', 'true');
+  }
+  if (query.showDeleted === true) {
+    url.searchParams.set('showDeleted', 'true');
   }
   if (query.pageToken !== undefined) {
     url.searchParams.set('pageToken', query.pageToken);
