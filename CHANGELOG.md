@@ -9,6 +9,8 @@
 
 ## Sin publicar
 
+## 0.2.0 (10 de noviembre de 2026)
+
 - La salud de Google Calendar (`ok`, `error`, `reconnect_required`) sale en
   `GET /api/v1/calendar/sync-status`, en el campo `sync` de los eventos y en
   MCP (`get_calendar_sync_status`, `sync_calendar`). Calendario y Hoy avisan
