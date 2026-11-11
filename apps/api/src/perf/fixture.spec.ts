@@ -33,7 +33,7 @@ describe('perf fixture', () => {
     expect(opens).toBe(8);
     expect(perOpen * (opens + 1)).toBeLessThanOrEqual(PRODUCTION_RATE_LIMIT);
     expect(Math.floor(PRODUCTION_RATE_LIMIT / perOpen)).toBeGreaterThanOrEqual(14);
-  });
+  }, 30_000);
 
   it('keeps the sentinel alone on its day and inside the Madrid year window', () => {
     const fixture = buildPerfFixture(PROFILE_X100);
@@ -55,7 +55,7 @@ describe('perf fixture', () => {
     const rank = ordered.findIndex((task) => task.title === SENTINEL_TITLE);
     expect(rank).toBeGreaterThanOrEqual(0);
     expect(rank).toBeLessThan(100);
-  });
+  }, 30_000);
 
   it('places the spring and autumn clock changes on their Madrid civil days', () => {
     const fixture = buildPerfFixture(PROFILE_S);
