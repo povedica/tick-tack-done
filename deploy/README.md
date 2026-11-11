@@ -29,12 +29,13 @@ El job de deploy espera una CI de push a main en verde para el SHA exacto. Una P
 
 El usuario deploy necesita Docker sin sudo, Bash, jq, curl, herramientas POSIX y permisos de escritura en
 `DEPLOY_APP_DIR`, el directorio de `RUNTIME_ENV_FILE` y, en producción, `CADDY_SITES_DIR`.
+BACKUP_DIR debe apuntar a un directorio persistente fuera de releases, para mantener la retención entre despliegues.
 Para backups externos necesita age y rclone o la integración Drive ya configurada (RF-1704).
 El runtime env de staging debe llamarse `staging.env`; `PUBLIC_URL` debe ser el dominio de staging y `POSTGRES_DB=ttd_staging`.
 Cada Environment debe usar su propio directorio base, archivo privado, red y volúmenes. No reutilizar los de producción.
 
 La primera transición exige un stack ya arrancado y sano: el script descubre sus imágenes como respaldo inicial.
-No se deben borrar las imágenes anteriores. Tras el primer éxito se escribe `last-good.env` junto al runtime env.
+No se deben borrar las imágenes anteriores. Tras el primer éxito se escribe `last-good.env` en el subdirectorio `.ttd-deploy-<entorno>` junto al runtime env.
 La inicialización desde cero de Postgres/Redis/redes es manual; el deploy habitual nunca los recrea.
 
 ## Importación privada y Mac nuevo
@@ -94,6 +95,7 @@ El health comprueba `status=ok`, commit de la imagen API y respuesta de nginx (9
 En un deploy solo web, se verifica el commit de la API que continúa ejecutándose; no se exige artificialmente el SHA de web a esa API.
 Si falla up o health, se restauran las imágenes de last-good y se comprueba su salud (45 s de límite).
 Producción restaura también el sitio Caddy si se había cambiado.
+Los estados y locks de staging/production se separan incluso si sus runtime env comparten directorio.
 El archivo `last-good.env` se escribe atómicamente solo después del éxito; no contiene secretos.
 
 ## Aprobación y recuperación
@@ -141,4 +143,4 @@ test -n "$RESEND_API_KEY" && echo resend || echo smtp
 5. DMARC en `_dmarc.reflexionia.com`, empezando por `p=none`.
 6. `PUBLIC_URL` es la única base del enlace. No se usa `Host` ni `X-Forwarded-Host`.
 7. Prueba de humo solo si la pide quien opera la cuenta: el aviso llega a la bandeja (no a spam), `Authentication-Results` muestra `spf=pass dkim=pass dmarc=pass` y el enlace conserva `#token`.
-8. Si se pierden a la vez el TOTP y los códigos de recuperación, en el servidor: `pnpm --filter api admin:disable-totp --email <email>`. Pide confirmación, deja ActivityLog y no tiene endpoint HTTP.
+8. Si se pierden a la vez el TOTP y los códigos de recuperación, en el servidor: `docker exec -it "$API_CONTAINER" node dist/scripts/disable-totp.js --email "$ACCOUNT_EMAIL"`. Pide confirmación, deja ActivityLog y no tiene endpoint HTTP.

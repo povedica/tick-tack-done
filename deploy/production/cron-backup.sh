@@ -9,7 +9,7 @@ root=$PWD
 file=deploy/production/docker-compose.yml
 project=todo
 api=api
-state="$(dirname "$RUNTIME_ENV_FILE")/last-good.env"
+state="$(dirname "$RUNTIME_ENV_FILE")/.ttd-deploy-production/last-good.env"
 while IFS='=' read -r key value; do
   case "$key" in API_IMAGE|WEB_IMAGE) export "$key=$value" ;; *) exit 64 ;; esac
 done < "$state"

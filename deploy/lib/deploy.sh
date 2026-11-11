@@ -13,7 +13,9 @@ case "$DEPLOY_ENVIRONMENT" in
   *) exit 64 ;;
 esac
 file="deploy/$DEPLOY_ENVIRONMENT/docker-compose.yml"
-state="$(dirname "$RUNTIME_ENV_FILE")/last-good.env"
+state_dir="$(dirname "$RUNTIME_ENV_FILE")/.ttd-deploy-$DEPLOY_ENVIRONMENT"
+if [[ ! -d $state_dir ]]; then mkdir -m 700 "$state_dir"; fi
+state="$state_dir/last-good.env"
 lock="$state.lock"
 mkdir "$lock" 2>/dev/null || { echo 'Another deployment holds the lock' >&2; exit 1; }
 # shellcheck disable=SC2329 # EXIT trap.

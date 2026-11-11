@@ -21,7 +21,7 @@ if name=='rclone': sys.exit()
 if name=='curl':
     bad=os.environ.get('FAIL_HEALTH')=='1' and 'new' in ''.join(data.values())
     if bad: sys.exit(22)
-    print(json.dumps({'status':'ok','commit':('b' if data['staging-api']=='api:new' else 'a')*40})); sys.exit()
+    print(json.dumps({'status':'ok','commit':('b' if data['api' if os.environ['DEPLOY_ENVIRONMENT']=='production' else 'staging-api']=='api:new' else 'a')*40})); sys.exit()
 with open(os.environ['MOCK_LOG'],'a') as log: log.write(json.dumps(args)+'\n')
 if args[:2]==['image','inspect']:
     print(json.dumps(['GIT_COMMIT='+('b' if args[2]=='api:new' else 'a')*40])); sys.exit()
@@ -34,13 +34,13 @@ if args[0]=='compose':
     for command in ['config','ps','pull','up','exec','run']:
         if command not in args: continue
         if command=='config' and 'json' in args:
-            print(json.dumps({'services':{'staging-api':{'environment':{'PUBLIC_URL':'https://staging-todo.reflexionia.com','BACKUP_DIR':os.environ['MOCK_BACKUPS'],'BACKUP_REMOTE':'mock','AGE_RECIPIENT':'mock'}},'postgres':{'environment':{'POSTGRES_DB':'ttd_staging'}}}}))
+            print(json.dumps({'services':{'staging-api':{'environment':{'PUBLIC_URL':'https://staging-todo.reflexionia.com','BACKUP_DIR':os.environ['MOCK_BACKUPS'],'BACKUP_REMOTE':'mock','AGE_RECIPIENT':'mock'}},'api':{'environment':{'PUBLIC_URL':'https://todo.reflexionia.com'}},'postgres':{'environment':{'POSTGRES_DB':'production' if os.environ['DEPLOY_ENVIRONMENT']=='production' else 'ttd_staging'}}}}))
         if command=='run' and os.environ.get('FAIL_MIGRATE')=='1': sys.exit(1)
         if command=='exec' and 'pg_dump' in args: print('-- synthetic backup')
         if command=='ps': print(args[-1])
         if command=='up':
-            for service in ['staging-api','staging-web']:
-                if service in args: data[service]=os.environ['API_IMAGE' if service=='staging-api' else 'WEB_IMAGE']
+            for service in ['staging-api','staging-web','api','web']:
+                if service in args: data[service]=os.environ['API_IMAGE' if service in ['staging-api','api'] else 'WEB_IMAGE']
             state.write_text(json.dumps(data))
         sys.exit()
 sys.exit(1)
@@ -51,11 +51,15 @@ class DeployTest(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root=Path(temporary.name)
+        self.last_temp_root=root
         binary=root/'bin'; binary.mkdir()
         for name in ['docker','curl','sleep','age','rclone']:
             path=binary/name; path.write_text(MOCK);path.chmod(0o755)
-        state=root/'mock.json';state.write_text(json.dumps({'staging-api':'api:old','staging-web':'web:old'}))
-        last=root/'last-good.env';last.write_text('API_IMAGE=api:old\nWEB_IMAGE=web:old\n')
+        state=root/'mock.json';state.write_text(json.dumps({'staging-api':'api:old','staging-web':'web:old','api':'api:old','web':'web:old'}))
+        for environment in ['staging','production']:
+            directory=root/('.ttd-deploy-'+environment);directory.mkdir()
+            (directory/'last-good.env').write_text('API_IMAGE=api:old\nWEB_IMAGE=web:old\n')
+        last=root/('.ttd-deploy-'+extra.get('DEPLOY_ENVIRONMENT','staging'))/'last-good.env'
         log=root/'log';log.touch()
         runtime=root/'staging.env';runtime.write_text('PUBLIC_URL=https://staging-todo.reflexionia.com\nPOSTGRES_DB=ttd_staging\n')
         # Keep production timeouts fixed; shorten only this disposable test copy.
@@ -116,6 +120,13 @@ class DeployTest(unittest.TestCase):
         result,calls,_,_=self.run_deploy(api='api:new')
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertFalse(any('pg_dump' in c or 'migrate' in c for c in calls))
+
+    def test_production_does_not_overwrite_staging_state_in_shared_env_directory(self):
+        result,_,state,_=self.run_deploy(api='api:new',DEPLOY_ENVIRONMENT='production')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('API_IMAGE=api:new',state)
+        staging=self.last_temp_root/'.ttd-deploy-staging'/'last-good.env'
+        self.assertIn('API_IMAGE=api:old',staging.read_text())
 
 class ProxyTest(unittest.TestCase):
     def proxy(self, same=False, restore=False):
