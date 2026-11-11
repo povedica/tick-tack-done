@@ -107,7 +107,9 @@ El check de `backlog-sync`, al ver `Closes`, `Fixes` o `Resolves`:
 - avisa en la PR si Agente está vacío;
 - si la tarjeta estaba en Listo para hacer, la pasa a En curso.
 
-Solo falla el check si falta `Closes #N`. Lo demás son avisos. Una PR
+El check falla si falta `Closes #N` o cambia una decisión sin actualizar
+`DECISIONES.md`. La falta de comentario de decisión en la issue es solo un
+aviso si está en En revisión o la PR ya no es borrador. No mueve a En revisión. Una PR
 antigua queda cubierta en cuanto se edita la descripción.
 
 ## 5. Reglas por evento
@@ -139,7 +141,8 @@ antigua queda cubierta en cuanto se edita la descripción.
 - **Pablo:** decide, prioriza, aprueba PRs y descarta.
 - **Workflows:** al abrir o editar una PR con `Closes`/`Fixes`/`Resolves`,
   backlog-sync escribe la Rama, avisa si Agente está vacío y pasa de
-  Listo para hacer a En curso. El check solo falla si falta `Closes #N`.
+  Listo para hacer a En curso. El check falla si falta `Closes #N` o cambia una decisión sin actualizar
+  `DECISIONES.md`; el aviso de comentario de decisión nunca bloquea.
   Al fusionar una PR que cierra la issue, Status = Hecho.
 
 ## 7. Higiene

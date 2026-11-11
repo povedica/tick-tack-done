@@ -90,8 +90,8 @@ pnpm lint && pnpm typecheck
   con Fase «Retomada»: quién retoma, commit/estado de partida, qué falta y plan.
   Devuelve la tarjeta a «En curso» en Project 2 y actualiza Agente si cambia.
 - Pausar: pasa la tarjeta a «Pausada» **y** escribe en la issue un
-  comentario con la plantilla de decisión, el motivo detallado, el estado de la rama y la condición
-  para retomarla. Sin comentario no hay pausa.
+  comentario con la plantilla de decisión, el motivo detallado,
+  el estado de la rama y la condición para retomarla. Sin comentario no hay pausa.
 - No empieces trabajo sin issue `BKL-NNN`. La descripción de la PR empieza
   por `Closes #N`. PR sin issue solo para dependencias o CI (`sin-backlog`).
 - Hecho = cumple `docs/backlog/DOD.md`. Si la entrega deja una mejora
@@ -108,4 +108,5 @@ pnpm lint && pnpm typecheck
 5. La PR de esa issue se mergea al quedar el corte cerrado. No empieces otra
    issue en la misma rama.
 6. Backlog al día: se cumple `docs/backlog/DOD.md` (columna correcta,
-   comentarios de decisión en la issue, Agente y Rama, la descripción empieza por `Closes #N` y DECISIONES.md si aplica).
+   comentarios de decisión en la issue, Agente y Rama, la descripción empieza
+   por `Closes #N` y DECISIONES.md si aplica).

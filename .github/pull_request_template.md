@@ -15,7 +15,6 @@ Closes #
       comparte mi Zona (y nada más en prisma-migrations).
 - [ ] Pregunté por las tarjetas pausadas antes de coger esta.
 - [ ] Cambia una decisión: he actualizado `docs/backlog/DECISIONES.md`.
-
 - [ ] He dejado en la issue los comentarios de decisión (plantilla
       `docs/backlog/plantillas/comentario-decision.md`). El de En revisión resume el estado.
 

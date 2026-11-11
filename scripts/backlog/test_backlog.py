@@ -471,6 +471,21 @@ esac
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("no pude leer los comentarios", result.stdout)
 
+    def test_decision_warning_keeps_bot_and_no_backlog_exemptions(self):
+        self.env["PROJECT_NUMBER"] = "2"
+        for author, labels in (("dependabot[bot]", []), ("github-actions[bot]", []),
+                               ("developer", [{"name": "sin-backlog"}])):
+            with self.subTest(author=author, labels=labels):
+                self.env["MOCK_PR"] = json.dumps({
+                    "body": "Closes #12", "labels": labels,
+                    "author": {"login": author}, "isDraft": False,
+                })
+                self.log.write_text("")
+                result = self.run_script("sync.sh", "pr-check", "95")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn("no hay comentario de decisión", result.stdout)
+                self.assertNotIn("comments?", self.log.read_text())
+
     def _project_pr_stub(self):
         return r'''#!/usr/bin/env bash
 set -eu
