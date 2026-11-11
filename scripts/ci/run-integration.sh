@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # Two concurrent shards, separate databases and Redis instances, one runner/setup.
 set -euo pipefail
-: "${POSTGRES_CONTAINER:?}" "${DATABASE_URL:?}"
+: "${POSTGRES_CONTAINER:?}" "${POSTGRES_CONTAINER_SHARD2:?}" "${DATABASE_URL:?}"
+postgres_containers=("$POSTGRES_CONTAINER" "$POSTGRES_CONTAINER_SHARD2")
 logs=$(mktemp -d)
 pids=()
 for shard in 1 2; do
-  database="reflexionia_test_$shard"
-  docker exec "$POSTGRES_CONTAINER" createdb -U reflexionia "$database"
-  database_url="${DATABASE_URL%/*}/$database"
+  postgres_port=$((5431 + shard))
+  database_url="${DATABASE_URL%:*}:$postgres_port/reflexionia_test"
   DATABASE_URL="$database_url" pnpm db:deploy
   redis_port=$((6378 + shard))
   (
     set +e
-    DATABASE_URL="$database_url" REDIS_URL="redis://localhost:$redis_port" \
-      pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard="$shard/2" > "$logs/$shard.log" 2>&1
+    POSTGRES_CONTAINER="${postgres_containers[$((shard - 1))]}" DATABASE_URL="$database_url" REDIS_URL="redis://localhost:$redis_port" \
+      pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard="$shard/2" --pool=threads --maxWorkers=1 > "$logs/$shard.log" 2>&1
     echo "$?" > "$logs/$shard.status"
   ) &
   pids+=("$!")

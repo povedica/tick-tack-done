@@ -23,7 +23,7 @@ class CIContracts(unittest.TestCase):
         binary=root/'bin';binary.mkdir()
         for tool in ['pnpm','docker']:
             path=binary/tool;path.write_text(MOCK);path.chmod(0o755)
-        env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'CI_MOCK_LOG':str(log),'GITHUB_OUTPUT':str(out),'RUN_API':'true','RUN_BROWSER':'true','DATABASE_URL':'postgresql://fixture@localhost/base','POSTGRES_CONTAINER':'fixture',**extra}
+        env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'CI_MOCK_LOG':str(log),'GITHUB_OUTPUT':str(out),'RUN_API':'true','RUN_BROWSER':'true','DATABASE_URL':'postgresql://fixture@localhost/base','POSTGRES_CONTAINER':'fixture','POSTGRES_CONTAINER_SHARD2':'fixture2',**extra}
         result=subprocess.run(['bash',str(ROOT/'scripts/ci'/name)],cwd=ROOT,env=env,capture_output=True,text=True)
         return result,out.read_text() if out.exists() else '',[json.loads(x) for x in log.read_text().splitlines()]
 
