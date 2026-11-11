@@ -96,7 +96,10 @@ describe('TTD-AUD-74 QuickAddPopover component', () => {
   it('Enter creates using the slot and More options transfers the full draft', async () => {
     const user = userEvent.setup();
     const { created, view, anchor } = open();
-    await user.type(await screen.findByRole('textbox', { name: 'Añadir tarea' }), 'Comprar pan{Enter}');
+    await user.type(
+      await screen.findByRole('textbox', { name: 'Añadir tarea' }),
+      'Comprar pan{Enter}',
+    );
     await waitFor(() => {
       expect(created).toHaveBeenCalledOnce();
     });

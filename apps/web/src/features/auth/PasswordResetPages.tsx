@@ -455,4 +455,3 @@ function retryMinutesOf(error: ApiError): number {
   }
   return 1;
 }
-

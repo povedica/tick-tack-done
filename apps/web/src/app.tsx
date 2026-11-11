@@ -42,7 +42,10 @@ const CaptureSettings = lazyNamed(
   () => import('./features/places/CaptureSettingsPage'),
   'CaptureSettings',
 );
-const FiltersPage = lazyNamed(() => import('./features/views/components/FiltersPage'), 'FiltersPage');
+const FiltersPage = lazyNamed(
+  () => import('./features/views/components/FiltersPage'),
+  'FiltersPage',
+);
 const SmartListsPage = lazyNamed(
   () => import('./features/views/components/SmartListsPage'),
   'SmartListsPage',
@@ -83,10 +86,16 @@ const HabitDetailPage = lazyNamed(
   () => import('./features/habits/components/HabitDetailPage'),
   'HabitDetailPage',
 );
-const CountdownsPage = lazyNamed(() => import('./features/countdowns/CountdownsPage'), 'CountdownsPage');
+const CountdownsPage = lazyNamed(
+  () => import('./features/countdowns/CountdownsPage'),
+  'CountdownsPage',
+);
 const TickyPage = lazyNamed(() => import('./features/ticky/TickyPage'), 'TickyPage');
 const TokensPage = lazyNamed(() => import('./features/tokens/components/TokensPage'), 'TokensPage');
-const StatisticsPage = lazyNamed(() => import('./features/statistics/StatisticsPage'), 'StatisticsPage');
+const StatisticsPage = lazyNamed(
+  () => import('./features/statistics/StatisticsPage'),
+  'StatisticsPage',
+);
 const ProjectsPage = lazyNamed(() => import('./features/projects/ProjectsPage'), 'ProjectsPage');
 const DayPlanEntry = lazyNamed(() => import('./features/planning/DayPlanEntry'), 'DayPlanEntry');
 const WontDoPage = lazyNamed(() => import('./features/planning/WontDoPage'), 'WontDoPage');
@@ -101,7 +110,10 @@ const DayShutdownPage = lazy(async () => {
 const ReviewPage = lazyNamed(() => import('./features/product/WeeklyPages'), 'ReviewPage');
 const ReportsPage = lazyNamed(() => import('./features/product/WeeklyPages'), 'ReportsPage');
 const FocusPage = lazyNamed(() => import('./features/focus/FocusPage'), 'FocusPage');
-const DashboardPage = lazyNamed(() => import('./features/dashboard/DashboardPage'), 'DashboardPage');
+const DashboardPage = lazyNamed(
+  () => import('./features/dashboard/DashboardPage'),
+  'DashboardPage',
+);
 const RepeatPage = lazyNamed(() => import('./features/repeat/RepeatPage'), 'RepeatPage');
 const CalendarSettings = lazyNamed(
   () => import('./features/product/ProductPages'),
@@ -111,9 +123,15 @@ const IntegrationSettings = lazyNamed(
   () => import('./features/product/ProductPages'),
   'IntegrationSettings',
 );
-const AppearancePage = lazyNamed(() => import('./features/settings/AppearancePage'), 'AppearancePage');
+const AppearancePage = lazyNamed(
+  () => import('./features/settings/AppearancePage'),
+  'AppearancePage',
+);
 const FeaturesPage = lazyNamed(() => import('./features/settings/FeaturesPage'), 'FeaturesPage');
-const WorkdaySettings = lazyNamed(() => import('./features/settings/WorkdaySettings'), 'WorkdaySettings');
+const WorkdaySettings = lazyNamed(
+  () => import('./features/settings/WorkdaySettings'),
+  'WorkdaySettings',
+);
 const FocusSettingsPage = lazyNamed(
   () => import('./features/settings/FocusSettingsPage'),
   'FocusSettingsPage',
@@ -128,18 +146,24 @@ const AutomationSettings = lazyNamed(
   'AutomationSettings',
 );
 const DataSettings = lazyNamed(() => import('./features/settings/MoreSettings'), 'DataSettings');
-const PluginSettings = lazyNamed(() => import('./features/settings/MoreSettings'), 'PluginSettings');
-const SharingSettings = lazyNamed(() => import('./features/settings/MoreSettings'), 'SharingSettings');
+const PluginSettings = lazyNamed(
+  () => import('./features/settings/MoreSettings'),
+  'PluginSettings',
+);
+const SharingSettings = lazyNamed(
+  () => import('./features/settings/MoreSettings'),
+  'SharingSettings',
+);
 const ShortcutSettings = lazyNamed(
   () => import('./features/settings/MoreSettings'),
   'ShortcutSettings',
 );
-const WebhookSettings = lazyNamed(() => import('./features/settings/MoreSettings'), 'WebhookSettings');
+const WebhookSettings = lazyNamed(
+  () => import('./features/settings/MoreSettings'),
+  'WebhookSettings',
+);
 
-function lazyNamed<Key extends string>(
-  load: () => Promise<Record<Key, ComponentType>>,
-  key: Key,
-) {
+function lazyNamed<Key extends string>(load: () => Promise<Record<Key, ComponentType>>, key: Key) {
   return lazy(async () => ({ default: (await load())[key] }));
 }
 
@@ -221,7 +245,14 @@ function Shell() {
             <Route path="/" element={<Navigate to="/today" replace />} />
             <Route path="/today" element={<TodayPage />} />
             <Route path="/quick-add" element={<QuickAddRoute />} />
-            <Route path="/inbox" element={<Suspended><InboxPage /></Suspended>} />
+            <Route
+              path="/inbox"
+              element={
+                <Suspended>
+                  <InboxPage />
+                </Suspended>
+              }
+            />
             <Route
               path="/list/:id"
               element={
@@ -246,7 +277,14 @@ function Shell() {
                 </Suspended>
               }
             />
-            <Route path="/list/:id/note/:taskId" element={<Suspended><NoteRoute /></Suspended>} />
+            <Route
+              path="/list/:id/note/:taskId"
+              element={
+                <Suspended>
+                  <NoteRoute />
+                </Suspended>
+              }
+            />
             <Route
               path="/filter/:id"
               element={
@@ -255,7 +293,14 @@ function Shell() {
                 </Suspended>
               }
             />
-            <Route path="/filters" element={<Suspended><FiltersPage /></Suspended>} />
+            <Route
+              path="/filters"
+              element={
+                <Suspended>
+                  <FiltersPage />
+                </Suspended>
+              }
+            />
             <Route path="/filters/:id" element={<FilterLegacyRedirect />} />
             <Route
               path="/tag/:id"
@@ -283,7 +328,14 @@ function Shell() {
                 </Suspended>
               }
             />
-            <Route path="/smart-lists" element={<Suspended><SmartListsPage /></Suspended>} />
+            <Route
+              path="/smart-lists"
+              element={
+                <Suspended>
+                  <SmartListsPage />
+                </Suspended>
+              }
+            />
             <Route
               path="/smart-lists/:key"
               element={
@@ -292,8 +344,22 @@ function Shell() {
                 </Suspended>
               }
             />
-            <Route path="/task/:id" element={<Suspended><TaskRoute /></Suspended>} />
-            <Route path="/habits" element={<Suspended><HabitsPage /></Suspended>} />
+            <Route
+              path="/task/:id"
+              element={
+                <Suspended>
+                  <TaskRoute />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/habits"
+              element={
+                <Suspended>
+                  <HabitsPage />
+                </Suspended>
+              }
+            />
             <Route
               path="/countdowns"
               element={
@@ -304,9 +370,23 @@ function Shell() {
                 </Suspended>
               }
             />
-            <Route path="/habits/:id" element={<Suspended><HabitDetailPage /></Suspended>} />
+            <Route
+              path="/habits/:id"
+              element={
+                <Suspended>
+                  <HabitDetailPage />
+                </Suspended>
+              }
+            />
             <Route path="/calendar" element={<Navigate to="/calendar/month" replace />} />
-            <Route path="/calendar/:view" element={<Suspended><CalendarPage /></Suspended>} />
+            <Route
+              path="/calendar/:view"
+              element={
+                <Suspended>
+                  <CalendarPage />
+                </Suspended>
+              }
+            />
             <Route
               path="/matrix"
               element={
@@ -327,20 +407,111 @@ function Shell() {
                 </Suspended>
               }
             />
-            <Route path="/dashboard" element={<Suspended><DashboardPage /></Suspended>} />
-            <Route path="/dashboard/projects" element={<Suspended><ProjectsPage /></Suspended>} />
-            <Route path="/statistics" element={<Suspended><StatisticsPage /></Suspended>} />
-            <Route path="/statistics/:tab" element={<Suspended><StatisticsPage /></Suspended>} />
-            <Route path="/reports/weekly" element={<Suspended><ReportsPage /></Suspended>} />
-            <Route path="/reports/weekly/:week" element={<Suspended><ReportsPage /></Suspended>} />
-            <Route path="/plan/day" element={<Suspended><DayPlanEntry /></Suspended>} />
-            <Route path="/cierre" element={<Suspended><DayShutdownPage /></Suspended>} />
+            <Route
+              path="/dashboard"
+              element={
+                <Suspended>
+                  <DashboardPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/dashboard/projects"
+              element={
+                <Suspended>
+                  <ProjectsPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/statistics"
+              element={
+                <Suspended>
+                  <StatisticsPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/statistics/:tab"
+              element={
+                <Suspended>
+                  <StatisticsPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/reports/weekly"
+              element={
+                <Suspended>
+                  <ReportsPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/reports/weekly/:week"
+              element={
+                <Suspended>
+                  <ReportsPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/plan/day"
+              element={
+                <Suspended>
+                  <DayPlanEntry />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/cierre"
+              element={
+                <Suspended>
+                  <DayShutdownPage />
+                </Suspended>
+              }
+            />
             <Route path="/replan" element={<Navigate to="/plan/day" replace />} />
-            <Route path="/wont-do" element={<Suspended><WontDoPage /></Suspended>} />
-            <Route path="/review" element={<Suspended><ReviewPage /></Suspended>} />
-            <Route path="/review/daily" element={<Suspended><ReviewPage /></Suspended>} />
-            <Route path="/review/weekly" element={<Suspended><ReviewPage /></Suspended>} />
-            <Route path="/search" element={<Suspended><SearchPage /></Suspended>} />
+            <Route
+              path="/wont-do"
+              element={
+                <Suspended>
+                  <WontDoPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/review"
+              element={
+                <Suspended>
+                  <ReviewPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/review/daily"
+              element={
+                <Suspended>
+                  <ReviewPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/review/weekly"
+              element={
+                <Suspended>
+                  <ReviewPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/search"
+              element={
+                <Suspended>
+                  <SearchPage />
+                </Suspended>
+              }
+            />
             <Route
               path="/ticky"
               element={
@@ -351,31 +522,192 @@ function Shell() {
                 </Suspended>
               }
             />
-            <Route path="/sticky" element={<Suspended><DashboardPage /></Suspended>} />
-            <Route path="/tokens" element={<Suspended><TokensPage /></Suspended>} />
+            <Route
+              path="/sticky"
+              element={
+                <Suspended>
+                  <DashboardPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/tokens"
+              element={
+                <Suspended>
+                  <TokensPage />
+                </Suspended>
+              }
+            />
             <Route path="/oauth/consent" element={<ConsentPage />} />
-            <Route path="/settings" element={<Suspended><SettingsLayout /></Suspended>}>
-              <Route index element={<Suspended><SettingsHome /></Suspended>} />
-              <Route path="appearance" element={<Suspended><AppearancePage /></Suspended>} />
-              <Route path="features" element={<Suspended><FeaturesPage /></Suspended>} />
-              <Route path="account" element={<Suspended><AccountPage /></Suspended>} />
-              <Route path="workday" element={<Suspended><WorkdaySettings /></Suspended>} />
-              <Route path="capture" element={<Suspended><CaptureSettings /></Suspended>} />
-              <Route path="focus" element={<Suspended><FocusSettingsPage /></Suspended>} />
-              <Route path="about" element={<Suspended><AboutPage /></Suspended>} />
-              <Route path="notifications" element={<Suspended><NotificationsPage /></Suspended>} />
-              <Route path="smart-lists" element={<Suspended><SmartListsPage /></Suspended>} />
-              <Route path="calendar" element={<Suspended><CalendarSettings /></Suspended>} />
-              <Route path="tokens" element={<Suspended><TokensPage /></Suspended>} />
-              <Route path="integrations" element={<Suspended><IntegrationSettings /></Suspended>} />
-              <Route path="automations" element={<Suspended><AutomationSettings /></Suspended>} />
-              <Route path="webhooks" element={<Suspended><WebhookSettings /></Suspended>} />
-              <Route path="data" element={<Suspended><DataSettings /></Suspended>} />
-              <Route path="plugins" element={<Suspended><PluginSettings /></Suspended>} />
-              <Route path="sharing" element={<Suspended><SharingSettings /></Suspended>} />
-              <Route path="shortcuts" element={<Suspended><ShortcutSettings /></Suspended>} />
+            <Route
+              path="/settings"
+              element={
+                <Suspended>
+                  <SettingsLayout />
+                </Suspended>
+              }
+            >
+              <Route
+                index
+                element={
+                  <Suspended>
+                    <SettingsHome />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="appearance"
+                element={
+                  <Suspended>
+                    <AppearancePage />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="features"
+                element={
+                  <Suspended>
+                    <FeaturesPage />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="account"
+                element={
+                  <Suspended>
+                    <AccountPage />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="workday"
+                element={
+                  <Suspended>
+                    <WorkdaySettings />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="capture"
+                element={
+                  <Suspended>
+                    <CaptureSettings />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="focus"
+                element={
+                  <Suspended>
+                    <FocusSettingsPage />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="about"
+                element={
+                  <Suspended>
+                    <AboutPage />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="notifications"
+                element={
+                  <Suspended>
+                    <NotificationsPage />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="smart-lists"
+                element={
+                  <Suspended>
+                    <SmartListsPage />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="calendar"
+                element={
+                  <Suspended>
+                    <CalendarSettings />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="tokens"
+                element={
+                  <Suspended>
+                    <TokensPage />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="integrations"
+                element={
+                  <Suspended>
+                    <IntegrationSettings />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="automations"
+                element={
+                  <Suspended>
+                    <AutomationSettings />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="webhooks"
+                element={
+                  <Suspended>
+                    <WebhookSettings />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="data"
+                element={
+                  <Suspended>
+                    <DataSettings />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="plugins"
+                element={
+                  <Suspended>
+                    <PluginSettings />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="sharing"
+                element={
+                  <Suspended>
+                    <SharingSettings />
+                  </Suspended>
+                }
+              />
+              <Route
+                path="shortcuts"
+                element={
+                  <Suspended>
+                    <ShortcutSettings />
+                  </Suspended>
+                }
+              />
             </Route>
-            <Route path="/repeat" element={<Suspended><RepeatPage /></Suspended>} />
+            <Route
+              path="/repeat"
+              element={
+                <Suspended>
+                  <RepeatPage />
+                </Suspended>
+              }
+            />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

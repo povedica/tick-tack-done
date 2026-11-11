@@ -256,7 +256,11 @@ function deferRouteCss(): Plugin {
         for (const item of Object.values(bundle)) {
           if (item.type === 'chunk' && item.code.includes(fromBase)) {
             item.code = item.code.replaceAll(fromBase, toBase);
-          } else if (item.type === 'asset' && typeof item.source === 'string' && item.source.includes(fromBase)) {
+          } else if (
+            item.type === 'asset' &&
+            typeof item.source === 'string' &&
+            item.source.includes(fromBase)
+          ) {
             item.source = item.source.replaceAll(fromBase, toBase);
           }
         }

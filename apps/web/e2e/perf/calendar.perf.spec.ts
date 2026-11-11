@@ -187,7 +187,9 @@ async function gestureUntil(
   const outcome = await periodOutcome(page, period);
   const week = String(period) === String(/date=2026-01-12/);
   if (outcome === 'missed' || (week && !period.test(page.url()))) {
-    throw new Error(`Gesture missed ${period}. The page kept painting and the period did not change.`);
+    throw new Error(
+      `Gesture missed ${period}. The page kept painting and the period did not change.`,
+    );
   }
   await ready();
   return Date.now() - started;
@@ -198,10 +200,7 @@ async function gestureUntil(
  * `busy` — the main thread did not paint; the long data wait is the resource budget.
  * `missed` — the page painted for 3s and the period stayed put, so the swipe never landed.
  */
-async function periodOutcome(
-  page: Page,
-  period: RegExp,
-): Promise<'moved' | 'busy' | 'missed'> {
+async function periodOutcome(page: Page, period: RegExp): Promise<'moved' | 'busy' | 'missed'> {
   const deadline = Date.now() + 3_000;
   while (Date.now() < deadline) {
     if (period.test(page.url())) return 'moved';
@@ -231,48 +230,52 @@ async function paintsWithin(page: Page, ms: number): Promise<boolean> {
 
 /** Pixel 7 hides the desktop arrows. Year and month move on a vertical touch; week moves sideways. */
 async function swipe(page: Page, selector: string, axis: 'up' | 'left'): Promise<void> {
-  const segment = await page.locator(selector).first().evaluate((element, direction: 'up' | 'left') => {
-    const rect = element.getBoundingClientRect();
-    const hits = (x: number, y: number) => {
-      const node = document.elementFromPoint(x, y);
-      return node !== null && (node === element || element.contains(node));
-    };
-    const span = (values: number[]) => {
-      for (let index = values.length - 1; index >= 0; index -= 1) {
-        const from = values[index] ?? 0;
-        const to = values.find((value) => from - value >= 90 && from - value <= 140);
-        if (to !== undefined) return { from, to };
+  const segment = await page
+    .locator(selector)
+    .first()
+    .evaluate((element, direction: 'up' | 'left') => {
+      const rect = element.getBoundingClientRect();
+      const hits = (x: number, y: number) => {
+        const node = document.elementFromPoint(x, y);
+        return node !== null && (node === element || element.contains(node));
+      };
+      const span = (values: number[]) => {
+        for (let index = values.length - 1; index >= 0; index -= 1) {
+          const from = values[index] ?? 0;
+          const to = values.find((value) => from - value >= 90 && from - value <= 140);
+          if (to !== undefined) return { from, to };
+        }
+        return null;
+      };
+      // The board can be taller than the viewport. Only points on screen can receive the touch.
+      const top = Math.max(rect.top, 0) + 4;
+      const bottom = Math.min(rect.bottom, window.innerHeight) - 4;
+      const left = Math.max(rect.left, 0) + 4;
+      const right = Math.min(rect.right, window.innerWidth) - 4;
+      if (direction === 'up') {
+        for (let x = left; x <= right; x += 24) {
+          const ys: number[] = [];
+          for (let y = top; y <= bottom; y += 6) {
+            if (hits(x, y)) ys.push(y);
+          }
+          const pair = span(ys);
+          if (pair !== null) {
+            return { x: Math.round(x), y: pair.from, endX: Math.round(x), endY: pair.to };
+          }
+        }
+        return null;
+      }
+      for (let y = top; y <= bottom; y += 24) {
+        const xs: number[] = [];
+        for (let x = left; x <= right; x += 6) {
+          if (hits(x, y)) xs.push(x);
+        }
+        const pair = span(xs);
+        if (pair !== null)
+          return { x: pair.from, y: Math.round(y), endX: pair.to, endY: Math.round(y) };
       }
       return null;
-    };
-    // The board can be taller than the viewport. Only points on screen can receive the touch.
-    const top = Math.max(rect.top, 0) + 4;
-    const bottom = Math.min(rect.bottom, window.innerHeight) - 4;
-    const left = Math.max(rect.left, 0) + 4;
-    const right = Math.min(rect.right, window.innerWidth) - 4;
-    if (direction === 'up') {
-      for (let x = left; x <= right; x += 24) {
-        const ys: number[] = [];
-        for (let y = top; y <= bottom; y += 6) {
-          if (hits(x, y)) ys.push(y);
-        }
-        const pair = span(ys);
-        if (pair !== null) {
-          return { x: Math.round(x), y: pair.from, endX: Math.round(x), endY: pair.to };
-        }
-      }
-      return null;
-    }
-    for (let y = top; y <= bottom; y += 24) {
-      const xs: number[] = [];
-      for (let x = left; x <= right; x += 6) {
-        if (hits(x, y)) xs.push(x);
-      }
-      const pair = span(xs);
-      if (pair !== null) return { x: pair.from, y: Math.round(y), endX: pair.to, endY: Math.round(y) };
-    }
-    return null;
-  }, axis);
+    }, axis);
   if (segment === null) {
     throw new Error(`No in-board swipe segment for ${selector}`);
   }

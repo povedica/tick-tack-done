@@ -1310,7 +1310,8 @@ export const extraEn = {
   shareOwner: 'Owner',
   publicLinkTitle: 'Public link',
   publicLinkSwitch: 'Public link',
-  publicLinkWarning: 'Anyone with the link can see the list name and the titles, notes, dates, tags and subtasks of its tasks, without signing in. They will not see comments, people or attachments.',
+  publicLinkWarning:
+    'Anyone with the link can see the list name and the titles, notes, dates, tags and subtasks of its tasks, without signing in. They will not see comments, people or attachments.',
   publicLinkCopy: 'Copy link',
   publicLinkCopied: 'Link copied',
   publicLinkRegenerate: 'Regenerate',
@@ -1364,7 +1365,8 @@ export const extraEn = {
   resetPasswordReused: 'Choose a password different from the current one.',
   resetPasswordTooCommon: 'That password is too common.',
   resetDoneTitle: 'Password changed',
-  resetDoneBody: 'You can sign in with your new password. We signed you out everywhere and disconnected authorized apps.',
+  resetDoneBody:
+    'You can sign in with your new password. We signed you out everywhere and disconnected authorized apps.',
   resetExpiredTitle: 'This link no longer works',
   resetExpiredBody: 'It may have expired or already been used.',
   resetRequestAgain: 'Request a new link',

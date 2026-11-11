@@ -32,9 +32,7 @@ export function CalendarSidebar({
   });
   const cells = useMemo(() => monthCells(cursor, weekStart), [cursor, weekStart]);
   const todayKey = useCalendarToday();
-  const monthLabel = dateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
-    cursor,
-  );
+  const monthLabel = dateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor);
   const weekday = dateTimeFormat(locale, { weekday: 'narrow' });
   const heads = Array.from({ length: 7 }, (_, index) => {
     const sample = cells[index] ?? cursor;

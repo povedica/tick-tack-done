@@ -320,4 +320,3 @@ function flag(value: unknown, key: string): boolean {
     typeof value === 'object' && value !== null && (value as Record<string, unknown>)[key] === true
   );
 }
-

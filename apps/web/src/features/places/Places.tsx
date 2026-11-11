@@ -40,14 +40,7 @@ import { openTaskComposer } from '../capture/notice';
 import '../calendar/calendar.css';
 import { type Task } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { YearBoard } from './year-board';
 import { rememberCalendarView } from '../../shell/BottomBar';
@@ -93,7 +86,6 @@ const CAL_VIEWS = [
   'year',
   'agenda',
 ] as const;
-
 
 export function CalendarPage() {
   useCalendarSyncOnOpen();

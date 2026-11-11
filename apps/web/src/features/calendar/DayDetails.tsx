@@ -73,9 +73,7 @@ export function DayDetails({
     .map((part) => part.value)
     .join(' ');
   const clock = (iso: string) =>
-    dateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }).format(
-      new Date(iso),
-    );
+    dateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }).format(new Date(iso));
   const items = [
     ...tasks.map((task) => ({
       kind: 'task' as const,
