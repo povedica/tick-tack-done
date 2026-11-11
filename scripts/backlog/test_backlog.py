@@ -163,6 +163,8 @@ esac
             ("Closes #12", [{"number": 12}], [], 1),
             ("Closes #12", [{"number": 12}], [{"path": "docs/backlog/DECISIONES.md"}], 0),
             ("Refs #12\n- [x] Cambia una decisión", [], [], 1),
+            ("Closes #12\n- [x] Cambia una decisión", [], [], 1),
+            ("Closes #12\n- [x] He dejado en la issue los comentarios de decisión", [], [], 0),
         ):
             with self.subTest(body=body, files=files):
                 data.update(body=body, closingIssuesReferences=closing, files=files)

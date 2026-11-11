@@ -244,7 +244,7 @@ cmd_pr_check() {
   files="$(jq -r '.files[].path' <<<"$data")"
   closing="$(jq -r '.closingIssuesReferences[].number' <<<"$data")"
   local needs_dec=0 n
-  if grep -qiE '^\s*- \[[xX]\] .*(decisión|decision)' <<<"$body"; then needs_dec=1; fi
+  if grep -qiE '^\s*- \[[xX]\] (Cambia una decisión|Changes? (a |an? )?decision)' <<<"$body"; then needs_dec=1; fi
   for n in $closing; do
     if gh issue view "$n" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qx 'tipo:decision'; then
       needs_dec=1
