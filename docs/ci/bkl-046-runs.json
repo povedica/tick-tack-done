@@ -1,0 +1,68 @@
+{
+  "measured_at": "2026-11-11T22:30:55.111614+00:00",
+  "since_sha": "4bcd63e03a5c11641a0071cb7b10e245847f8a33",
+  "definition_sha256": "4f658955be2b31cd64e0ec0c29b20a75e16907facf2994d640afd2e854c5e845",
+  "summary": {
+    "n": 1,
+    "median_seconds": 219.0,
+    "p90_seconds": 219.0,
+    "median_runner_min": 7.916666666666667,
+    "results": {
+      "success": 1
+    }
+  },
+  "runs": [
+    {
+      "id": 43111610312,
+      "sha": "4bcd63e03a5c11641a0071cb7b10e245847f8a33",
+      "created_at": "2026-11-11T22:25:14Z",
+      "conclusion": "success",
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43111610312",
+      "seconds": 219.0,
+      "queue_seconds": 32.0,
+      "runner_min": 7.916666666666667,
+      "jobs": {
+        "changes": {
+          "seconds": 16.0,
+          "conclusion": "success"
+        },
+        "public-tree-guard": {
+          "seconds": 17.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 22.0,
+          "conclusion": "success"
+        },
+        "test-integration": {
+          "seconds": 130.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 159.0,
+          "conclusion": "success"
+        },
+        "test-unit": {
+          "seconds": 118.0,
+          "conclusion": "success"
+        },
+        "openapi-check": {
+          "seconds": 4.0,
+          "conclusion": "success"
+        },
+        "r80-browser-contracts": {
+          "seconds": 4.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 2.0,
+          "conclusion": "success"
+        },
+        "ci-ok": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        }
+      }
+    }
+  ]
+}
