@@ -15,6 +15,9 @@ data=json.loads(state.read_text())
 name=Path(sys.argv[0]).name
 if name=='sleep':
     import time; time.sleep(.05); sys.exit()
+if name=='age':
+    sys.stdin.buffer.read(); Path(args[-1]).write_bytes(b'fixture'); sys.exit()
+if name=='rclone': sys.exit()
 if name=='curl':
     bad=os.environ.get('FAIL_HEALTH')=='1' and 'new' in ''.join(data.values())
     if bad: sys.exit(22)
@@ -28,10 +31,12 @@ if args[0]=='run':
     if os.environ.get('FAIL_MIGRATE')=='1' and 'migrate' in args: sys.exit(1)
     print('new-migrations' if 'api:new' in args and os.environ.get('NEW_MIGRATION')=='1' else 'same-migrations');sys.exit()
 if args[0]=='compose':
-    for command in ['config','ps','pull','up','exec']:
+    for command in ['config','ps','pull','up','exec','run']:
         if command not in args: continue
         if command=='config' and 'json' in args:
-            print(json.dumps({'services':{'staging-api':{'environment':{'PUBLIC_URL':'https://staging-todo.reflexionia.com'}},'postgres':{'environment':{'POSTGRES_DB':'ttd_staging'}}}}))
+            print(json.dumps({'services':{'staging-api':{'environment':{'PUBLIC_URL':'https://staging-todo.reflexionia.com','BACKUP_DIR':os.environ['MOCK_BACKUPS'],'BACKUP_REMOTE':'mock','AGE_RECIPIENT':'mock'}},'postgres':{'environment':{'POSTGRES_DB':'ttd_staging'}}}}))
+        if command=='run' and os.environ.get('FAIL_MIGRATE')=='1': sys.exit(1)
+        if command=='exec' and 'pg_dump' in args: print('-- synthetic backup')
         if command=='ps': print(args[-1])
         if command=='up':
             for service in ['staging-api','staging-web']:
@@ -47,7 +52,7 @@ class DeployTest(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         root=Path(temporary.name)
         binary=root/'bin'; binary.mkdir()
-        for name in ['docker','curl','sleep']:
+        for name in ['docker','curl','sleep','age','rclone']:
             path=binary/name; path.write_text(MOCK);path.chmod(0o755)
         state=root/'mock.json';state.write_text(json.dumps({'staging-api':'api:old','staging-web':'web:old'}))
         last=root/'last-good.env';last.write_text('API_IMAGE=api:old\nWEB_IMAGE=web:old\n')
@@ -57,7 +62,7 @@ class DeployTest(unittest.TestCase):
         script=(ROOT/'deploy/lib/deploy.sh').read_text().replace('health "$expected" 90','health "$expected" 1').replace('"$(image_commit "$old_api")" 45','"$(image_commit "$old_api")" 1')
         script=script.replace('root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"','root='+str(ROOT))
         test_script=root/'deploy.sh';test_script.write_text(script)
-        env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'MOCK_LOG':str(log),'MOCK_STATE':str(state),'RUNTIME_ENV_FILE':str(runtime),'PUBLIC_HEALTH_URL':'https://example.test/api/v1/health','DEPLOY_ENVIRONMENT':'staging','API_IMAGE':api,'WEB_IMAGE':web,**extra}
+        env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'MOCK_LOG':str(log),'MOCK_STATE':str(state),'MOCK_BACKUPS':str(root/'backups'),'RUNTIME_ENV_FILE':str(runtime),'PUBLIC_HEALTH_URL':'https://example.test/api/v1/health','DEPLOY_ENVIRONMENT':'staging','API_IMAGE':api,'WEB_IMAGE':web,**extra}
         result=subprocess.run(['bash',str(test_script)],env=env,capture_output=True,text=True)
         calls=[json.loads(line) for line in log.read_text().splitlines()]
         return result,calls,last.read_text(),json.loads(state.read_text())
@@ -90,5 +95,26 @@ class DeployTest(unittest.TestCase):
         self.assertEqual(sum('up' in c for c in calls),2)
         self.assertEqual(running['staging-api'],'api:old')
         self.assertIn('API_IMAGE=api:old',state)
+
+    def test_new_migration_backs_up_then_migrates_before_api_replacement(self):
+        result,calls,_,_=self.run_deploy(api='api:new',NEW_MIGRATION='1')
+        self.assertEqual(result.returncode,0,result.stderr)
+        backup=next(i for i,c in enumerate(calls) if 'pg_dump' in c)
+        migrate=next(i for i,c in enumerate(calls) if 'migrate' in c)
+        up=next(i for i,c in enumerate(calls) if 'up' in c)
+        self.assertLess(backup,migrate)
+        self.assertLess(migrate,up)
+
+    def test_failed_migration_keeps_running_api(self):
+        result,calls,state,running=self.run_deploy(api='api:new',NEW_MIGRATION='1',FAIL_MIGRATE='1')
+        self.assertNotEqual(result.returncode,0)
+        self.assertFalse(any('up' in c for c in calls))
+        self.assertEqual(running['staging-api'],'api:old')
+        self.assertIn('API_IMAGE=api:old',state)
+
+    def test_no_migration_skips_backup_and_one_shot(self):
+        result,calls,_,_=self.run_deploy(api='api:new')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertFalse(any('pg_dump' in c or 'migrate' in c for c in calls))
 
 if __name__=='__main__': unittest.main()

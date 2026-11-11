@@ -94,6 +94,9 @@ rollback() {
   compose up -d --no-build --no-deps "${changed[@]}"
   health "$(image_commit "$old_api")" 45
 }
+# shellcheck source=deploy/lib/migrate.sh
+source "$root/deploy/lib/migrate.sh"
+if [[ $API_IMAGE != "$running_api" ]]; then migrate_before_replace; fi
 if ! compose up -d --no-build --no-deps --remove-orphans "${changed[@]}" || ! health "$expected" 90; then
   rollback || echo 'Rollback health failed; operator action required' >&2
   exit 1

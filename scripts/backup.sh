@@ -18,10 +18,14 @@ docker compose exec -T postgres pg_dump -U "${POSTGRES_USER:-reflexionia}" "${PO
 
 # TTD-AUD-99: los binarios pertenecen a Drive; no se monta ni empaqueta su volumen antiguo.
 
+upload_script=scripts/backup-to-drive.mjs
+# CD transfers only deploy/** and this entrypoint; its dependency lives there.
+[[ -f "$upload_script" ]] || upload_script=deploy/lib/backup-to-drive.mjs
+
 upload_drive() {
   local dir="$1"
   if command -v node >/dev/null 2>&1; then
-    node scripts/backup-to-drive.mjs "$dir"
+    node "$upload_script" "$dir"
     return
   fi
   echo "[backup] el host no tiene node; se usa node:22-alpine"
@@ -36,7 +40,7 @@ upload_drive() {
   )"
   token="$(printf '%s' "$token" | tr -d '[:space:]')"
   docker run --rm \
-    -v "$PWD/scripts/backup-to-drive.mjs":/backup-to-drive.mjs:ro \
+    -v "$PWD/$upload_script":/backup-to-drive.mjs:ro \
     -v "$dir":/backup:ro \
     -e GOOGLE_DRIVE_FOLDER_ID \
     -e GOOGLE_CLIENT_ID \
