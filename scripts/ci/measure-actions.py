@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 
 DEFINITION = [
     '.github/workflows/ci.yml', '.github/actions/setup/action.yml',
-    'scripts/ci/format-check.mjs', 'scripts/ci/run-code-checks.sh', 'scripts/ci/run-integration.sh',
+    'apps/web/e2e/password-reset.spec.ts', 'scripts/ci/format-check.mjs', 'scripts/ci/run-code-checks.sh', 'scripts/ci/run-integration.sh',
     'package.json', 'apps/api/package.json', 'apps/web/package.json',
     'packages/domain/package.json', 'packages/sdk/package.json', 'pnpm-lock.yaml',
 ]

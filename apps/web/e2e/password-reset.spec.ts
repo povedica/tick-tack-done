@@ -51,8 +51,14 @@ test('RF-PR-01 CA-1 CA-12: login link, request, sent, new password, success and 
   await page.goto('/login');
   await expect(page.getByRole('link', { name: '¿Has olvidado tu contraseña?' })).toBeVisible();
   await page.getByRole('link', { name: '¿Has olvidado tu contraseña?' }).click();
+  await expect(page.getByRole('heading', { name: 'Recuperar contraseña' })).toBeVisible();
   await page.getByLabel('Correo').fill('ada@example.test');
+  const sent = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' && request.url().endsWith('/auth/password-reset/request'),
+  );
   await page.getByRole('button', { name: 'Enviar enlace' }).click();
+  expect((await sent).postDataJSON()).toMatchObject({ email: 'ada@example.test' });
   await expect(page.getByText(/Si existe una cuenta con ada@example.test/)).toBeVisible();
   await page.goto(`/reset-password#token=${'a'.repeat(43)}`);
   await expect(page.getByRole('heading', { name: 'Nueva contraseña' })).toBeVisible();
