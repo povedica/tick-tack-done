@@ -163,6 +163,8 @@ esac
             ("Closes #12", [{"number": 12}], [], 1),
             ("Closes #12", [{"number": 12}], [{"path": "docs/backlog/DECISIONES.md"}], 0),
             ("Refs #12\n- [x] Cambia una decisión", [], [], 1),
+            ("Closes #12\n- [x] Cambia una decisión", [], [], 1),
+            ("Closes #12\n- [x] He dejado en la issue los comentarios de decisión", [], [], 0),
         ):
             with self.subTest(body=body, files=files):
                 data.update(body=body, closingIssuesReferences=closing, files=files)
@@ -422,6 +424,70 @@ esac
         self.assertIn("issue comment", calls)
         self.assertNotIn("--single-select-option-id", calls)
 
+    def test_decision_warning_is_nonblocking_and_reads_issue_comments(self):
+        for draft, status, token in (
+            (False, "En curso", False),
+            (True, "En revisión", True),
+            (True, "En curso", True),
+            (True, "Pausada", True),
+        ):
+            for marker in ("", "<!-- ttd-decision-->", "Texto\n<!-- ttd-decision -->\nFase: Retomada"):
+                with self.subTest(draft=draft, status=status, marker=marker):
+                    self.env["PROJECT_NUMBER"] = "2"
+                    self.env.pop("PROJECT_TOKEN", None)
+                    if token:
+                        self.env["PROJECT_TOKEN"] = "test-only-token"
+                    self.env["MOCK_ITEM"] = "PVTI_test\t" + status + "\tcodex-docs-1"
+                    self.env["MOCK_COMMENTS"] = marker
+                    self.env["MOCK_PR"] = json.dumps({
+                        "body": "Closes #12\nResolves #13", "labels": [],
+                        "author": {"login": "developer"}, "files": [],
+                        "closingIssuesReferences": [], "headRefName": "chore/test",
+                        "isDraft": draft,
+                    })
+                    self.stub("gh", self._project_pr_stub())
+                    self.log.write_text("")
+                    result = self.run_script("sync.sh", "pr-check", "95")
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    expected = (not draft or status == "En revisión") and "<!-- ttd-decision -->" not in marker
+                    self.assertEqual("no hay comentario de decisión" in result.stdout, expected)
+                    calls = self.log.read_text()
+                    if not draft or status == "En revisión":
+                        for n in (12, 13):
+                            self.assertIn(f"issues/{n}/comments?per_page=100", calls)
+                    self.assertNotIn("--single-select-option-id", calls)
+                    self.assertNotIn("issue comment", calls)
+
+    def test_decision_warning_survives_unreadable_project_and_comments(self):
+        self.env.update(PROJECT_NUMBER="2", PROJECT_TOKEN="test-only-token")
+        self.env["MOCK_PR"] = json.dumps({
+            "body": "Fixes #12", "labels": [], "author": {"login": "developer"},
+            "files": [], "closingIssuesReferences": [], "isDraft": False,
+        })
+        self.stub("gh", self._project_pr_stub().replace('"api user") echo povedica', '"api user") exit 1'))
+        result = self.run_script("sync.sh", "pr-check", "95")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("no hay comentario de decisión", result.stdout)
+        self.stub("gh", self._project_pr_stub().replace('"api user") echo povedica', '"api user") exit 1').replace('"api --paginate") printf', '"api --paginate") exit 1 ;;\n  "unused") printf'))
+        result = self.run_script("sync.sh", "pr-check", "95")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("no pude leer los comentarios", result.stdout)
+
+    def test_decision_warning_keeps_bot_and_no_backlog_exemptions(self):
+        self.env["PROJECT_NUMBER"] = "2"
+        for author, labels in (("dependabot[bot]", []), ("github-actions[bot]", []),
+                               ("developer", [{"name": "sin-backlog"}])):
+            with self.subTest(author=author, labels=labels):
+                self.env["MOCK_PR"] = json.dumps({
+                    "body": "Closes #12", "labels": labels,
+                    "author": {"login": author}, "isDraft": False,
+                })
+                self.log.write_text("")
+                result = self.run_script("sync.sh", "pr-check", "95")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn("no hay comentario de decisión", result.stdout)
+                self.assertNotIn("comments?", self.log.read_text())
+
     def _project_pr_stub(self):
         return r'''#!/usr/bin/env bash
 set -eu
@@ -432,7 +498,8 @@ case "$1 $2" in
   "project view") echo PVT_test ;;
   "project field-list") echo '{"fields":[{"id":"FSTATUS","name":"Status","options":[{"id":"OCURSO","name":"En curso"}]},{"id":"FRAMA","name":"Rama"}]}' ;;
   "project item-list") printf '%s\n' "$MOCK_ITEM" ;;
-  "project item-edit"|"issue comment"|"api --paginate"|"issue view") ;;
+  "api --paginate") printf '%s\n' "$MOCK_COMMENTS" ;;
+  "project item-edit"|"issue comment"|"issue view") ;;
   *) echo "Unexpected gh call: $*" >&2; exit 99 ;;
 esac
 '''

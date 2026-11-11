@@ -26,6 +26,7 @@ Este procedimiento lo comparten Cursor y Codex. La entrada para ambos está en `
 - Antes de escribir código: abrir el Project, mirar «Siguiente» y «En curso»,
   comprobar Zona y reclamar (En curso + Agente + Rama).
 - Al abrir una PR (pasar a En revisión) y al fusionarla (Hecho).
+- Tras cada avance relevante o decisión, también al retomar y responder a revisión.
 - Cuando Pablo decide algo, descarta una idea o aparece una idea nueva.
 
 ## Límites
@@ -121,18 +122,46 @@ Adoptar una PR que ya existía: añadir `Closes #N` como primera línea y
 rellenar Agente y Rama. El check escribe la Rama con la rama de la PR y
 avisa si Agente sigue vacío. No se toca la PR de otro agente.
 
+## Comentar una decisión
+
+Tras cada avance relevante, publica un comentario de decisión en la issue con
+`docs/backlog/plantillas/comentario-decision.md` (marcador `<!-- ttd-decision -->`).
+Registra también las decisiones de Pablo en el chat, con fecha y decisión.
+
+Usa la plantilla y guarda el texto en `comentario.md`:
+
+```bash
+gh issue comment <num> --repo "$REPO" --body-file comentario.md
+```
+
+Un comentario por avance (reclamar, diseño/alcance, cambio de plan, pausa,
+retomar, revisión, respuesta a Pablo y cierre), sin editar anteriores salvo
+errores de hecho. No sustituye a `DECISIONES.md`. Si no puedes comentar,
+deja el texto en la PR e indica la limitación. Tras reclamar, publica el primero.
+
+## Retomar
+
+Al retomar una tarea pausada, en revisión o abandonada, publica un comentario
+con Fase «Retomada»: quién retoma, commit/estado de partida, qué falta y plan.
+Devuelve la tarjeta a «En curso» en Project 2 y actualiza Agente si cambia.
+
 ## Pausar
 
 ```bash
 set_sel <num> Estado "Pausada"
-gh issue comment <num> --body "Pausada: <motivo detallado>. Rama: <rama, último commit>. Retomar cuando: <condición>."
+gh issue comment <num> --repo "$REPO" --body-file comentario.md
 ```
+
+`comentario.md` usa la plantilla, incluido `<!-- ttd-decision -->`, con
+Fase «Pausada». Motivo e Impacto / siguiente paso incluyen motivo detallado,
+rama/último commit y condición para retomar. Sin comentario no hay pausa.
 
 ## Cerrar
 
 Comprueba `docs/backlog/DOD.md`. Si salió una mejora obvia, propónla a Pablo (opcional).
 
-Al abrir la PR lista para revisión: `set_sel <num> Estado "En revisión"`.
+Primero publica el comentario de decisión con Fase «En revisión»: qué está
+hecho, qué debe mirar Pablo y enlace a la PR. Entonces, al abrirla lista para revisión: `set_sel <num> Estado "En revisión"`.
 
 ### 5. PR fusionada → «Hecho»
 
@@ -161,5 +190,7 @@ Actualiza la fila de `DECISIONES.md` (estado «Decidida», fecha, decisión, qui
 - [ ] Agente `<ejecutor>-<rol>-N` y Rama rellenados.
 - [ ] La descripción de la PR empieza por `Closes #N`.
 - [ ] Si pausé: comentario con motivo, estado y condición para retomar.
+- [ ] Comentarios de decisión publicados; el último resume el estado al pasar a En revisión.
+- [ ] Al retomar: comentario «Retomada», vuelta a En curso y Agente actualizado si cambia.
 - [ ] DoD cumplida.
 - [ ] Si cambió una decisión, DECISIONES.md está actualizado en la misma PR.

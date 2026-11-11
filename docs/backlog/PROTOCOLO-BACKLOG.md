@@ -56,6 +56,28 @@ No se reutilizan.
 
 No hay un tope global de tarjetas en «En curso». El tope es una por Zona.
 
+### 3.1. Comentario de decisión
+
+Tras cada avance relevante, publica un comentario de decisión en la issue con
+`docs/backlog/plantillas/comentario-decision.md` (marcador `<!-- ttd-decision -->`).
+Registra también las decisiones de Pablo en el chat, con fecha y decisión.
+
+Avances: reclamar, decidir diseño o alcance, cambiar el plan, pausar, retomar,
+pasar a En revisión, responder a una revisión de Pablo y cerrar (fusionada,
+descartada o «not planned»). Un comentario breve por avance, sin editar los
+anteriores salvo errores de hecho, sin logs ni código largo.
+
+Al retomar una tarea pausada, en revisión o abandonada, publica un comentario
+con Fase «Retomada»: quién retoma, commit/estado de partida, qué falta y plan.
+Devuelve la tarjeta a «En curso» en Project 2 y actualiza Agente si cambia.
+
+En revisión resume qué está hecho, qué debe mirar Pablo y enlaza la PR.
+La pausa usa la misma plantilla con Fase «Pausada» y mantiene motivo detallado,
+rama/último commit y condición para retomar en Motivo e Impacto / siguiente paso.
+No sustituye a `DECISIONES.md`: las decisiones de producto `DEC-NNN` siguen
+allí y solo Pablo las decide. Si el token no permite comentar, deja el texto
+en la PR e indica explícitamente la limitación.
+
 ## 4. Cómo se reclama una issue
 
 Sin saltarse pasos:
@@ -85,7 +107,9 @@ El check de `backlog-sync`, al ver `Closes`, `Fixes` o `Resolves`:
 - avisa en la PR si Agente está vacío;
 - si la tarjeta estaba en Listo para hacer, la pasa a En curso.
 
-Solo falla el check si falta `Closes #N`. Lo demás son avisos. Una PR
+El check falla si falta `Closes #N` o cambia una decisión sin actualizar
+`DECISIONES.md`. La falta de comentario de decisión en la issue es solo un
+aviso si está en En revisión o la PR ya no es borrador. No mueve a En revisión. Una PR
 antigua queda cubierta en cuanto se edita la descripción.
 
 ## 5. Reglas por evento
@@ -96,19 +120,20 @@ antigua queda cubierta en cuanto se edita la descripción.
 | Necesita decisión | Se queda en Ideas | Etiqueta `decision-pendiente` | Fila `DEC-NNN` abierta en DECISIONES.md | Quien la detecta |
 | Decisión tomada | A Listo para hacer, o se descarta | Quitar `decision-pendiente` | Fila «Decidida» en la PR que la aplica | Pablo decide; el agente registra |
 | Cumple la definición de listo | Listo para hacer | — | — | Quien escribe la spec |
-| Un agente empieza | En curso; Agente y Rama | — | Worktree propio | Ese agente |
-| PR abierta para revisar | En revisión | La descripción empieza por `Closes #N` | — | Ese agente |
+| Un agente empieza | En curso; Agente y Rama | Comentario de decisión de inicio | Worktree propio | Ese agente |
+| PR abierta para revisar | En revisión | Comentario de decisión que resume el estado; PR empieza por `Closes #N` | — | Ese agente |
 | PR ya existente, sin enlace | En curso si estaba en Listo para hacer; si no, no se mueve | Se añade `Closes #N` y se rellenan Agente y Rama | — | Quien la adopta; el check escribe la Rama |
-| PR fusionada | Hecho (automático) | Se cierra | — | Workflow; el agente revisa |
-| Descartada | Hecho | Cerrar como «not planned» con el motivo | Fila de DECISIONES a Decidida si aplicaba | Pablo |
-| Se pausa | Pausada | Comentario obligatorio: motivo, estado, condición para retomar | — | Ese agente |
-| Se retoma | En curso | Comentario «Retomada por decisión de Pablo» | — | Ese agente, tras preguntar |
+| PR fusionada | Hecho (automático) | Se cierra; comentario de decisión final | — | Workflow; el agente revisa |
+| Descartada | Hecho | Cerrar como «not planned» con comentario de decisión y motivo | Fila de DECISIONES a Decidida si aplicaba | Pablo |
+| Se pausa | Pausada | Comentario de decisión obligatorio: motivo, rama/commit, condición para retomar | — | Ese agente |
+| Se retoma (pausada, en revisión o abandonada) | En curso; actualizar Agente si cambia | Comentario de decisión «Retomada»: quién, commit/estado, qué falta y plan | — | Ese agente, con autorización de Pablo |
+| Respuesta a revisión de Pablo | En curso mientras trabaja | Comentario de decisión; si retoma, aplicar la fila anterior | — | Ese agente |
 | Mejora obvia tras una entrega (opcional) | — | — | `APRENDIZAJES.md` y, con el sí de Pablo, `DOR.md`/`DOD.md` | Agente o Pablo propone; **Pablo aprueba** |
 
 ## 6. Quién actualiza qué
 
 - **Agentes que implementan (Codex, Cursor):** miran el tablero, reclaman,
-  implementan en un worktree, enlazan la issue y actualizan DECISIONES.md
+  implementan en un worktree, publican comentarios de decisión en la issue, enlazan la issue y actualizan DECISIONES.md
   si aplican una decisión. Si su token no tiene scope `project`, lo dejan
   escrito en la PR para que lo ejecute Pablo.
 - **Grok Bot (ticktackdone):** propone movimientos, reagrupa el trabajo en
@@ -116,7 +141,8 @@ antigua queda cubierta en cuanto se edita la descripción.
 - **Pablo:** decide, prioriza, aprueba PRs y descarta.
 - **Workflows:** al abrir o editar una PR con `Closes`/`Fixes`/`Resolves`,
   backlog-sync escribe la Rama, avisa si Agente está vacío y pasa de
-  Listo para hacer a En curso. El check solo falla si falta `Closes #N`.
+  Listo para hacer a En curso. El check falla si falta `Closes #N` o cambia una decisión sin actualizar
+  `DECISIONES.md`; el aviso de comentario de decisión nunca bloquea.
   Al fusionar una PR que cierra la issue, Status = Hecho.
 
 ## 7. Higiene
