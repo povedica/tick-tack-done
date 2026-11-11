@@ -10,7 +10,8 @@ Staging es permanente y no reinicia Caddy. Producción lo reinicia solo si cambi
 Los workflows no crean Environments. Primero deben existir por M4; el preflight comprueba también al reviewer Pablo.
 La imagen web de producción se construye en el job aprobado, después de staging, con su propia site key pública.
 Los tags web siempre llevan sufijo `staging` o `prod`; así nunca se confunden las dos configuraciones.
-El job de deploy espera una CI de push a main en verde para el SHA exacto. Una PR no despliega.
+Images espera la CI del SHA exacto antes de publicar: el objetivo de deploy desde imágenes disponibles no incluye otra espera de CI.
+El job de deploy verifica además una CI de push a main en verde para el SHA exacto. Una PR no despliega.
 
 ## Preparación manual (Pablo)
 
