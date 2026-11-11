@@ -1,0 +1,57 @@
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+
+ROOT=Path(__file__).resolve().parents[2]
+MOCK=r'''#!/usr/bin/env python3
+import json,os,sys
+with open(os.environ['CI_MOCK_LOG'],'a') as out:
+    out.write(json.dumps({'args':sys.argv[1:],'database':os.environ.get('DATABASE_URL'),'redis':os.environ.get('REDIS_URL')})+'\n')
+a=' '.join(sys.argv[1:])
+if os.environ.get('FAIL_QUALITY') and 'format:check' in a: sys.exit(1)
+if os.environ.get('FAIL_BENCHMARK') and 'year-index.spec.ts' in a: sys.exit(1)
+if os.environ.get('FAIL_SHARD') and '--shard=2/2' in a: sys.exit(1)
+'''
+
+class CIContracts(unittest.TestCase):
+    def run_script(self,name,**extra):
+        temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup)
+        root=Path(temp.name);log=root/'log';out=root/'output'
+        binary=root/'bin';binary.mkdir()
+        for tool in ['pnpm','docker']:
+            path=binary/tool;path.write_text(MOCK);path.chmod(0o755)
+        env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'CI_MOCK_LOG':str(log),'GITHUB_OUTPUT':str(out),'RUN_API':'true','RUN_BROWSER':'true','DATABASE_URL':'postgresql://fixture@localhost/base','POSTGRES_CONTAINER':'fixture',**extra}
+        result=subprocess.run(['bash',str(ROOT/'scripts/ci'/name)],cwd=ROOT,env=env,capture_output=True,text=True)
+        return result,out.read_text() if out.exists() else '',[json.loads(x) for x in log.read_text().splitlines()]
+
+    def test_failure_is_recorded_for_required_quality_check(self):
+        result,output,_=self.run_script('run-code-checks.sh',FAIL_QUALITY='1')
+        self.assertEqual(result.returncode,0)
+        self.assertIn('quality=1',output)
+        self.assertIn('unit=0',output)
+
+    def test_isolated_budget_failure_fails_unit_check(self):
+        _,output,_=self.run_script('run-code-checks.sh',FAIL_BENCHMARK='1')
+        self.assertIn('unit=1',output)
+
+    def test_unneeded_api_and_browser_are_not_executed(self):
+        _,output,calls=self.run_script('run-code-checks.sh',RUN_API='false',RUN_BROWSER='false')
+        self.assertIn('browser=0',output)
+        self.assertFalse(any('openapi:generate' in c['args'] or 'build' in c['args'] for c in calls))
+
+    def test_integration_shards_have_distinct_databases_and_redis(self):
+        result,_,calls=self.run_script('run-integration.sh')
+        self.assertEqual(result.returncode,0,result.stderr)
+        tests=[c for c in calls if 'vitest' in c['args']]
+        self.assertEqual(len(tests),2)
+        self.assertEqual(len({c['database'] for c in tests}),2)
+        self.assertEqual(len({c['redis'] for c in tests}),2)
+
+    def test_failed_integration_shard_fails_job(self):
+        result,_,_=self.run_script('run-integration.sh',FAIL_SHARD='1')
+        self.assertNotEqual(result.returncode,0)
+
+if __name__=='__main__':unittest.main()

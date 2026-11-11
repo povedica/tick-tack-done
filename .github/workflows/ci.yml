@@ -57,33 +57,95 @@ jobs:
               - 'deploy/**'
               - 'scripts/**'
 
-  quality:
+  code-checks:
     needs: changes
     if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
-    timeout-minutes: 15
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      quality: ${{ steps.checks.outputs.quality }}
+      unit: ${{ steps.checks.outputs.unit }}
+      openapi: ${{ steps.checks.outputs.openapi }}
+      browser: ${{ steps.checks.outputs.browser }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - run: pnpm format:check
-      - run: pnpm lint:ci
-      - run: pnpm typecheck:ci
+        with:
+          build-api: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
+      - name: Resolve installed Playwright version
+        if: github.event_name == 'push' || needs.changes.outputs.browser == 'true'
+        id: playwright
+        run: echo "version=$(pnpm --filter web exec playwright --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        if: github.event_name == 'push' || needs.changes.outputs.browser == 'true'
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: (github.event_name == 'push' || needs.changes.outputs.browser == 'true') && steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter web exec playwright install --with-deps chromium
+      - if: (github.event_name == 'push' || needs.changes.outputs.browser == 'true') && steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm --filter web exec playwright install-deps chromium
+      - id: checks
+        name: Run independent checks concurrently on one runner
+        env:
+          RUN_API: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
+          RUN_BROWSER: ${{ github.event_name == 'push' || needs.changes.outputs.browser == 'true' }}
+        run: bash scripts/ci/run-code-checks.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r80-browser-evidence
+          path: |
+            apps/web/test-results
+            test-artifacts/audit/r80/98-waterfall-despues-*.json
+          retention-days: 14
+
+  quality:
+    needs: [changes, code-checks]
+    if: always() && (github.event_name == 'push' || needs.changes.outputs.code == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - env:
+          RESULT: ${{ needs.code-checks.outputs.quality }}
+          PARENT: ${{ needs.code-checks.result }}
+        run: test "$PARENT" = success && test "$RESULT" = 0
 
   test-unit:
-    needs: changes
-    if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
-    timeout-minutes: 15
+    needs: [changes, code-checks]
+    if: always() && (github.event_name == 'push' || needs.changes.outputs.code == 'true')
     runs-on: ubuntu-latest
+    timeout-minutes: 1
     steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-      - run: pnpm test:ci
+      - env:
+          RESULT: ${{ needs.code-checks.outputs.unit }}
+          PARENT: ${{ needs.code-checks.result }}
+        run: test "$PARENT" = success && test "$RESULT" = 0
+
+  openapi-check:
+    needs: [changes, code-checks]
+    if: always() && (github.event_name == 'push' || needs.changes.outputs.api == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - env:
+          RESULT: ${{ needs.code-checks.outputs.openapi }}
+          PARENT: ${{ needs.code-checks.result }}
+        run: test "$PARENT" = success && test "$RESULT" = 0
+
+  r80-browser-contracts:
+    needs: [changes, code-checks]
+    if: always() && (github.event_name == 'push' || needs.changes.outputs.browser == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - env:
+          RESULT: ${{ needs.code-checks.outputs.browser }}
+          PARENT: ${{ needs.code-checks.result }}
+        run: test "$PARENT" = success && test "$RESULT" = 0
 
   test-integration:
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
     needs: changes
     if: github.event_name == 'push' || needs.changes.outputs.api == 'true'
     timeout-minutes: 15
@@ -108,9 +170,14 @@ jobs:
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
+      redis-shard2:
+        image: redis:7-alpine
+        ports: ['6380:6379']
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+        with:
+          build-api: true
       - name: Use the PostgreSQL service for backup tools
         run: |
           mkdir -p "$RUNNER_TEMP/pg-bin"
@@ -119,60 +186,9 @@ jobs:
             chmod +x "$RUNNER_TEMP/pg-bin/$tool"
           done
           echo "$RUNNER_TEMP/pg-bin" >> "$GITHUB_PATH"
-      - run: pnpm db:deploy
-      - run: pnpm --filter api exec nest build
-      - run: pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard=${{ matrix.shard }}/2
+      - run: bash scripts/ci/run-integration.sh
         env:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
-
-  openapi-check:
-    needs: changes
-    if: github.event_name == 'push' || needs.changes.outputs.api == 'true'
-    timeout-minutes: 15
-    # Sección 18: el OpenAPI se genera del código y CI verifica que no hay endpoints sin documentar.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-      - run: pnpm --filter api exec nest build
-      - run: pnpm --filter api openapi:generate
-      - name: El OpenAPI generado no debe tener diff sin commitear
-        run: git diff --exit-code apps/api/openapi.json apps/api/src/mcp/api-operations.json
-
-  r80-browser-contracts:
-    needs: changes
-    if: github.event_name == 'push' || needs.changes.outputs.browser == 'true'
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-      - run: pnpm --filter web build
-      - name: Resolve installed Playwright version
-        id: playwright
-        run: echo "version=$(pnpm --filter web exec playwright --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
-        id: browsers
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - if: steps.browsers.outputs.cache-hit != 'true'
-        run: pnpm --filter web exec playwright install --with-deps chromium
-      - if: steps.browsers.outputs.cache-hit == 'true'
-        run: pnpm --filter web exec playwright install-deps chromium
-      - name: Verify Agenda timing and Google, links, About and push UI contracts
-        env:
-          R80_PHASE: despues
-          R80_PREVIEW: '1'
-        run: pnpm --filter web exec playwright test --config playwright.r80.config.ts r80-agenda-performance.spec.ts r80-google.spec.ts r80-integrations.spec.ts r80-links.spec.ts r80-about.spec.ts r80-push-actions.spec.ts production-session.spec.ts password-reset.spec.ts --workers=1
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: r80-browser-evidence
-          path: |
-            apps/web/test-results
-            test-artifacts/audit/r80/98-waterfall-despues-*.json
-          retention-days: 14
 
   public-tree-guard:
     timeout-minutes: 5
@@ -219,12 +235,14 @@ jobs:
         run: |
           python3 -B -m unittest discover -s scripts/secrets -v
           python3 -B -m unittest discover -s scripts/deploy -v
+          python3 -B -m unittest discover -s scripts/ci -v
 
   ci-ok:
     if: always()
     needs:
       [
         changes,
+        code-checks,
         quality,
         test-unit,
         test-integration,

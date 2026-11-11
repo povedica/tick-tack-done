@@ -1,5 +1,9 @@
 name: Workspace setup
 description: Node 26, pnpm store and source-keyed domain build
+inputs:
+  build-api:
+    description: Restore or build the API once when needed
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -17,4 +21,13 @@ runs:
         key: domain-${{ runner.os }}-${{ hashFiles('packages/domain/src/**', 'packages/domain/tsconfig*.json', 'packages/domain/package.json', 'tsconfig.base.json', 'pnpm-lock.yaml') }}
     - if: steps.domain.outputs.cache-hit != 'true'
       run: pnpm --filter @reflexionia/domain build
+      shell: bash
+    - uses: actions/cache@v4
+      if: inputs.build-api == 'true'
+      id: api
+      with:
+        path: apps/api/dist
+        key: api-${{ runner.os }}-${{ hashFiles('apps/api/src/**', 'apps/api/tsconfig*.json', 'apps/api/nest-cli.json', 'apps/api/package.json', 'packages/domain/src/**', 'tsconfig.base.json', 'pnpm-lock.yaml') }}
+    - if: inputs.build-api == 'true' && steps.api.outputs.cache-hit != 'true'
+      run: pnpm --filter api exec nest build
       shell: bash
