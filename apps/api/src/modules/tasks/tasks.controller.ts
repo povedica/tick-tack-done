@@ -179,6 +179,16 @@ export class TasksController {
     enum: ['all', 'work', 'personal', 'auto'],
     description: 'Default all. auto hides work outside the configured hours.',
   })
+  @ApiQuery({
+    name: 'assignee',
+    required: false,
+    description: 'me, none, or a user uuid.',
+  })
+  @ApiQuery({
+    name: 'assigned_by',
+    required: false,
+    description: 'me or a user uuid. Latest assignment is theirs and the current assignee is someone else.',
+  })
   async list(
     @CurrentUser() user: AuthUser,
     @Query('limit') limit: string | undefined,
@@ -200,6 +210,8 @@ export class TasksController {
     @Query('overdue') overdue: string | undefined,
     @Query('someday') someday: string | undefined,
     @Query('context') context: string | undefined,
+    @Query('assignee') assignee: string | undefined,
+    @Query('assigned_by') assignedBy: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
@@ -229,6 +241,7 @@ export class TasksController {
         overdue: overdue === 'true',
         ...(someday === 'true' ? { someday: true } : someday === 'false' ? { someday: false } : {}),
         context: parseWorkContext(context),
+        ...this.assigneeQuery(user.id, assignee, assignedBy),
       }),
     );
     respondJson(req, res, 200, page, true);
@@ -265,6 +278,20 @@ export class TasksController {
     @Res() res: Response,
   ): Promise<void> {
     respondJson(req, res, 200, await this.tasks.get(user, id), false);
+  }
+
+  @Post(':id/seen')
+  @Scopes('tasks:read')
+  @ApiOperation({
+    summary: 'Mark a task as seen by its assignee. No effect for anyone else. Hidden from task history.',
+  })
+  async seen(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.tasks.markSeen(user, id);
+    res.status(204).end();
   }
 
   @Get(':id/links')
@@ -597,6 +624,42 @@ export class TasksController {
       return raw;
     }
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'status is invalid');
+  }
+
+  private assigneeQuery(
+    userId: string,
+    assignee: string | undefined,
+    assignedBy: string | undefined,
+  ): Pick<TaskListQuery, 'filterAssignee' | 'assignedByActorId'> {
+    const filterAssignee = this.personFilter(assignee, 'assignee', true, userId);
+    const assignedByActorId = this.personFilter(assignedBy, 'assigned_by', false, userId);
+    return {
+      ...(filterAssignee === undefined ? {} : { filterAssignee: { id: filterAssignee } }),
+      ...(typeof assignedByActorId === 'string' ? { assignedByActorId } : {}),
+    };
+  }
+
+  /** `me` is the caller. Assignee also accepts `none`. Anything else must be a uuid. */
+  private personFilter(
+    raw: string | undefined,
+    field: 'assignee' | 'assigned_by',
+    allowNone: boolean,
+    userId: string,
+  ): string | null | undefined {
+    if (raw === undefined || raw.length === 0) {
+      return undefined;
+    }
+    if (raw === 'me') {
+      return userId;
+    }
+    if (allowNone && raw === 'none') {
+      return null;
+    }
+    const id = optionalUuid(raw, field);
+    if (id === undefined) {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', `${field} is invalid`);
+    }
+    return id;
   }
 
   private priority(raw: string): Priority {

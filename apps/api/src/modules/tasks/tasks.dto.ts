@@ -610,6 +610,30 @@ export class TaskActivityDto {
   source?: string;
 }
 
+export class AssignmentActorDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  avatar_url!: string | null;
+}
+
+export class AssignmentDto {
+  @ApiProperty({ type: AssignmentActorDto })
+  assigned_by!: AssignmentActorDto;
+
+  @ApiProperty()
+  assigned_at!: string;
+
+  @ApiProperty({
+    description: 'True only for the assignee, until they open the task after the latest assignment.',
+  })
+  unread!: boolean;
+}
+
 export class TaskResponseDto {
   @ApiProperty({ type: [TaskLinkResponseDto], required: false }) links?: TaskLinkResponseDto[];
   @ApiProperty({ required: false }) link_count?: number;
@@ -692,6 +716,14 @@ export class TaskResponseDto {
 
   @ApiProperty({ nullable: true, type: String })
   assignee_id!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    required: false,
+    type: AssignmentDto,
+    description: 'Null when the task has no assignee. Omitted by endpoints that do not load it.',
+  })
+  assignment?: AssignmentDto | null;
 
   @ApiProperty()
   created_by!: string;

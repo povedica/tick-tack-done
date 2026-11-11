@@ -7,6 +7,7 @@ import type { AddTaskLinkDto } from './task-links.dto.js';
 import { reconcileTaskLinks, taskLinkJson } from './task-links.js';
 import { DriveAttachmentsService } from '../../drive/attachments.service.js';
 import { ListAccessService } from '../collaboration/list-access.js';
+import { assignedByWhere, loadAssignmentMap, taskIdsLastAssignedBy } from '../../reading/assignment.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
 import { annotateWork, workFilterFor } from '../../work/work-context.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -144,6 +145,10 @@ export interface TaskListQuery {
   overdue: boolean;
   someday?: boolean;
   context?: 'all' | 'work' | 'personal' | 'auto';
+  /** Set to filter by assignee. `id: null` is `assignee=none`. */
+  filterAssignee?: { id: string | null };
+  /** Actor of the latest `assigned` event. Current assignee must be someone else. */
+  assignedByActorId?: string;
 }
 
 /** A subtask in another list stays visible in its own list. Same-list children stay nested. */
@@ -233,7 +238,19 @@ export class TasksService {
                 ],
               };
     const work = await workFilterFor(this.prisma, user.id, query.context ?? 'all');
-    const filters = [work, range].filter((item): item is Prisma.TaskWhereInput => item !== null);
+    const assignedBy =
+      query.assignedByActorId === undefined
+        ? null
+        : assignedByWhere(
+            query.assignedByActorId,
+            await taskIdsLastAssignedBy(this.prisma, query.assignedByActorId),
+          );
+    const filters = [
+      work,
+      range,
+      query.filterAssignee === undefined ? null : { assigneeId: query.filterAssignee.id },
+      assignedBy,
+    ].filter((item): item is Prisma.TaskWhereInput => item !== null);
     const visibility = await this.access.taskVisibility(user);
     const rows = await this.prisma.task.findMany({
       where: {
@@ -274,10 +291,19 @@ export class TasksService {
     const summaries = page.map((row) =>
       toTaskSummary(row, progress.get(row.id) ?? { completed: 0, total: 0 }),
     );
-    const flags = await annotateWork(this.prisma, user.id, summaries);
+    const assignments = await loadAssignmentMap(
+      this.prisma,
+      user.id,
+      page.map((row) => ({ id: row.id, assigneeId: row.assigneeId })),
+    );
+    const withAssignment = summaries.map((item) => ({
+      ...item,
+      assignment: assignments.get(item.id) ?? null,
+    }));
+    const flags = await annotateWork(this.prisma, user.id, withAssignment);
     const last = page.at(-1);
     return {
-      items: summaries.map((item, index) => ({ ...item, is_work: flags[index] ?? false })),
+      items: withAssignment.map((item, index) => ({ ...item, is_work: flags[index] ?? false })),
       next_cursor: hasMore && last !== undefined ? encodeTaskCursor(query.sort, last) : null,
     };
   }
@@ -499,6 +525,60 @@ export class TasksService {
 
   get(user: AuthUser, id: string): Promise<TaskDetail> {
     return this.load(this.prisma, user, id, false);
+  }
+
+  /** Records that the assignee opened the task. No-op for anyone else. Hidden from task history. */
+  async markSeen(user: AuthUser, id: string): Promise<void> {
+    const task = await this.prisma.task.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, ownerId: true, projectId: true, assigneeId: true },
+    });
+    if (task === null || !listVisible(user.listIds, task.projectId)) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+    }
+    if (task.ownerId !== user.id) {
+      const role = await this.access.roleFor(user, task.projectId);
+      if (role === null) {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+      }
+    }
+    if (task.assigneeId !== user.id) {
+      return;
+    }
+    const [assigned, seen] = await Promise.all([
+      this.prisma.activityLog.findFirst({
+        where: { entityType: 'task', entityId: task.id, action: 'assigned', deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+      this.prisma.activityLog.findFirst({
+        where: {
+          entityType: 'task',
+          entityId: task.id,
+          action: 'accessed',
+          actorId: user.id,
+          deletedAt: null,
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+    ]);
+    if (
+      seen !== null &&
+      (assigned === null || seen.createdAt > assigned.createdAt)
+    ) {
+      return;
+    }
+    await this.prisma.activityLog.create({
+      data: {
+        ownerId: task.ownerId,
+        actorId: user.id,
+        entityType: 'task',
+        entityId: task.id,
+        action: 'accessed',
+        changes: {},
+      },
+    });
   }
 
   async update(
@@ -2578,7 +2658,13 @@ export class TasksService {
     }
     const activityOwnerId = row.ownerId;
     const activity = await tx.activityLog.findMany({
-      where: { ownerId: activityOwnerId, entityType: 'task', entityId: id, deletedAt: null },
+      where: {
+        ownerId: activityOwnerId,
+        entityType: 'task',
+        entityId: id,
+        deletedAt: null,
+        action: { not: 'accessed' },
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
       include: { token: { select: { name: true, oauthClientId: true } } },
@@ -2588,12 +2674,21 @@ export class TasksService {
       dueDate: row.dueDate?.toISOString() ?? null,
       timeZone: row.timeZone,
     });
+    const viewerId = typeof user === 'string' ? user : user.id;
+    const assignments = await loadAssignmentMap(tx, viewerId, [
+      { id: row.id, assigneeId: row.assigneeId },
+      ...row.children.map((child) => ({ id: child.id, assigneeId: child.assigneeId })),
+    ]);
     return {
       ...toTaskSummary(row, progressOf(row.checklist)),
+      assignment: assignments.get(row.id) ?? null,
       links: row.links.map(taskLinkJson),
       ...(anchorWarning === null ? {} : { warnings: [anchorWarning] }),
       items: row.checklist.map((item) => toChecklistJson(id, item)),
-      subtasks: row.children.map((child) => toTaskSummary(child, progressOf(child.checklist))),
+      subtasks: row.children.map((child) => ({
+        ...toTaskSummary(child, progressOf(child.checklist)),
+        assignment: assignments.get(child.id) ?? null,
+      })),
       activity: activity.map((entry) => ({
         id: entry.id,
         action: entry.action,

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { AssignmentDto } from '../tasks/tasks.dto.js';
 import { Type } from 'class-transformer';
 import {
   Allow,
@@ -244,6 +245,9 @@ export class ViewTaskDto {
 
   @ApiProperty({ nullable: true, type: String })
   assignee_id!: string | null;
+
+  @ApiProperty({ nullable: true, required: false, type: AssignmentDto })
+  assignment?: AssignmentDto | null;
 
   @ApiProperty()
   created_at!: string;

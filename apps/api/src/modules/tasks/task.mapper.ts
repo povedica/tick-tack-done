@@ -1,4 +1,5 @@
 import { checklistProgress, normalizeStoredNewlines } from '@reflexionia/domain';
+import type { AssignmentJson } from '../../reading/assignment.js';
 import { iso } from '../../http/json.js';
 
 export interface TaskRow {
@@ -70,6 +71,7 @@ export interface TaskSummaryJson {
   sort_order: string;
   tag_ids: string[];
   assignee_id: string | null;
+  assignment?: AssignmentJson | null;
   created_by: string;
   completed_at: string | null;
   source: string;

@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import type { AssignmentJson } from './assignment.js';
 import { checklistProgress, type ArrangedTask, type FilterSubject } from '@reflexionia/domain';
 import { iso } from '../http/json.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -49,6 +50,7 @@ export interface ViewTaskJson {
   checklist_progress: { completed: number; total: number };
   sort_order: string;
   assignee_id: string | null;
+  assignment?: AssignmentJson | null;
   created_at: string;
   completed_at: string | null;
   repeat_rule: string | null;

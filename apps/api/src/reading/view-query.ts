@@ -10,6 +10,7 @@ import { whereFromClause as clauseWhere } from '../filters/where-from-clause.js'
 import { encodeCursor } from '../http/cursor.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { Tx } from '../prisma/tx.js';
+import { loadAssignmentMap } from './assignment.js';
 import { toViewJson, loadViewTasks, type ViewTask } from './view-tasks.js';
 import type { ViewPageJson } from './view-page.js';
 
@@ -63,11 +64,22 @@ export async function pageViewTasks(
     return task === undefined ? [] : [task];
   });
   const last = ordered.at(-1);
+  const assignments = await loadAssignmentMap(
+    db,
+    input.ownerId,
+    ordered.map((task) => ({ id: task.id, assigneeId: task.assigneeId })),
+  );
   return {
     count,
     group_by: input.groupBy,
     sort: input.sort,
-    groups: groupPreserving(ordered, input.groupBy, input.clock.timeZone),
+    groups: groupPreserving(ordered, input.groupBy, input.clock.timeZone).map((group) => ({
+      ...group,
+      tasks: group.tasks.map((task) => ({
+        ...task,
+        assignment: assignments.get(task.id) ?? null,
+      })),
+    })),
     next_cursor:
       hasMore && last !== undefined
         ? encodeCursor(String(skip + ordered.length - 1), last.id)
