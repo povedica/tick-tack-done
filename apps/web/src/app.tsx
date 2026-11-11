@@ -16,26 +16,13 @@ import {
 import { api } from './api';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
 import { CommandPalette } from './features/views/components/CommandPalette';
-import {
-  CancelledPage,
-  FilterViewPage,
-  ProjectListPage,
-  SmartListViewPage,
-  TagViewPage,
-} from './features/views/components/ViewPages';
 import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice, openTaskComposer, useCaptureOpen } from './features/capture/notice';
 import { featureFlags, useFeatures, type FeatureFlags } from './features/settings/feature-flags';
 import { ConsentPage } from './features/auth/ConsentPage';
-import {
-  ForgotPasswordPage,
-  LoginPage,
-  RegisterPage,
-  ResetPasswordPage,
-} from './features/auth/AuthPages';
-import { PublicListPage } from './features/public/PublicListPage';
+import { LoginPage, RegisterPage } from './features/auth/AuthPages';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
 import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
@@ -59,6 +46,35 @@ const FiltersPage = lazyNamed(() => import('./features/views/components/FiltersP
 const SmartListsPage = lazyNamed(
   () => import('./features/views/components/SmartListsPage'),
   'SmartListsPage',
+);
+const ForgotPasswordPage = lazyNamed(
+  () => import('./features/auth/PasswordResetPages'),
+  'ForgotPasswordPage',
+);
+const ResetPasswordPage = lazyNamed(
+  () => import('./features/auth/PasswordResetPages'),
+  'ResetPasswordPage',
+);
+const PublicListPage = lazyNamed(
+  () => import('./features/public/PublicListPage'),
+  'PublicListPage',
+);
+const ProjectListPage = lazyNamed(
+  () => import('./features/views/components/ViewPages'),
+  'ProjectListPage',
+);
+const FilterViewPage = lazyNamed(
+  () => import('./features/views/components/ViewPages'),
+  'FilterViewPage',
+);
+const TagViewPage = lazyNamed(() => import('./features/views/components/ViewPages'), 'TagViewPage');
+const CancelledPage = lazyNamed(
+  () => import('./features/views/components/ViewPages'),
+  'CancelledPage',
+);
+const SmartListViewPage = lazyNamed(
+  () => import('./features/views/components/ViewPages'),
+  'SmartListViewPage',
 );
 const CalendarPage = lazyNamed(() => import('./features/places/Places'), 'CalendarPage');
 const MatrixPage = lazyNamed(() => import('./features/matrix/MatrixBoard'), 'MatrixPage');
@@ -176,29 +192,106 @@ function Shell() {
         <Route path="/terms" element={<PolicyPage terms />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/s/:token" element={<PublicListPage />} />
+        <Route
+          path="/forgot-password"
+          element={
+            <Suspended>
+              <ForgotPasswordPage />
+            </Suspended>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <Suspended>
+              <ResetPasswordPage />
+            </Suspended>
+          }
+        />
+        <Route
+          path="/s/:token"
+          element={
+            <Suspended>
+              <PublicListPage />
+            </Suspended>
+          }
+        />
         <Route element={<RequireSession />}>
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/today" replace />} />
             <Route path="/today" element={<TodayPage />} />
             <Route path="/quick-add" element={<QuickAddRoute />} />
             <Route path="/inbox" element={<Suspended><InboxPage /></Suspended>} />
-            <Route path="/list/:id" element={<ProjectListPage />} />
-            <Route path="/projects/:id" element={<ProjectListPage />} />
-            <Route path="/lists/:id" element={<ProjectListPage />} />
+            <Route
+              path="/list/:id"
+              element={
+                <Suspended>
+                  <ProjectListPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/projects/:id"
+              element={
+                <Suspended>
+                  <ProjectListPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/lists/:id"
+              element={
+                <Suspended>
+                  <ProjectListPage />
+                </Suspended>
+              }
+            />
             <Route path="/list/:id/note/:taskId" element={<Suspended><NoteRoute /></Suspended>} />
-            <Route path="/filter/:id" element={<FilterViewPage />} />
+            <Route
+              path="/filter/:id"
+              element={
+                <Suspended>
+                  <FilterViewPage />
+                </Suspended>
+              }
+            />
             <Route path="/filters" element={<Suspended><FiltersPage /></Suspended>} />
             <Route path="/filters/:id" element={<FilterLegacyRedirect />} />
-            <Route path="/tag/:id" element={<TagViewPage />} />
+            <Route
+              path="/tag/:id"
+              element={
+                <Suspended>
+                  <TagViewPage />
+                </Suspended>
+              }
+            />
             <Route path="/trash" element={<Navigate to="/smart/trash" replace />} />
             <Route path="/tasks/completed" element={<Navigate to="/smart/completed" replace />} />
-            <Route path="/tasks/cancelled" element={<CancelledPage />} />
-            <Route path="/smart/:key" element={<SmartListViewPage />} />
+            <Route
+              path="/tasks/cancelled"
+              element={
+                <Suspended>
+                  <CancelledPage />
+                </Suspended>
+              }
+            />
+            <Route
+              path="/smart/:key"
+              element={
+                <Suspended>
+                  <SmartListViewPage />
+                </Suspended>
+              }
+            />
             <Route path="/smart-lists" element={<Suspended><SmartListsPage /></Suspended>} />
-            <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
+            <Route
+              path="/smart-lists/:key"
+              element={
+                <Suspended>
+                  <SmartListViewPage />
+                </Suspended>
+              }
+            />
             <Route path="/task/:id" element={<Suspended><TaskRoute /></Suspended>} />
             <Route path="/habits" element={<Suspended><HabitsPage /></Suspended>} />
             <Route

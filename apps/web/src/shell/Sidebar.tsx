@@ -70,7 +70,6 @@ import { duplicateFilter, pinFilter } from '../features/views/filter-commands';
 import { isFilterMenuShortcut } from '../features/views/filter-menu-key';
 import { useFilterUi } from '../features/views/filter-ui';
 import { filterTagLabels, summarizeRules, type SummaryText } from '../features/views/summarize';
-import '../features/views/filters.css';
 import { FolderMenu, ListMenu } from './ListMenu';
 import { useListsText } from './lists-text';
 import { patchProject, sameName, type ProjectWrite } from './project-write';
