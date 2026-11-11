@@ -28,4 +28,19 @@ if [[ -n "${HOST_NODE:-}" ]]; then
   exec pnpm --filter api --filter web --parallel dev
 fi
 
-exec docker compose "${compose_project[@]}" "${compose_files[@]}" up "$@"
+# op run exports values to this process; forward only schema names to Node.
+# The temporary override contains names only, never their values.
+if [[ -n "${APP_SECRET:-}" ]]; then
+  override=$(mktemp)
+  trap 'rm -f "$override"' EXIT
+  printf 'services:\n  node:\n    environment:\n' > "$override"
+  while IFS='=' read -r key _; do
+    [[ "$key" =~ ^[A-Z][A-Z0-9_]*$ ]] || continue
+    case "$key" in DATABASE_URL|REDIS_URL|SMTP_HOST) continue ;; esac
+    if printenv "$key" >/dev/null; then
+      printf '      %s: null\n' "$key" >> "$override"
+    fi
+  done < .env.example
+  compose_files+=(-f "$override")
+fi
+docker compose "${compose_project[@]}" "${compose_files[@]}" up "$@"
