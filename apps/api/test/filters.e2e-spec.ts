@@ -9,13 +9,10 @@ import { AppModule } from '../src/app.module.js';
 import { EventRouter } from '../src/events/event-router.js';
 import { configureApp } from '../src/configure-app.js';
 import { loadRootEnv } from '../src/load-env.js';
-import { PrismaService } from '../src/prisma/prisma.service.js';
-
 type SuperTestApp = Parameters<typeof request>[0];
 
 loadRootEnv();
 process.env.AUTH_MODE = 'dev';
-process.env.PRISMA_QUERY_EVENTS = '1';
 
 const prisma = new PrismaClient();
 const KEYS = [
@@ -802,16 +799,14 @@ describe('filters, smart lists and search', () => {
           .send({ name: `F${index}`, mode: 'normal', rules: keywordRules(`q${index}`) })
           .expect(201);
       }
-      const db = app.get(PrismaService);
-      let queries = 0;
-      (db as unknown as { $on(event: 'query', listener: () => void): void }).$on('query', () => {
-        queries += 1;
-      });
       await api.get('/api/v1/filters').expect(200);
-      queries = 0;
       const listed = await api.get('/api/v1/filters').expect(200);
       expect(listed.body.items).toHaveLength(10);
-      expect(queries).toBe(12);
+      // Prisma 6's extended client has no $on. Server-Timing counts the same request.
+      const count = Number(
+        /desc="(\d+) q"/.exec(String(listed.headers['server-timing']))?.[1] ?? '0',
+      );
+      expect(count).toBe(12);
     } finally {
       await removeOwner(user.id);
     }
