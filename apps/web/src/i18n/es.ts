@@ -312,6 +312,7 @@ export const es = {
     'No se ha podido comprobar la sesión. Revisa la conexión e inténtalo de nuevo.',
   registerTitle: 'Crear cuenta',
   forgotTitle: 'Recuperar contraseña',
+  resetTitle: 'Nueva contraseña',
   smartListsLink: 'Listas inteligentes',
   filtersLink: 'Filtros',
   tokensLink: 'Tokens',
@@ -422,6 +423,7 @@ export const es = {
   filterDelete: 'Eliminar',
   filterCount: '{count}',
   fieldList: 'Lista',
+  fieldFolder: 'Carpeta',
   fieldTag: 'Etiqueta',
   fieldDate: 'Fecha',
   fieldPriority: 'Prioridad',
@@ -536,6 +538,7 @@ export const es = {
   email: 'Correo',
   password: 'Contraseña',
   loginFailed: 'Correo o contraseña incorrectos.',
+  captchaFailed: 'No hemos podido comprobar que eres una persona. Vuelve a intentarlo.',
   registerFailed: 'No se ha podido crear la cuenta.',
   consentTitle: 'Permiso para la aplicación',
   consentHint:

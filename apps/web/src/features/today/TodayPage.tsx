@@ -24,6 +24,8 @@ import { HABITS_DISMISS_KEY, habitsDismissed } from '../habits/dismiss';
 import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
 import { isTypingTarget } from '../../shell/shortcuts';
 import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
+import { GoogleCalendarHealthBanner } from '../calendar/GoogleCalendarHealthBanner';
+import { useCalendarSyncOnOpen } from '../calendar/sync-calendars';
 import { collectTags } from '../tasks/collect';
 import { completeBody } from '../tasks/complete-body';
 import { TaskComposer } from '../tasks/TaskComposer';
@@ -74,6 +76,7 @@ const SORT_DIR_KEY = 'tick-tack-done.today.sortDir';
 const COLLAPSE_KEY = 'tick-tack-done.today.collapsed';
 
 export function TodayPage() {
+  useCalendarSyncOnOpen();
   const composerClient = useQueryClient();
   const messages = useMessages();
   const flags = useFeatures((state) => state.flags);
@@ -704,6 +707,7 @@ export function TodayPage() {
 
   return (
     <section className="today" aria-labelledby="today-heading">
+      <GoogleCalendarHealthBanner />
       <header className="today-header">
         <div className="page-title">
           <SidebarFoldButton />

@@ -85,8 +85,8 @@ beforeEach(() => {
     project('casa', 'Casa'),
     project('rugby', 'Rugby', { is_project: true }),
   );
-  folders.splice(0, folders.length, folder('vacia', 'Vacía', 0), folder('vass', 'VASS', 1));
-  projects.push(project('dentro', 'Dentro', { folder_id: 'vass' }));
+  folders.splice(0, folders.length, folder('vacia', 'Vacía', 0), folder('work', 'Trabajo', 1));
+  projects.push(project('dentro', 'Dentro', { folder_id: 'work' }));
   archived.splice(
     0,
     archived.length,
@@ -196,14 +196,14 @@ describe('sidebar lists and folders', () => {
 
   it('undoes a folder delete by recreating it and moving its lists back', async () => {
     mount();
-    fireEvent.click(await folderMenu('VASS'));
+    fireEvent.click(await folderMenu('Trabajo'));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Eliminar carpeta' }));
     await waitFor(() => {
-      expect(api.deleteFolder).toHaveBeenCalledWith('vass');
+      expect(api.deleteFolder).toHaveBeenCalledWith('work');
     });
     fireEvent.click(await screen.findByRole('button', { name: 'Deshacer' }));
     await waitFor(() => {
-      expect(api.createFolder).toHaveBeenCalledWith({ name: 'VASS' }, expect.any(String));
+      expect(api.createFolder).toHaveBeenCalledWith({ name: 'Trabajo' }, expect.any(String));
       expect(api.updateProject).toHaveBeenCalledWith('dentro', { folder_id: 'restored' });
     });
   });
@@ -296,6 +296,10 @@ function project(id: string, name: string, extra: Partial<Project> = {}): Projec
     updated_at: '2026-01-01T00:00:00Z',
     ...extra,
     owner_id: extra.owner_id ?? 'me',
+    role: extra.role ?? 'owner',
+    shared: extra.shared ?? false,
+    member_count: extra.member_count ?? 0,
+    public_link_active: extra.public_link_active ?? false,
   };
 }
 

@@ -7,6 +7,9 @@ import {
   matchesSmartList,
   pageTaskGroups,
   parseFilterRules,
+  requireConditions,
+  resolveTagReference,
+  rewriteMergedTag,
   parseSearchQuery,
   parseTaskView,
   savedFilterClause,
@@ -24,6 +27,7 @@ const clock: FilterClock = {
 function subject(overrides: Partial<FilterSubject> = {}): FilterSubject {
   return {
     listId: 'list-1',
+    tagIds: [],
     tagNames: ['casa'],
     dueDate: '2026-10-17T16:00:00.000Z',
     isAllDay: false,
@@ -80,6 +84,41 @@ describe('filter grammar', () => {
     };
     expect(parseFilterRules(advanced, 'advanced').ok).toBe(true);
     expect(parseFilterRules(advanced, 'normal')).toEqual({ ok: false, reason: 'normal_shape' });
+  });
+
+  it('TTD-FIL-08: requireConditions rejects an empty filter, an empty group, and accepts a real one', () => {
+    const keyword = {
+      field: 'keyword' as const,
+      op: 'contains' as const,
+      value: 'informe',
+    };
+    expect(
+      requireConditions({
+        combinator: 'AND',
+        groups: [{ combinator: 'AND', conditions: [] }],
+      }),
+    ).toEqual({ ok: false, reason: 'empty_filter' });
+    expect(
+      requireConditions({
+        combinator: 'AND',
+        groups: [],
+      }),
+    ).toEqual({ ok: false, reason: 'empty_filter' });
+    expect(
+      requireConditions({
+        combinator: 'OR',
+        groups: [
+          { combinator: 'AND', conditions: [keyword] },
+          { combinator: 'OR', conditions: [] },
+        ],
+      }),
+    ).toEqual({ ok: false, reason: 'empty_group' });
+    expect(
+      requireConditions({
+        combinator: 'AND',
+        groups: [{ combinator: 'AND', conditions: [keyword] }],
+      }),
+    ).toEqual({ ok: true });
   });
 
   it('RF-902: rejects an empty keyword, a reversed range and an unknown field', () => {
@@ -436,6 +475,59 @@ describe('list view', () => {
   });
 });
 
+describe('tag references', () => {
+  const casa = '11111111-1111-4111-8111-111111111111';
+  const hogar = '22222222-2222-4222-8222-222222222222';
+
+  it('CA-DOM-05: tag_any matches an id, a leftover name, and a mix of both', () => {
+    const rules = {
+      combinator: 'AND' as const,
+      groups: [
+        {
+          combinator: 'AND' as const,
+          conditions: [{ field: 'tag' as const, op: 'any_of' as const, value: [casa, 'Casa'] }],
+        },
+      ],
+    };
+    expect(compileRules(rules, clock)).toMatchObject({
+      items: [{ items: [{ op: 'tag_any', ids: [casa], legacyNames: ['Casa'] }] }],
+    });
+    expect(matchesFilter(rules, subject({ tagIds: [casa], tagNames: [] }), clock)).toBe(true);
+    expect(matchesFilter(rules, subject({ tagIds: [], tagNames: ['casa'] }), clock)).toBe(true);
+    expect(matchesFilter(rules, subject({ tagIds: [hogar], tagNames: ['trabajo'] }), clock)).toBe(
+      false,
+    );
+  });
+
+  it('CA-DOM-05: resolves a tag name without regard to case and rejects an unknown id', () => {
+    const tags = [{ id: casa, name: 'casa' }];
+    expect(resolveTagReference('Casa', tags)).toBe(casa);
+    expect(resolveTagReference(casa.toUpperCase(), tags)).toBe(casa);
+    expect(resolveTagReference('hogar', tags)).toBeNull();
+    expect(resolveTagReference(hogar, tags)).toBeNull();
+  });
+
+  it('CA-DOM-05: a merge replaces the source id and drops a duplicate', () => {
+    const rules = {
+      combinator: 'AND' as const,
+      groups: [
+        {
+          combinator: 'AND' as const,
+          conditions: [{ field: 'tag' as const, op: 'any_of' as const, value: [casa, hogar] }],
+        },
+      ],
+    };
+    const rewritten = rewriteMergedTag(rules, casa, hogar);
+    expect(rewritten.changed).toBe(true);
+    expect(rewritten.rules.groups[0]?.conditions[0]).toEqual({
+      field: 'tag',
+      op: 'any_of',
+      value: [hogar],
+    });
+    expect(rewriteMergedTag(rewritten.rules, casa, hogar).changed).toBe(false);
+  });
+});
+
 describe('search query', () => {
   it('RF-1501: reads inline list, tag, priority and done tokens and keeps the remaining text', () => {
     expect(parseSearchQuery('leer in:"bandeja de entrada" #Casa priority:HIGH done:true')).toEqual({
@@ -490,5 +582,45 @@ describe('TTD-AUD-01 effective task date', () => {
       ],
     } as const;
     expect(matchesFilter(rules, subject({ startDate: tomorrow, dueDate: null }), clock)).toBe(true);
+  });
+});
+
+describe('folder conditions', () => {
+  const folder = '11111111-1111-4111-8111-111111111111';
+  const rules = {
+    combinator: 'AND' as const,
+    groups: [
+      {
+        combinator: 'AND' as const,
+        conditions: [{ field: 'folder' as const, op: 'in' as const, value: [folder] }],
+      },
+    ],
+  };
+
+  it('parses folder ids and rejects a name', () => {
+    expect(parseFilterRules(rules, 'normal').ok).toBe(true);
+    expect(
+      parseFilterRules(
+        {
+          combinator: 'AND',
+          groups: [
+            {
+              combinator: 'AND',
+              conditions: [{ field: 'folder', op: 'in', value: ['Proyectos'] }],
+            },
+          ],
+        },
+        'normal',
+      ),
+    ).toEqual({ ok: false, reason: 'invalid_condition' });
+  });
+
+  it('matches the list folder and misses when the subject has none', () => {
+    expect(compileRules(rules, clock)).toMatchObject({
+      items: [{ items: [{ op: 'folder_in', ids: [folder] }] }],
+    });
+    expect(matchesFilter(rules, subject({ folderId: folder }), clock)).toBe(true);
+    expect(matchesFilter(rules, subject({ folderId: null }), clock)).toBe(false);
+    expect(matchesFilter(rules, subject(), clock)).toBe(false);
   });
 });

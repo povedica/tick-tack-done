@@ -1,92 +1,75 @@
-import type { ViewPage } from '@reflexionia/sdk';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import { Link } from 'react-router';
-import { runAction } from '../../../components/run-action';
-import { Button, ErrorState, SkeletonRows } from '../../../components/ui';
-import { fill, useMessages, type Messages } from '../../../i18n';
-import { viewsApi } from '../api';
+import type { Filter } from '@reflexionia/sdk';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Funnel, GripVertical, MoreHorizontal, Pin, Plus } from 'lucide-react';
 import {
-  EMPTY_CONDITION,
-  rulesWithOuter,
-  type ConditionDraft,
-  type ConditionField,
-  type GroupDraft,
-} from '../draft';
-import { ListView, priorityText } from './ListView';
-
-const FIELDS: readonly ConditionField[] = [
-  'keyword',
-  'list',
-  'tag',
-  'date',
-  'priority',
-  'status',
-  'assignee',
-];
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type RefObject,
+} from 'react';
+import { Link, useSearchParams } from 'react-router';
+import { api } from '../../../api';
+import { runAction } from '../../../components/run-action';
+import { useLongPress } from '../../../components/useLongPress';
+import { Button, EmptyState, ErrorState, SkeletonRows } from '../../../components/ui';
+import { fill, useMessages, type Messages } from '../../../i18n';
+import { SidebarFoldButton } from '../../../shell/SidebarFoldButton';
+import { viewsApi } from '../api';
+import { duplicateFilter, pinFilter } from '../filter-commands';
+import { isFilterMenuShortcut } from '../filter-menu-key';
+import { filterMove } from '../filter-order';
+import { useFilterUi } from '../filter-ui';
+import {
+  filterFolderLabels,
+  filterTagLabels,
+  summarizeRules,
+  type SummaryText,
+} from '../summarize';
+import { FilterMenu } from './FilterMenu';
+import { SummaryChips } from './SummaryChip';
+import '../filters.css';
 
 export function FiltersPage() {
   const messages = useMessages();
   const queryClient = useQueryClient();
   const filters = useQuery({ queryKey: ['filters'], queryFn: () => viewsApi.listFilters() });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => viewsApi.listProjects() });
-  const [name, setName] = useState('');
-  const [mode, setMode] = useState<'normal' | 'advanced'>('normal');
-  const [outer, setOuter] = useState<'AND' | 'OR'>('AND');
-  const [groups, setGroups] = useState<GroupDraft[]>([
-    { combinator: 'AND', conditions: [EMPTY_CONDITION] },
-  ]);
-  const [preview, setPreview] = useState<ViewPage | undefined>(undefined);
-  const [groupBy, setGroupBy] = useState<ViewPage['group_by']>('none');
-  const [sort, setSort] = useState<ViewPage['sort']>('manual');
-  const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-
-  const rules = () => rulesWithOuter(mode, outer, groups);
-
-  const previewQuery = useMutation({
-    mutationFn: (view: { groupBy: ViewPage['group_by']; sort: ViewPage['sort'] }) =>
-      viewsApi.previewFilter({ mode, rules: rules() }, view),
-    onSuccess: (page) => {
-      setPreview(page);
-      setError(null);
-    },
-    onError: () => {
-      setError(messages.previewFailed);
-    },
-  });
-
-  const create = useMutation({
-    mutationFn: () =>
-      viewsApi.createFilter({ name: name.trim(), mode, rules: rules() }, crypto.randomUUID()),
-    onSuccess: async () => {
-      setName('');
-      setError(null);
-      await queryClient.invalidateQueries({ queryKey: ['filters'] });
-    },
-    onError: () => {
-      setError(messages.filterFailed);
-    },
-  });
-
-  const pin = useMutation({
-    mutationFn: (id: string) => viewsApi.updateFilter(id, { pin: true }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['filters'] });
-    },
-  });
-
-  const remove = useMutation({
-    mutationFn: (id: string) => viewsApi.deleteFilter(id),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['filters'] });
-    },
-  });
+  const openCreate = useFilterUi((state) => state.openCreate);
+  const askDelete = useFilterUi((state) => state.askDelete);
+  const openEdit = useFilterUi((state) => state.openEdit);
+  const [menu, setMenu] = useState<{ id: string; anchor: HTMLElement } | null>(null);
+  const anchorRef = useRef<HTMLElement | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const newRef = useRef<HTMLButtonElement>(null);
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const edit = params.get('edit');
+    const creating = params.get('new') === '1';
+    if (!creating && (edit === null || edit.length === 0)) {
+      return;
+    }
+    if (creating) {
+      openCreate();
+    } else if (edit !== null) {
+      openEdit(edit);
+    }
+    const next = new URLSearchParams(params);
+    next.delete('new');
+    next.delete('edit');
+    setParams(next, { replace: true });
+  }, [openCreate, openEdit, params, setParams]);
 
   if (filters.isPending) {
     return (
-      <main className="screen-page">
-        <h1>{messages.filtersTitle}</h1>
+      <main className="screen-page filters-page">
+        <FiltersHeader
+          messages={messages}
+          onCreate={() => {
+            openCreate();
+          }}
+        />
         <SkeletonRows />
       </main>
     );
@@ -94,10 +77,15 @@ export function FiltersPage() {
 
   if (filters.isError) {
     return (
-      <main className="screen-page">
-        <h1>{messages.filtersTitle}</h1>
+      <main className="screen-page filters-page">
+        <FiltersHeader
+          messages={messages}
+          onCreate={() => {
+            openCreate();
+          }}
+        />
         <ErrorState
-          title={fill(messages.loadFailed, messages.filtersTitle)}
+          title={messages.filterLoadFailed}
           retryLabel={messages.retry}
           onRetry={() => {
             runAction(filters.refetch());
@@ -107,366 +95,362 @@ export function FiltersPage() {
     );
   }
 
-  const filterItems = filters.data.items;
+  const items = filters.data.items;
+  const listNames = new Map(
+    (projects.data?.items ?? []).map((project) => [project.id, project.name]),
+  );
+  const text = summaryText(messages);
+  const open = items.find((item) => item.id === menu?.id);
+
+  function move(sourceId: string, targetId: string, after: boolean): void {
+    const next = filterMove(items, sourceId, targetId, after);
+    if (next === null) {
+      return;
+    }
+    runAction(
+      api.updateFilter(sourceId, next).then(() => {
+        return queryClient.invalidateQueries({ queryKey: ['filters'] });
+      }),
+    );
+  }
 
   return (
     <main className="screen-page filters-page">
-      <h1>{messages.filtersTitle}</h1>
-      <p>{messages.filtersHint}</p>
-      {error !== null ? <p className="error">{error}</p> : null}
-      <ul className="task-list">
-        {filterItems.map((filter) => (
-          <li key={filter.id}>
-            <Link to={`/filters/${filter.id}`}>{filter.name}</Link>
-            <span>{messages.filterCount.replace('{count}', String(filter.task_count))}</span>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                pin.mutate(filter.id);
-              }}
-            >
-              {messages.filterPin}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={confirmDelete === filter.id ? 'danger' : 'secondary'}
-              onClick={() => {
-                if (confirmDelete !== filter.id) {
-                  setConfirmDelete(filter.id);
-                  return;
-                }
-                remove.mutate(filter.id);
-                setConfirmDelete(null);
-              }}
-            >
-              {confirmDelete === filter.id ? messages.filterDeleteBody : messages.filterDelete}
-            </Button>
-          </li>
-        ))}
-      </ul>
-      {filterItems.length === 0 ? <p>{messages.filterEmpty}</p> : null}
-      <form
-        className="habit-form filters-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          create.mutate();
-        }}
-      >
-        <label>
-          {messages.filterName}
-          <input
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-            }}
-          />
-        </label>
-        <label>
-          {messages.filterMode}
-          <select
-            className="ui-select"
-            value={mode}
-            onChange={(event) => {
-              setMode(event.target.value === 'advanced' ? 'advanced' : 'normal');
-            }}
-          >
-            <option value="normal">{messages.modeNormal}</option>
-            <option value="advanced">{messages.modeAdvanced}</option>
-          </select>
-        </label>
-        {mode === 'advanced' ? (
-          <label>
-            {messages.filterCombine}
-            <select
-              className="ui-select"
-              value={outer}
-              onChange={(event) => {
-                setOuter(event.target.value === 'OR' ? 'OR' : 'AND');
-              }}
-            >
-              <option value="AND">{messages.combinatorAnd}</option>
-              <option value="OR">{messages.combinatorOr}</option>
-            </select>
-          </label>
-        ) : null}
-        {groups.map((group, groupIndex) => (
-          <fieldset key={groupIndex}>
-            {mode === 'advanced' ? (
-              <label>
-                {messages.filterCombine}
-                <select
-                  className="ui-select"
-                  value={group.combinator}
-                  onChange={(event) => {
-                    setGroups(
-                      updateGroup(groups, groupIndex, {
-                        ...group,
-                        combinator: event.target.value === 'OR' ? 'OR' : 'AND',
-                      }),
-                    );
-                  }}
-                >
-                  <option value="AND">{messages.combinatorAnd}</option>
-                  <option value="OR">{messages.combinatorOr}</option>
-                </select>
-              </label>
-            ) : null}
-            {group.conditions.map((condition, conditionIndex) => (
-              <ConditionEditor
-                key={conditionIndex}
-                messages={messages}
-                condition={condition}
-                projects={projects.data?.items ?? []}
-                onChange={(next) => {
-                  const conditions = group.conditions.map((item, index) =>
-                    index === conditionIndex ? next : item,
-                  );
-                  setGroups(updateGroup(groups, groupIndex, { ...group, conditions }));
-                }}
-              />
-            ))}
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                setGroups(
-                  updateGroup(groups, groupIndex, {
-                    ...group,
-                    conditions: [...group.conditions, EMPTY_CONDITION],
-                  }),
-                );
-              }}
-            >
-              {messages.filterAddCondition}
-            </Button>
-          </fieldset>
-        ))}
-        {mode === 'advanced' ? (
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              setGroups([...groups, { combinator: 'AND', conditions: [EMPTY_CONDITION] }]);
-            }}
-          >
-            {messages.filterAddGroup}
-          </Button>
-        ) : null}
-        <div className="actions">
-          <Button
-            type="button"
-            onClick={() => {
-              previewQuery.mutate({ groupBy, sort });
-            }}
-          >
-            {messages.filterPreview}
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={name.trim().length === 0 || create.isPending}
-            loading={create.isPending}
-          >
-            {create.isPending ? messages.filterSaving : messages.filterSave}
-          </Button>
-        </div>
-      </form>
-      <ListView
+      <FiltersHeader
         messages={messages}
-        page={preview}
-        groupBy={groupBy}
-        sort={sort}
-        onView={(nextGroup, nextSort) => {
-          setGroupBy(nextGroup);
-          setSort(nextSort);
-          if (preview !== undefined) {
-            previewQuery.mutate({ groupBy: nextGroup, sort: nextSort });
-          }
+        buttonRef={newRef}
+        onCreate={() => {
+          openCreate();
         }}
       />
+      {items.length === 0 ? (
+        <div className="filter-empty">
+          <div className="filter-empty-icon">
+            <Funnel size={20} aria-hidden="true" />
+          </div>
+          <EmptyState
+            title={messages.filterEmptyTitle}
+            body={messages.filterEmptyBody}
+            action={
+              <Button
+                variant="primary"
+                onClick={() => {
+                  openCreate();
+                }}
+              >
+                {messages.filterCreate}
+              </Button>
+            }
+          />
+          <div className="filter-suggest">
+            <Button
+              size="sm"
+              onClick={() => {
+                openCreate('high');
+              }}
+            >
+              {messages.filterSuggestHigh}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                openCreate('no_date');
+              }}
+            >
+              {messages.filterSuggestNoDate}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                openCreate('overdue');
+              }}
+            >
+              {messages.filterSuggestOverdue}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <ul className="filter-card">
+          {items.map((filter) => (
+            <FilterRow
+              key={filter.id}
+              filter={filter}
+              messages={messages}
+              listNames={listNames}
+              text={text}
+              menuOpen={menu?.id === filter.id}
+              dragging={dragging === filter.id}
+              onOpenMenu={(anchor) => {
+                anchorRef.current = anchor;
+                setMenu({ id: filter.id, anchor });
+              }}
+              onDragStart={() => {
+                setDragging(filter.id);
+              }}
+              onDragEnd={() => {
+                setDragging(null);
+              }}
+              onDrop={(sourceId, after) => {
+                move(sourceId, filter.id, after);
+              }}
+            />
+          ))}
+        </ul>
+      )}
+      {open !== undefined && anchorRef.current !== null ? (
+        <FilterMenu
+          name={open.name}
+          color={open.color}
+          pinned={open.pinned}
+          summary={chipLine(open, listNames, text)}
+          countLabel={countLabel(messages, open.task_count, false)}
+          anchor={anchorRef}
+          onClose={() => {
+            setMenu(null);
+          }}
+          onEdit={(focus) => {
+            setMenu(null);
+            openEdit(open.id, focus);
+          }}
+          onPin={() => {
+            setMenu(null);
+            pinFilter(queryClient, open, messages.filterPinnedLive, messages.filterUnpinnedLive);
+          }}
+          onDuplicate={() => {
+            setMenu(null);
+            duplicateFilter(queryClient, open, messages.filterDuplicated);
+          }}
+          onDelete={() => {
+            setMenu(null);
+            askDelete({ id: open.id, name: open.name });
+            window.setTimeout(() => {
+              const rows = [...document.querySelectorAll<HTMLElement>('[data-filter-id]')];
+              const index = rows.findIndex((row) => row.dataset.filterId === open.id);
+              const next = rows[index + 1] ?? newRef.current;
+              next?.focus();
+            }, 0);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
 
-function ConditionEditor({
+function FiltersHeader({
   messages,
-  condition,
-  projects,
-  onChange,
+  onCreate,
+  buttonRef,
 }: {
   readonly messages: Messages;
-  readonly condition: ConditionDraft;
-  readonly projects: readonly { id: string; name: string }[];
-  readonly onChange: (next: ConditionDraft) => void;
+  readonly onCreate: () => void;
+  readonly buttonRef?: RefObject<HTMLButtonElement | null>;
 }) {
   return (
-    <div className="condition">
-      <label>
-        {messages.filterField}
-        <select
-          className="ui-select"
-          value={condition.field}
-          onChange={(event) => {
-            const field = asField(event.target.value);
-            onChange({
-              ...condition,
-              field,
-              op: defaultOp(field),
-              value: field === 'status' ? 'active' : field === 'priority' ? 'medium' : '',
-              valueTo: '',
-            });
-          }}
-        >
-          {FIELDS.map((field) => (
-            <option key={field} value={field}>
-              {fieldText(messages, field)}
-            </option>
-          ))}
-        </select>
-      </label>
-      {condition.field === 'keyword' ||
-      condition.field === 'tag' ||
-      condition.field === 'assignee' ? (
-        <input
-          value={condition.value}
-          onChange={(event) => {
-            onChange({ ...condition, value: event.target.value });
-          }}
-        />
-      ) : null}
-      {condition.field === 'list' ? (
-        <select
-          className="ui-select"
-          value={condition.value}
-          onChange={(event) => {
-            onChange({ ...condition, value: event.target.value });
-          }}
-        >
-          <option value="">{messages.fieldList}</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
-      ) : null}
-      {condition.field === 'date' ? (
-        <select
-          className="ui-select"
-          value={condition.op}
-          onChange={(event) => {
-            onChange({ ...condition, op: event.target.value });
-          }}
-        >
-          <option value="today">{messages.dateToday}</option>
-          <option value="tomorrow">{messages.dateTomorrow}</option>
-          <option value="next_7_days">{messages.dateNext7}</option>
-          <option value="overdue">{messages.dateOverdue}</option>
-          <option value="no_date">{messages.dateNoDate}</option>
-          <option value="between">{messages.dateBetween}</option>
-        </select>
-      ) : null}
-      {condition.field === 'date' && condition.op === 'between' ? (
-        <>
-          <input
-            type="date"
-            value={condition.value}
-            onChange={(event) => {
-              onChange({ ...condition, value: event.target.value });
-            }}
-          />
-          <input
-            type="date"
-            value={condition.valueTo}
-            onChange={(event) => {
-              onChange({ ...condition, valueTo: event.target.value });
-            }}
-          />
-        </>
-      ) : null}
-      {condition.field === 'priority' ? (
-        <select
-          className="ui-select"
-          value={condition.value}
-          onChange={(event) => {
-            onChange({ ...condition, value: event.target.value });
-          }}
-        >
-          {(['none', 'low', 'medium', 'high'] as const).map((priority) => (
-            <option key={priority} value={priority}>
-              {priorityText(messages, priority)}
-            </option>
-          ))}
-        </select>
-      ) : null}
-      {condition.field === 'status' ? (
-        <select
-          className="ui-select"
-          value={condition.value}
-          onChange={(event) => {
-            onChange({ ...condition, value: event.target.value });
-          }}
-        >
-          <option value="active">{messages.statusActive}</option>
-          <option value="completed">{messages.statusCompleted}</option>
-        </select>
-      ) : null}
-    </div>
+    <header className="page-header">
+      <div>
+        <div className="page-title">
+          <SidebarFoldButton />
+          <h1>{messages.filtersTitle}</h1>
+        </div>
+        <p className="lede lede-long">{messages.filtersLede}</p>
+        <p className="lede lede-short">{messages.filtersLedeShort}</p>
+      </div>
+      <Button
+        {...(buttonRef === undefined ? {} : { ref: buttonRef })}
+        variant="primary"
+        aria-label={messages.newFilter}
+        onClick={onCreate}
+      >
+        <Plus size={16} aria-hidden="true" />
+        <span className="filter-new-label">{messages.newFilter}</span>
+      </Button>
+    </header>
   );
 }
 
-function updateGroup(groups: readonly GroupDraft[], index: number, next: GroupDraft): GroupDraft[] {
-  return groups.map((group, groupIndex) => (groupIndex === index ? next : group));
-}
-
-function asField(value: string): ConditionField {
-  return FIELDS.find((field) => field === value) ?? 'keyword';
-}
-
-function defaultOp(field: ConditionField): string {
-  switch (field) {
-    case 'list':
-      return 'in';
-    case 'tag':
-      return 'any_of';
-    case 'date':
-      return 'today';
-    case 'priority':
-      return 'gte';
-    case 'keyword':
-      return 'contains';
-    case 'status':
-      return 'eq';
-    case 'assignee':
-      return 'eq';
-    default: {
-      const unreachable: never = field;
-      return unreachable;
+function FilterRow({
+  filter,
+  messages,
+  listNames,
+  text,
+  menuOpen,
+  dragging,
+  onOpenMenu,
+  onDragStart,
+  onDragEnd,
+  onDrop,
+}: {
+  readonly filter: Filter;
+  readonly messages: Messages;
+  readonly listNames: ReadonlyMap<string, string>;
+  readonly text: SummaryText;
+  readonly menuOpen: boolean;
+  readonly dragging: boolean;
+  readonly onOpenMenu: (anchor: HTMLElement) => void;
+  readonly onDragStart: () => void;
+  readonly onDragEnd: () => void;
+  readonly onDrop: (sourceId: string, after: boolean) => void;
+}) {
+  const rowRef = useRef<HTMLLIElement>(null);
+  const press = useLongPress(() => {
+    const more = rowRef.current?.querySelector<HTMLElement>('.filter-more');
+    if (more != null) {
+      onOpenMenu(more);
     }
-  }
+  });
+  const chips = summarizeRules(filter.rules, {
+    tagLabels: filterTagLabels(tagLabelsOf(filter)),
+    folderLabels: filterFolderLabels(folderLabelsOf(filter)),
+    listNames,
+    text,
+  });
+  const tint =
+    filter.color === null ? undefined : ({ '--list-tint': filter.color } as CSSProperties);
+
+  return (
+    <li
+      ref={rowRef}
+      className={dragging ? 'filter-row is-dragging' : 'filter-row'}
+      data-filter-id={filter.id}
+      style={tint}
+      onDragOver={(event) => {
+        event.preventDefault();
+      }}
+      onDrop={(event: DragEvent<HTMLLIElement>) => {
+        const id = event.dataTransfer.getData('text/filter-id');
+        if (id.length === 0) {
+          return;
+        }
+        const rect = event.currentTarget.getBoundingClientRect();
+        onDrop(id, event.clientY > rect.top + rect.height / 2);
+      }}
+      onKeyDown={(event) => {
+        if (!isFilterMenuShortcut(event)) {
+          return;
+        }
+        event.preventDefault();
+        const more = rowRef.current?.querySelector<HTMLElement>('.filter-more') ?? null;
+        if (more !== null) {
+          onOpenMenu(more);
+        }
+      }}
+      {...press}
+    >
+      <button
+        type="button"
+        className="filter-grip smart-grip"
+        draggable
+        aria-label={messages.filterPin}
+        onDragStart={(event) => {
+          event.dataTransfer.setData('text/filter-id', filter.id);
+          onDragStart();
+        }}
+        onDragEnd={onDragEnd}
+      >
+        <GripVertical size={14} aria-hidden="true" />
+      </button>
+      <Link
+        className="filter-link"
+        to={`/filter/${filter.id}`}
+        onKeyDown={(event) => {
+          if (!isFilterMenuShortcut(event)) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          const more = rowRef.current?.querySelector<HTMLElement>('.filter-more') ?? null;
+          if (more !== null) {
+            onOpenMenu(more);
+          }
+        }}
+      >
+        <Funnel className="filter-funnel" size={18} aria-hidden="true" />
+        <span className="filter-copy">
+          <span className="filter-name">
+            <span>{filter.name}</span>
+            {filter.pinned ? (
+              <Pin className="filter-pin" size={12} aria-label={messages.filterPinnedMark} />
+            ) : null}
+          </span>
+          <SummaryChips
+            chips={chips}
+            max={3}
+            more={(count) => messages.filterMoreChips.replace('{count}', String(count))}
+          />
+        </span>
+        <span className="filter-count">
+          <span className="filter-count-long">{countLabel(messages, filter.task_count, true)}</span>
+          <span className="filter-count-short">{String(filter.task_count)}</span>
+        </span>
+      </Link>
+      <button
+        type="button"
+        className="filter-more"
+        aria-label={fill(messages.filterActions, filter.name)}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onOpenMenu(event.currentTarget);
+        }}
+      >
+        <MoreHorizontal size={16} aria-hidden="true" />
+      </button>
+    </li>
+  );
 }
 
-function fieldText(messages: Messages, field: ConditionField): string {
-  switch (field) {
-    case 'list':
-      return messages.fieldList;
-    case 'tag':
-      return messages.fieldTag;
-    case 'date':
-      return messages.fieldDate;
-    case 'priority':
-      return messages.fieldPriority;
-    case 'keyword':
-      return messages.fieldKeyword;
-    case 'status':
-      return messages.fieldStatus;
-    case 'assignee':
-      return messages.fieldAssignee;
-    default: {
-      const unreachable: never = field;
-      return unreachable;
-    }
+function chipLine(
+  filter: Filter,
+  listNames: ReadonlyMap<string, string>,
+  text: SummaryText,
+): string {
+  return summarizeRules(filter.rules, {
+    tagLabels: filterTagLabels(tagLabelsOf(filter)),
+    folderLabels: filterFolderLabels(folderLabelsOf(filter)),
+    listNames,
+    text,
+  })
+    .slice(0, 3)
+    .map((chip) => chip.text)
+    .join(', ');
+}
+
+function countLabel(messages: Messages, count: number, long: boolean): string {
+  if (!long) {
+    return count === 1
+      ? messages.filterTaskOne
+      : messages.filterTasks.replace('{count}', String(count));
   }
+  return count === 1
+    ? messages.filterTaskOne
+    : messages.filterTasks.replace('{count}', String(count));
+}
+
+function summaryText(messages: Messages): SummaryText {
+  return {
+    today: messages.dateToday,
+    tomorrow: messages.dateTomorrow,
+    next7: messages.dateNext7,
+    overdue: messages.dateOverdue,
+    noDate: messages.dateNoDate,
+    between: messages.dateBetween,
+    priorityHigh: messages.filterPriorityHigh,
+    priorityMedium: messages.filterPriorityMedium,
+    priorityLow: messages.filterPriorityLow,
+    priorityAny: messages.filterPriorityAny,
+    statusActive: messages.statusActive,
+    statusCompleted: messages.statusCompleted,
+    deletedTag: messages.filterDeletedTag,
+    deletedFolder: messages.filterDeletedFolder,
+  };
+}
+
+function folderLabelsOf(filter: Filter): unknown {
+  return 'folder_labels' in filter ? filter.folder_labels : undefined;
+}
+
+function tagLabelsOf(filter: Filter): unknown {
+  return 'tag_labels' in filter ? filter.tag_labels : undefined;
 }

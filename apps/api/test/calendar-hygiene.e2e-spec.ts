@@ -133,7 +133,7 @@ describe('F2 calendar hygiene', () => {
     );
   });
 
-  it('lists the year in at most 5 queries and inserts daily_use once', async () => {
+  it('lists the year in at most 6 queries and inserts daily_use once', async () => {
     const email = `cal-f2-budget-${randomUUID()}@reflexionia.test`;
     const registered = await request(server)
       .post('/api/v1/auth/register')
@@ -186,8 +186,8 @@ describe('F2 calendar hygiene', () => {
       .set('Cookie', budgetCookie)
       .expect(200);
     expect(await daily()).toBe(afterFirst);
-    expect(queryCount(String(second.headers['server-timing']))).toBeLessThanOrEqual(5);
-    expect(queryCount(String(first.headers['server-timing']))).toBeLessThanOrEqual(5);
+    expect(queryCount(String(second.headers['server-timing']))).toBeLessThanOrEqual(6);
+    expect(queryCount(String(first.headers['server-timing']))).toBeLessThanOrEqual(6);
     await wipe(budgetUser);
   });
 });

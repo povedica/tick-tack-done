@@ -13,6 +13,7 @@
     "test:integration": "pnpm build && vitest run --config vitest.config.integration.ts",
     "openapi:generate": "node dist/scripts/generate-openapi.js && node ../../scripts/generate-mcp-catalog.mjs",
     "seed": "tsx prisma/seed.ts",
+    "admin:disable-totp": "tsx src/scripts/disable-totp.ts",
     "prisma": "prisma",
     "postinstall": "prisma generate"
   },

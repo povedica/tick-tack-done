@@ -16,6 +16,7 @@ import { EventRecorder } from '../../events/event-recorder.js';
 import { decodeCursor } from '../../http/cursor.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { ListAccessService } from '../collaboration/list-access.js';
 import type { Tx } from '../../prisma/tx.js';
 import type { ViewPageJson } from '../../reading/view-page.js';
 import { countViewTasks, pageViewTasks } from '../../reading/view-query.js';
@@ -29,6 +30,7 @@ export class SmartListsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(ListAccessService) private readonly access: ListAccessService,
   ) {}
 
   async list(
@@ -44,15 +46,17 @@ export class SmartListsService {
     const clock = this.clock(user);
     const input = { clock, inboxProjectId: await this.inboxId(user.id), assigneeId: user.id };
     const counts = await Promise.all(
-      rows.map((row) =>
-        countViewTasks(
+      rows.map(async (row) => {
+        const key = this.key(row.key);
+        return countViewTasks(
           this.prisma,
           user.id,
-          smartListClause(this.key(row.key), input),
+          smartListClause(key, input),
           clock,
           work ?? undefined,
-        ),
-      ),
+          await this.assignedScope(user, key),
+        );
+      }),
     );
     return {
       items: rows.map((row, index) => this.toJson(row, counts[index] ?? 0)),
@@ -137,6 +141,7 @@ export class SmartListsService {
       inboxProjectId: await this.inboxId(user.id),
       assigneeId: user.id,
     };
+    const scope = await this.assignedScope(user, key);
     return pageViewTasks(this.prisma, {
       ownerId: user.id,
       clause: smartListClause(key, input),
@@ -147,7 +152,16 @@ export class SmartListsService {
       cursor: this.cursor(cursorRaw),
       ...(key === 'completed' ? { ranking: 'completed' as const } : {}),
       ...(work === null ? {} : { extra: work }),
+      ...(scope === undefined ? {} : { scope }),
     });
+  }
+
+  /** Today, tomorrow and the next 7 days include shared tasks assigned to the caller. */
+  private async assignedScope(user: AuthUser, key: SmartListKey) {
+    if (key !== 'today' && key !== 'tomorrow' && key !== 'next_7_days') {
+      return undefined;
+    }
+    return this.access.assignedSharedWhere(user);
   }
 
   private async ensureOnce(ownerId: string): Promise<void> {

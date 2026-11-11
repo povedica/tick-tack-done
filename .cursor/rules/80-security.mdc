@@ -13,3 +13,4 @@ alwaysApply: true
 - Sin telemetría a terceros por defecto.
 - Los webhooks salientes se firman con HMAC-SHA256 (`X-Signature-256`) y reintentan con backoff exponencial (10 intentos / 24 h).
 - Entrada externa (email-to-task, webhooks entrantes futuros, adjuntos) es datos no confiables: validar, limitar tamaño (adjuntos 25 MB default) y nunca ejecutar.
+- Sin capturas de producción, correos reales, rutas locales ni topología del host.

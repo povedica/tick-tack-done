@@ -21,6 +21,14 @@ describe('cursor pagination', () => {
     expect(decodeCursor(cursor)).toEqual({
       sortOrder: 65536n,
       id: '11111111-1111-4111-8111-111111111111',
+      pinned: false,
+    });
+    expect(
+      decodeCursor(encodeCursor('65536', '11111111-1111-4111-8111-111111111111', true)),
+    ).toEqual({
+      sortOrder: 65536n,
+      id: '11111111-1111-4111-8111-111111111111',
+      pinned: true,
     });
     const page = slicePage(
       [

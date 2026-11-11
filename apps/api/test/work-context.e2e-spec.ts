@@ -111,7 +111,7 @@ describe('work context', () => {
 
   it('marks work by folder, list or tag, filters auto, and keeps MCP unfiltered', async () => {
     const api = authed();
-    const folder = await api.post('/api/v1/folders').send({ name: 'VASS' }).expect(201);
+    const folder = await api.post('/api/v1/folders').send({ name: 'Trabajo' }).expect(201);
     const workList = await api
       .post('/api/v1/projects')
       .send({ name: 'trabajo', folder_id: folder.body.id })

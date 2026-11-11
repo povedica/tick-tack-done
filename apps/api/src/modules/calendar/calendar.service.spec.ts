@@ -5,6 +5,7 @@ import type { PrismaService } from '../../prisma/prisma.service.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { CalendarService } from './calendar.service.js';
+import type { ListAccessService } from '../collaboration/list-access.js';
 import type { GoogleSyncService } from './google-sync.service.js';
 
 const owner: AuthUser = {
@@ -37,7 +38,13 @@ describe('TTD-AUD-86 / RF-2006 user credential isolation', () => {
           .mockResolvedValue({ email: 'b@example.test', googleRefreshToken: null }),
       },
     } as unknown as PrismaService;
-    const service = new CalendarService(prisma, new EventRecorder(), {} as GoogleSyncService);
+    const service = new CalendarService(
+      prisma,
+      new EventRecorder(),
+      {} as GoogleSyncService,
+      null,
+      {} as ListAccessService,
+    );
     // eslint-disable-next-line @typescript-eslint/dot-notation -- Test the private credential boundary without exposing it publicly.
     await expect(service['googleAccessToken']('owner-b')).rejects.toMatchObject(
       new DomainException(
@@ -58,9 +65,16 @@ describe('calendar range hygiene', () => {
       {
         task: { findMany: tasks },
         externalEvent: { findMany: external },
+        calendarSubscription: { findMany: vi.fn().mockResolvedValue([]) },
       } as unknown as PrismaService,
       new EventRecorder(),
-      {} as GoogleSyncService,
+      {
+        googleAccount: () => Promise.resolve({ googleStatus: 'ok' }),
+      } as unknown as GoogleSyncService,
+      null,
+      {
+        assignedSharedWhere: () => Promise.resolve({ ownerId: owner.id }),
+      } as unknown as ListAccessService,
     );
     await service.range(
       owner,
@@ -70,9 +84,12 @@ describe('calendar range hygiene', () => {
       'all',
       'all',
     );
-    const where = tasks.mock.calls[0]?.[0].where as { OR: unknown[]; projectId: unknown };
-    expect(where.projectId).toEqual({ in: ['list-a'] });
-    expect(where.OR).toHaveLength(3);
+    const where = tasks.mock.calls[0]?.[0].where as {
+      AND: [unknown, { projectId: unknown; OR: unknown[] }];
+    };
+    const window = where.AND[1];
+    expect(window.projectId).toEqual({ in: ['list-a'] });
+    expect(window.OR).toHaveLength(3);
     expect(tasks.mock.calls[0]?.[0].select).toEqual({
       id: true,
       title: true,
@@ -91,9 +108,16 @@ describe('calendar range hygiene', () => {
       {
         task: { findMany: tasks },
         externalEvent: { findMany: external },
+        calendarSubscription: { findMany: vi.fn().mockResolvedValue([]) },
       } as unknown as PrismaService,
       new EventRecorder(),
-      {} as GoogleSyncService,
+      {
+        googleAccount: () => Promise.resolve({ googleStatus: 'ok' }),
+      } as unknown as GoogleSyncService,
+      null,
+      {
+        assignedSharedWhere: () => Promise.resolve({ ownerId: owner.id }),
+      } as unknown as ListAccessService,
     );
     await service.range(
       owner,

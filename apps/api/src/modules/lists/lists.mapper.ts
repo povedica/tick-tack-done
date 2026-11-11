@@ -77,7 +77,16 @@ export function toFolderJson(
   };
 }
 
-export function toProjectJson(row: Project, activeTaskCount: number): ProjectResponseDto {
+export function toProjectJson(
+  row: Project,
+  activeTaskCount: number,
+  access: {
+    role: 'owner' | 'read' | 'comment' | 'write';
+    shared: boolean;
+    memberCount: number;
+    publicLinkActive?: boolean;
+  } = { role: 'owner', shared: false, memberCount: 0 },
+): ProjectResponseDto {
   return {
     id: row.id,
     owner_id: row.ownerId,
@@ -98,6 +107,10 @@ export function toProjectJson(row: Project, activeTaskCount: number): ProjectRes
     default_reminder_trigger: row.defaultReminderTrigger,
     sort_order: row.sortOrder.toString(),
     active_task_count: activeTaskCount,
+    role: access.role,
+    shared: access.shared,
+    member_count: access.memberCount,
+    public_link_active: access.publicLinkActive === true,
     created_at: iso(row.createdAt) ?? '',
     updated_at: iso(row.updatedAt) ?? '',
   };

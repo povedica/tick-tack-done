@@ -1,0 +1,37 @@
+name: Decisión
+description: Una pregunta que Pablo tiene que decidir
+title: 'BKL-NNN · Decidir: '
+labels: ['backlog', 'tipo:decision', 'decision-pendiente']
+# projects: ["povedica/N"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Al decidir: añade la fila (o actualízala) en `docs/backlog/DECISIONES.md` en la misma PR que la aplique. El check de backlog lo exige.
+  - type: textarea
+    id: pregunta
+    attributes:
+      label: Pregunta
+    validations:
+      required: true
+  - type: textarea
+    id: opciones
+    attributes:
+      label: Opciones
+      placeholder: "A) …\nB) …"
+    validations:
+      required: true
+  - type: textarea
+    id: recomendacion
+    attributes:
+      label: Recomendación y por qué
+  - type: input
+    id: origen
+    attributes:
+      label: Documento de origen
+      description: Por nombre (spec, informe, PR).
+  - type: textarea
+    id: bloquea
+    attributes:
+      label: Qué bloquea
+      description: Issues o PRs que esperan esta decisión.

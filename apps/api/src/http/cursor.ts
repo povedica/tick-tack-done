@@ -10,6 +10,8 @@ export interface Page<T> {
 interface CursorPayload {
   s: string;
   i: string;
+  /** 1 when the row is pinned. Omitted by cursors that do not sort on pinned. */
+  p?: 0 | 1;
 }
 
 export function pageLimit(raw: unknown): number {
@@ -27,12 +29,16 @@ export function pageLimit(raw: unknown): number {
   return value;
 }
 
-export function encodeCursor(sortOrder: string, id: string): string {
-  const payload: CursorPayload = { s: sortOrder, i: id };
+export function encodeCursor(sortOrder: string, id: string, pinned?: boolean): string {
+  const payload: CursorPayload = {
+    s: sortOrder,
+    i: id,
+    ...(pinned === undefined ? {} : { p: pinned ? 1 : 0 }),
+  };
   return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 }
 
-export function decodeCursor(cursor: string): { sortOrder: bigint; id: string } {
+export function decodeCursor(cursor: string): { sortOrder: bigint; id: string; pinned: boolean } {
   try {
     const parsed: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
@@ -44,8 +50,14 @@ export function decodeCursor(cursor: string): { sortOrder: bigint; id: string } 
     if (typeof sortOrder !== 'string' || typeof id !== 'string' || !/^\d+$/.test(sortOrder)) {
       throw new Error('cursor');
     }
-    return { sortOrder: BigInt(sortOrder), id };
-  } catch {
+    if (record.p !== undefined && record.p !== 0 && record.p !== 1) {
+      throw new Error('cursor');
+    }
+    return { sortOrder: BigInt(sortOrder), id, pinned: record.p === 1 };
+  } catch (error) {
+    if (error instanceof DomainException) {
+      throw error;
+    }
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'cursor is invalid');
   }
 }

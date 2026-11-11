@@ -11,6 +11,7 @@ export interface ReviewCandidate {
   readonly startDate?: string | null;
   readonly listId: string;
   readonly listName: string;
+  readonly tagIds?: readonly string[];
   readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly updatedAt: string;
   readonly tagNames: readonly string[];
@@ -130,6 +131,7 @@ function scoreTask(task: ReviewCandidate, now: number): number {
 function toSubject(task: ReviewCandidate): FilterSubject {
   return {
     listId: task.listId,
+    tagIds: task.tagIds ?? [],
     tagNames: task.tagNames,
     startDate: task.startDate ?? null,
     dueDate: task.dueDate,

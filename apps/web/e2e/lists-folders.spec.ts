@@ -33,7 +33,7 @@ for (const viewport of [
       if (viewport.width >= 1024) {
         await page.evaluate(() => {
           const source = document.querySelector('[data-list-id="casa"]');
-          const target = document.querySelector('[data-folder-id="vass"] .nav-folder-main');
+          const target = document.querySelector('[data-folder-id="work"] .nav-folder-main');
           if (source === null || target === null) {
             throw new Error('drag nodes missing');
           }
@@ -61,21 +61,21 @@ for (const viewport of [
         });
         await page.waitForTimeout(600);
         await page.getByRole('menuitem', { name: /Mover a carpeta/ }).click();
-        await page.getByRole('menuitem', { name: 'VASS', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Trabajo', exact: true }).click();
       }
 
-      const vass = sidebar.locator('[data-folder-id="vass"]');
-      await expect(vass.getByRole('link', { name: 'Casa', exact: true })).toBeVisible();
-      await vass.locator('.nav-more-btn').click({ force: true });
+      const workFolder = sidebar.locator('[data-folder-id="work"]');
+      await expect(workFolder.getByRole('link', { name: 'Casa', exact: true })).toBeVisible();
+      await workFolder.locator('.nav-more-btn').click({ force: true });
       await page.getByRole('menuitem', { name: 'Renombrar', exact: true }).click();
-      const rename = vass.getByRole('textbox', { name: 'Renombrar' });
+      const rename = workFolder.getByRole('textbox', { name: 'Renombrar' });
       await rename.fill('Equipo');
       await rename.press('Enter');
       await expect(sidebar.getByRole('button', { name: 'Equipo', exact: true })).toBeVisible();
-      await sidebar.locator('[data-folder-id="vass"] .nav-more-btn').click({ force: true });
+      await sidebar.locator('[data-folder-id="work"] .nav-more-btn').click({ force: true });
       await page.getByRole('menuitem', { name: 'Eliminar carpeta', exact: true }).click();
       await expect(sidebar.getByRole('link', { name: 'Casa', exact: true })).toBeVisible();
-      await expect(sidebar.locator('[data-folder-id="vass"]')).toHaveCount(0);
+      await expect(sidebar.locator('[data-folder-id="work"]')).toHaveCount(0);
       await page.getByRole('button', { name: 'Deshacer', exact: true }).click();
       await expect(sidebar.getByRole('button', { name: 'Equipo', exact: true })).toBeVisible();
       await expect(
@@ -87,7 +87,7 @@ for (const viewport of [
 }
 
 async function boot(page: Page) {
-  const folders = [folder('vass', 'VASS', 0)];
+  const folders = [folder('work', 'Trabajo', 0)];
   const projects = [project('inbox', 'Bandeja', { is_inbox: true })];
   await page.addInitScript(() => {
     localStorage.setItem('tick-tack-done.locale', 'es');

@@ -1,3 +1,5 @@
+import { purgePasswordResetTokens } from '../auth/password-reset-cleanup.js';
+import { expireShareInvitations } from '../modules/collaboration/expire-invitations.js';
 import { deliverNotification } from '../notifications/deliver.js';
 import type { DeliveryResult } from './reminder.transport.js';
 import { randomUUID } from 'node:crypto';
@@ -54,6 +56,8 @@ type SeriesTask = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
 @Injectable()
 export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | null = null;
+  private resetPurgeDay = '';
+  private invitePurgeDay = '';
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
@@ -86,6 +90,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     now: Date,
     catchUp: boolean,
   ): Promise<{ materialized: number; fired: number; late: number }> {
+    await this.purgeResetTokens(now);
+    await this.expireInvites(now);
     const materialized = (await this.advanceCompleted()) + (await this.advanceDetached());
     await this.enqueueFocusEnds(now, catchUp);
     await this.enqueueReminders(now, catchUp);
@@ -100,12 +106,45 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     return { materialized, fired: fired.fired, late: fired.late };
   }
 
+  /** RF-PR-14. One pass per UTC day, at most 1000 rows. */
+  private async purgeResetTokens(now: Date): Promise<void> {
+    const day = now.toISOString().slice(0, 10);
+    if (this.resetPurgeDay === day) {
+      return;
+    }
+    this.resetPurgeDay = day;
+    try {
+      await purgePasswordResetTokens(this.prisma, now);
+    } catch {
+      this.resetPurgeDay = '';
+    }
+  }
+
+  /** RF-1801. One pass per UTC day. Expired invites stop occupying a seat. */
+  private async expireInvites(now: Date): Promise<void> {
+    const day = now.toISOString().slice(0, 10);
+    if (this.invitePurgeDay === day) {
+      return;
+    }
+    this.invitePurgeDay = day;
+    try {
+      await expireShareInvitations(this.prisma, now);
+    } catch {
+      this.invitePurgeDay = '';
+    }
+  }
+
   /** RF-2513. Isolated from reminder delivery: a calendar failure must not stop the tick. */
   private async syncCalendars(now: Date, catchUp: boolean): Promise<void> {
     try {
       await this.googleSync.syncDue(now, catchUp);
     } catch {
       // syncDue isolates each subscription; this only guards a listing failure.
+    }
+    try {
+      await this.googleSync.renewWatches(now);
+    } catch {
+      // A watch renewal failure must not stop reminders or the poll.
     }
     try {
       await this.calendars.syncIcalDue(now, catchUp);

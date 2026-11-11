@@ -38,7 +38,7 @@ vi.mock('../../api', () => ({
       }),
     updateMe: mock.updateMe,
     updateWorkContext: mock.updateWork,
-    listFolders: () => Promise.resolve({ items: [{ id: 'folder', name: 'VASS' }] }),
+    listFolders: () => Promise.resolve({ items: [{ id: 'folder', name: 'Trabajo' }] }),
     listProjects: () =>
       Promise.resolve({ items: [{ id: 'list', name: 'casa', active_task_count: 3 }] }),
     listTags: () =>

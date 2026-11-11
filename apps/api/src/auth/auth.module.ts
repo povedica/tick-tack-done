@@ -9,6 +9,8 @@ import { AccountService } from './account.service.js';
 import { AttemptLimiter } from './attempt-limiter.js';
 import { ApiAuthGuard } from './api-auth.guard.js';
 import { AuthController } from './auth.controller.js';
+import { PasswordResetController } from './password-reset.controller.js';
+import { PasswordResetService } from './password-reset.service.js';
 import { AuthService } from './auth.service.js';
 import { MeController } from './me.controller.js';
 import { MeService } from './me.service.js';
@@ -30,6 +32,7 @@ import { TokensService } from './tokens.service.js';
     ViewPreferencesController,
     TokensController,
     AuthController,
+    PasswordResetController,
     OauthController,
     OauthBrowserController,
     OauthDiscoveryController,
@@ -41,6 +44,7 @@ import { TokensService } from './tokens.service.js';
     ReminderTransport,
     AccountService,
     AuthService,
+    PasswordResetService,
     OauthService,
     TokensService,
     TotpService,
@@ -49,6 +53,7 @@ import { TokensService } from './tokens.service.js';
     AttemptLimiter,
     { provide: APP_GUARD, useClass: ApiAuthGuard },
   ],
+  exports: [AttemptLimiter],
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module is decorator-only
 export class AuthModule {}

@@ -8,7 +8,7 @@ import {
   Printer,
   Timeline,
 } from 'lucide-react';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import type { Messages } from '../i18n';
 import { Popover } from './Popover';
 
@@ -26,6 +26,7 @@ export function ViewMenu({
   hideCompleted,
   onHideCompleted,
   onPrint,
+  extraItems,
 }: {
   readonly messages: Messages;
   readonly view?: BoardView | undefined;
@@ -38,10 +39,23 @@ export function ViewMenu({
   readonly hideCompleted: boolean;
   readonly onHideCompleted: (value: boolean) => void;
   readonly onPrint: () => void;
+  readonly extraItems?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+
+  function closeAfterAction(event: MouseEvent<HTMLDivElement>): void {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+    // Runs on the way up, after the item's own click handler has opened the editor.
+    const action = event.target.closest('[role="menuitem"], [role="menuitemradio"]');
+    if (action === null) {
+      return;
+    }
+    setOpen(false);
+  }
 
   return (
     <div className="view-menu">
@@ -68,7 +82,7 @@ export function ViewMenu({
         className="menu-card view-menu-popover"
         width={260}
       >
-        <div id={menuId} role="menu">
+        <div id={menuId} role="menu" onClick={closeAfterAction}>
           {onView !== undefined ? (
             <div className="menu-segment" role="group" aria-label={messages.viewList}>
               <Segment
@@ -154,6 +168,12 @@ export function ViewMenu({
             <Printer size={16} aria-hidden="true" />
             {messages.printView}
           </button>
+          {extraItems !== undefined ? (
+            <>
+              <div className="menu-sep" role="separator" />
+              {extraItems}
+            </>
+          ) : null}
         </div>
       </Popover>
     </div>

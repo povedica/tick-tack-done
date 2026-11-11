@@ -1,0 +1,27 @@
+.public-list {
+  box-sizing: border-box;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+  color: var(--ink);
+  background: var(--surface);
+  min-height: 100vh;
+}
+
+.public-list-bar,
+.public-list-note,
+.public-list-foot {
+  margin-bottom: 16px;
+}
+
+.public-list button,
+.public-list a {
+  min-height: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .public-list {
+    color: var(--ink);
+    background: var(--surface);
+  }
+}

@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { CollaborationModule } from '../collaboration/collaboration.module.js';
 import { ListsController } from './lists.controller.js';
 import { ListsService } from './lists.service.js';
 import { ProjectsOverviewService } from './projects-overview.service.js';
 
 @Module({
+  imports: [CollaborationModule],
   controllers: [ListsController],
   providers: [ListsService, ProjectsOverviewService],
   exports: [ListsService, ProjectsOverviewService],

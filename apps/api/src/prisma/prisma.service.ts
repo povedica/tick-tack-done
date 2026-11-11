@@ -7,7 +7,12 @@ import { stampTaskRow } from './local-day-columns.js';
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor() {
     const url = withPool(process.env.DATABASE_URL ?? 'postgresql://localhost:5432/unused');
-    super({ datasources: { db: { url } } });
+    super({
+      datasources: { db: { url } },
+      ...(process.env.PRISMA_QUERY_EVENTS === '1'
+        ? { log: [{ emit: 'event' as const, level: 'query' as const }] }
+        : {}),
+    });
     const timed = this.$extends({
       query: {
         task: {

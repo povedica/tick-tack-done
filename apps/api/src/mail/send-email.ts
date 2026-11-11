@@ -5,6 +5,8 @@ export interface EmailMessage {
   readonly to: string;
   readonly subject: string;
   readonly text: string;
+  readonly html?: string;
+  readonly headers?: Readonly<Record<string, string>>;
   readonly idempotencyKey?: string;
 }
 export interface EmailResult {
@@ -42,6 +44,8 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
           to: [message.to],
           subject: message.subject,
           text: message.text,
+          ...(message.html === undefined ? {} : { html: message.html }),
+          ...(message.headers === undefined ? {} : { headers: message.headers }),
         }),
         signal: AbortSignal.timeout(8_000),
         redirect: 'error',
@@ -67,10 +71,12 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
   try {
     const user = process.env.SMTP_USER ?? '';
     const pass = process.env.SMTP_PASS ?? '';
+    const host = process.env.SMTP_HOST ?? '';
     const transport = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host,
       port: Number(process.env.SMTP_PORT ?? '1025'),
-      secure: false,
+      secure: smtpSecure(),
+      requireTLS: smtpRequireTls(host),
       ...(user.length > 0 ? { auth: { user, pass } } : {}),
       connectionTimeout: 8_000,
       greetingTimeout: 8_000,
@@ -81,9 +87,29 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
       to: message.to,
       subject: message.subject,
       text: message.text,
+      ...(message.html === undefined ? {} : { html: message.html }),
+      ...(message.headers === undefined ? {} : { headers: message.headers }),
     });
     return { status: 'sent', retryAfter: null };
   } catch {
     return { status: 'failed', retryAfter: null };
   }
+}
+
+/** SMTP_SECURE=true forces TLS. Port 465 defaults to secure when the flag is unset. */
+export function smtpSecure(): boolean {
+  const raw = (process.env.SMTP_SECURE ?? '').trim().toLowerCase();
+  if (raw === 'true') {
+    return true;
+  }
+  if (raw === 'false') {
+    return false;
+  }
+  return Number(process.env.SMTP_PORT ?? '1025') === 465;
+}
+
+/** Mailpit and localhost stay opportunistic. Any other host requires TLS. */
+export function smtpRequireTls(host: string): boolean {
+  const normalized = host.trim().toLowerCase();
+  return normalized !== 'mailpit' && normalized !== 'localhost' && normalized !== '127.0.0.1';
 }

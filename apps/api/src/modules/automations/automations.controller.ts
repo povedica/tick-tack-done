@@ -337,7 +337,7 @@ export class AutomationEngine implements OnModuleInit {
   private async subject(ownerId: string): Promise<FilterSubject | null> {
     const task = await this.prisma.task.findFirst({
       where: { ownerId, deletedAt: null, status: 'active' },
-      include: { tags: { select: { tag: { select: { name: true } } } } },
+      include: { tags: { select: { tagId: true, tag: { select: { name: true } } } } },
       orderBy: { updatedAt: 'desc' },
     });
     if (task === null) {
@@ -345,6 +345,7 @@ export class AutomationEngine implements OnModuleInit {
     }
     return {
       listId: task.projectId,
+      tagIds: task.tags.map((link) => link.tagId),
       tagNames: task.tags.map((link) => link.tag.name),
       startDate: task.startDate?.toISOString() ?? null,
       dueDate: task.dueDate?.toISOString() ?? null,

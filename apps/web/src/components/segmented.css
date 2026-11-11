@@ -1,0 +1,84 @@
+.ui-segmented {
+  display: flex;
+  gap: 2px;
+  align-items: stretch;
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.ui-segmented button {
+  flex: 1;
+  min-width: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.ui-segmented button:hover {
+  background: var(--surface-3);
+}
+
+.ui-segmented button.is-checked {
+  /* Opaque mix: translucent --accent-soft falls under 4.5:1 once the modal
+     layers are composited. 12% accent over the surface is the same tint. */
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.ui-segmented button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.ui-segmented.is-pill {
+  width: max-content;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.ui-segmented.is-pill button {
+  flex: none;
+  min-height: 24px;
+  border-radius: var(--radius-full);
+}
+
+.ui-segmented.is-wrap {
+  flex-wrap: wrap;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 1023px) {
+  .ui-segmented {
+    width: 100%;
+    min-height: var(--tap);
+  }
+
+  .ui-segmented button {
+    min-height: calc(var(--tap) - 6px);
+  }
+
+  .ui-segmented.is-pill {
+    min-height: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-segmented button {
+    transition: none;
+  }
+}

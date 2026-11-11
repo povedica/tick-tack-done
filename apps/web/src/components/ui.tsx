@@ -128,11 +128,18 @@ export function Modal({
   children,
   onClose,
   danger = false,
+  role = 'dialog',
+  className,
+  hideTitle = false,
 }: {
   readonly title: string;
   readonly children: ReactNode;
   readonly onClose: () => void;
   readonly danger?: boolean;
+  readonly role?: 'dialog' | 'alertdialog';
+  readonly className?: string;
+  /** Keeps the title as the dialog name and skips the extra heading. */
+  readonly hideTitle?: boolean;
 }) {
   return (
     <div
@@ -145,15 +152,15 @@ export function Modal({
       }}
     >
       <div
-        className="ui-modal"
-        role="dialog"
+        className={className === undefined ? 'ui-modal' : `ui-modal ${className}`}
+        role={role}
         aria-modal="true"
         aria-label={title}
         onMouseDown={(event) => {
           event.stopPropagation();
         }}
       >
-        <h2>{title}</h2>
+        {hideTitle ? null : <h2>{title}</h2>}
         {children}
       </div>
     </div>

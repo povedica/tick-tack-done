@@ -25,6 +25,7 @@ export interface AppRoute {
     | 'loginTitle'
     | 'registerTitle'
     | 'forgotTitle'
+    | 'resetTitle'
     | 'repeatTitle';
 }
 
@@ -56,6 +57,7 @@ export const APP_ROUTES: readonly AppRoute[] = [
   { path: '/login', titleKey: 'loginTitle' },
   { path: '/register', titleKey: 'registerTitle' },
   { path: '/forgot-password', titleKey: 'forgotTitle' },
+  { path: '/reset-password', titleKey: 'resetTitle' },
 ];
 
 export interface SidebarLink {

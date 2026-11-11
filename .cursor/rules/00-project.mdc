@@ -4,8 +4,8 @@ alwaysApply: true
 
 # Proyecto: gestor de tareas personal (todo.reflexionia.com)
 
-Gestor de tareas personal extensible. La especificación completa está en
-[documentación histórica](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/spec/done/especificacion-producto-v1.1.md); los RF-xx son requisitos identificables y testeables.
+Gestor de tareas personal extensible. La especificación completa se lee como
+indica `AGENTS.md`; los RF-xx son requisitos identificables y testeables.
 
 ## Decisiones fijas (sección 21 de la spec, no reabrir)
 

@@ -48,6 +48,7 @@ import { googleConfigured } from '../../integrations/config.js';
 import { telegramSecretMatches } from '../../integrations/telegram-secret.js';
 import { authorizeUrl, readState, redirectFor, signState } from './google-oauth.js';
 import { TelegramSettingsService } from './telegram-settings.service.js';
+import { GoogleSyncService } from '../calendar/google-sync.service.js';
 import { TelegramBotService } from './telegram-bot.service.js';
 import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
@@ -154,6 +155,7 @@ export class IntegrationsController {
     @Inject(TelegramBotService) private readonly telegram: TelegramBotService,
     @Inject(TelegramSettingsService) private readonly settings: TelegramSettingsService,
     @Inject(TasksService) private readonly tasks: TasksService,
+    @Inject(GoogleSyncService) private readonly calendars: GoogleSyncService,
   ) {}
 
   @Get('telegram')
@@ -404,6 +406,7 @@ export class IntegrationsController {
         'remove_imported_events must be true or false',
       );
     }
+    await this.calendars.releaseOwnerWatches(user);
     const credential = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: { googleRefreshToken: true },

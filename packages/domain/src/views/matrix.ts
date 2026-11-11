@@ -15,6 +15,7 @@ export interface MatrixTask {
   readonly dueDate: string | null;
   readonly startDate?: string | null;
   readonly listId: string | null;
+  readonly tagIds?: readonly string[];
   readonly tagNames: readonly string[];
   readonly title: string;
   readonly content: string;
@@ -187,6 +188,7 @@ export function minimalQuadrantPatch(
 function toSubject(task: MatrixTask): FilterSubject {
   return {
     listId: task.listId,
+    tagIds: task.tagIds ?? [],
     tagNames: task.tagNames,
     startDate: task.startDate ?? null,
     dueDate: task.dueDate,

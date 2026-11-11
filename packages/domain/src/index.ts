@@ -130,7 +130,12 @@ export {
   matchesFilter,
   matchesSmartList,
   pageTaskGroups,
+  isFilterTagId,
   parseFilterRules,
+  partitionTagValues,
+  requireConditions,
+  resolveTagReference,
+  rewriteMergedTag,
   parseSearchQuery,
   parseTaskView,
   RECENT_WINDOW_DAYS,
@@ -147,6 +152,7 @@ export type {
   FilterParse,
   FilterSubject,
   ParsedSearch,
+  TagRef,
   SmartListInput,
   TaskGroup,
   TaskGroupBy,
@@ -388,8 +394,13 @@ export type {
   PluginManifest,
   PluginPermission,
 } from './plugins/manifest';
-export { allows, parseMentions } from './collaboration/access';
-export type { ShareAction, SharePermission } from './collaboration/access';
+export { allows, canDo, collaborationAction, parseMentions } from './collaboration/access';
+export type {
+  CollaborationAction,
+  ShareAction,
+  SharePermission,
+  ShareRole,
+} from './collaboration/access';
 export { isRasterImage } from './attachments/image';
 export { formatCaptureReply } from './integrations/capture-reply';
 export type { CaptureReply } from './integrations/capture-reply';

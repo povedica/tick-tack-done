@@ -32,11 +32,14 @@ import { projectConstraint } from '@reflexionia/domain';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../reading/snapshot.js';
+import type { CreateFilterDto, UpdateFilterDto } from '../modules/filters/filters.dto.js';
 import { FiltersService } from '../modules/filters/filters.service.js';
 import { SmartListsService } from '../modules/filters/smart-lists.service.js';
 import { CountdownsService } from '../modules/countdowns/countdowns.service.js';
 import { HabitsService } from '../modules/habits/habits.service.js';
 import { ListsService } from '../modules/lists/lists.service.js';
+import { CollaborationService } from '../modules/collaboration/collaboration.service.js';
+import { PublicLinksService } from '../modules/collaboration/public-links.service.js';
 import { ProjectsOverviewService } from '../modules/lists/projects-overview.service.js';
 import { SearchService } from '../modules/search/search.service.js';
 import { TagsService } from '../modules/tags/tags.service.js';
@@ -89,6 +92,8 @@ export class McpService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(ProjectsOverviewService) private readonly projectOverview: ProjectsOverviewService,
+    @Inject(CollaborationService) private readonly collaboration: CollaborationService,
+    @Inject(PublicLinksService) private readonly publicLinks: PublicLinksService,
   ) {}
 
   async handle(user: AuthUser, body: unknown, authorization?: string): Promise<RpcResponse | null> {
@@ -235,7 +240,13 @@ export class McpService {
       const record = response as { data: { capture_settings: unknown } };
       data = record.data.capture_settings;
     } else data = await this.run(user, tool.name, args, authorization);
-    if (tool.name.startsWith('list_')) data = listResult(data, args);
+    if (
+      tool.name.startsWith('list_') &&
+      tool.name !== 'list_project_members' &&
+      tool.name !== 'list_share_invitations'
+    ) {
+      data = listResult(data, args);
+    }
     if (args.include_activity !== 'full') data = summarizeActivity(data, tool.name === 'get_task');
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
@@ -653,23 +664,7 @@ export class McpService {
         const taskId = requiredUuid(args, 'id');
         const assigneeId =
           args.assignee_id === null ? null : (uuidOrEmpty(args.assignee_id) ?? null);
-        const task = await this.tasks.get(user, taskId);
-        const row = await this.prisma.$transaction(async (tx) => {
-          const saved = await tx.task.update({
-            where: { id: taskId },
-            data: { assigneeId },
-          });
-          await this.events.record(tx, actorOf(user), {
-            type: DomainEvent.taskAssigned,
-            entityType: 'task',
-            entityId: taskId,
-            action: 'assigned',
-            data: asJson({ assignee_id: assigneeId }),
-            previous: asJson({ assignee_id: task.assignee_id ?? null }),
-          });
-          return saved;
-        });
-        return { id: row.id, assignee_id: row.assigneeId };
+        return this.collaboration.assign(user, taskId, assigneeId);
       }
       case 'update_task': {
         const id = requiredUuid(args, 'id');
@@ -880,6 +875,76 @@ export class McpService {
         return this.projectOverview.overview(user, stateOf(args));
       case 'mark_project_reviewed':
         return this.projectOverview.markReviewed(user, requiredUuidList(args, 'ids'));
+      case 'list_project_members':
+        return this.collaboration.members(user, requiredUuid(args, 'id'));
+      case 'share_project': {
+        const id = requiredUuid(args, 'id');
+        const email = requiredString(args, 'email', 320);
+        const permission = sharePermission(args.permission);
+        if (args.confirm !== true) {
+          return this.collaboration.previewShare(user, id, email, permission);
+        }
+        const shared = await this.collaboration.share(user, id, { email, permission });
+        return {
+          shared: shared.body.status === 'accepted',
+          status: shared.body.status,
+          member_id: shared.body.id,
+          permission: shared.body.permission,
+          changed: shared.body.changed,
+        };
+      }
+      case 'unshare_project': {
+        const id = requiredUuid(args, 'id');
+        const memberId = requiredUuid(args, 'member_id');
+        await this.collaboration.unshare(user, id, memberId);
+        return { removed: true, member_id: memberId };
+      }
+      case 'update_project_member':
+        return this.collaboration.updateMember(
+          user,
+          requiredUuid(args, 'id'),
+          requiredUuid(args, 'member_id'),
+          sharePermission(args.permission),
+        );
+      case 'leave_project':
+        await this.collaboration.leave(user, requiredUuid(args, 'id'));
+        return { left: true };
+      case 'list_share_invitations':
+        return this.collaboration.invitations(user);
+      case 'respond_share_invitation': {
+        if (typeof args.accept !== 'boolean') {
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'accept is required',
+          );
+        }
+        await this.collaboration.respond(user, requiredUuid(args, 'id'), args.accept);
+        return { responded: true, accepted: args.accept };
+      }
+      case 'get_project_public_link':
+        return this.publicLinks.state(user, requiredUuid(args, 'id'));
+      case 'create_project_public_link': {
+        const id = requiredUuid(args, 'id');
+        const input = publicLinkInput(args);
+        if (args.confirm !== true) {
+          return this.publicLinks.preview(user, id, input);
+        }
+        return this.publicLinks.create(user, id, input);
+      }
+      case 'regenerate_project_public_link': {
+        const id = requiredUuid(args, 'id');
+        if (args.confirm !== true) {
+          return {
+            regenerated: false,
+            hint: 'Call again with confirm=true. The current link will stop working.',
+          };
+        }
+        return this.publicLinks.regenerate(user, id);
+      }
+      case 'revoke_project_public_link':
+        await this.publicLinks.revoke(user, requiredUuid(args, 'id'));
+        return { revoked: true };
       case 'list_tags':
         return this.tags.list(user, limit, cursorOf(args));
       case 'create_tag':
@@ -888,28 +953,46 @@ export class McpService {
         ).body;
       case 'list_filters':
         return this.filters.list(user, limit, cursorOf(args));
+      case 'get_filter':
+        return this.filters.get(user, requiredUuid(args, 'id'));
       case 'create_filter': {
-        const keyword = requiredString(args, 'keyword', 200);
+        const drafted = filterDraft(args, true);
+        if (drafted.mode === undefined || drafted.rules === undefined) {
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'provide keyword, match and conditions, or mode and rules',
+          );
+        }
         return (
           await this.filters.create(
             user,
             {
               name: requiredString(args, 'name', 80),
-              mode: 'normal',
-              rules: {
-                combinator: 'AND',
-                groups: [
-                  {
-                    combinator: 'AND',
-                    conditions: [{ field: 'keyword', op: 'contains', value: keyword }],
-                  },
-                ],
-              },
+              mode: drafted.mode,
+              rules: drafted.rules,
+              ...(drafted.color === undefined ? {} : { color: drafted.color }),
             },
             undefined,
           )
         ).body;
       }
+      case 'update_filter':
+        return this.filters.update(user, requiredUuid(args, 'id'), filterUpdate(args));
+      case 'delete_filter':
+        await this.filters.remove(user, requiredUuid(args, 'id'));
+        return { deleted: true };
+      case 'restore_filter':
+        return this.filters.restore(user, requiredUuid(args, 'id'));
+      case 'list_filter_tasks':
+        return this.filters.tasks(
+          user,
+          requiredUuid(args, 'id'),
+          typeof args.group_by === 'string' ? args.group_by : undefined,
+          typeof args.sort === 'string' ? args.sort : undefined,
+          limit,
+          cursorOf(args),
+        );
       case 'list_smart_lists':
         return this.smartLists.list(user);
       case 'list_smart_list_tasks':
@@ -1118,7 +1201,7 @@ export class McpService {
           where: { ownerId: user.id, deletedAt: null, status: 'active' },
           include: {
             project: { select: { name: true } },
-            tags: { select: { tag: { select: { name: true } } } },
+            tags: { select: { tagId: true, tag: { select: { name: true } } } },
           },
           take: 100,
         });
@@ -1133,6 +1216,7 @@ export class McpService {
             listName: task.project.name,
             status: task.status,
             updatedAt: task.updatedAt.toISOString(),
+            tagIds: task.tags.map((link) => link.tagId),
             tagNames: task.tags.map((link) => link.tag.name),
             assigneeId: task.assigneeId,
             content: task.content,
@@ -1147,11 +1231,16 @@ export class McpService {
       }
       case 'list_external_calendars': {
         const subscriptions = await this.calendars.listSubscriptions(user);
+        const account = await this.calendars.syncStatus(user);
+        const listed = {
+          ...subscriptions,
+          google: account.google,
+        };
         if (args.include_available !== true) {
-          return subscriptions;
+          return listed;
         }
         const available = await this.calendars.listGoogleCalendars(user);
-        return { ...subscriptions, available };
+        return { ...listed, available };
       }
       case 'calendar_summary':
         return (
@@ -1211,9 +1300,11 @@ export class McpService {
           ...(typeof args.color === 'string' ? { color: args.color } : {}),
         });
       }
+      case 'get_calendar_sync_status':
+        return this.calendars.syncStatus(user);
       case 'sync_calendar':
         if (typeof args.subscription_id === 'string') {
-          return this.calendars.refresh(user, requiredUuid(args, 'subscription_id'));
+          return this.calendars.syncReported(user, requiredUuid(args, 'subscription_id'));
         }
         return this.calendars.syncAll(user);
       case 'update_external_calendar':
@@ -1872,6 +1963,154 @@ function calendarInclude(args: Record<string, unknown>): 'external' | 'tasks' | 
     );
   }
   return args.include_external === false ? 'tasks' : 'all';
+}
+
+function sharePermission(value: unknown): 'read' | 'comment' | 'write' {
+  if (value === undefined) {
+    return 'read';
+  }
+  if (value === 'read' || value === 'comment' || value === 'write') {
+    return value;
+  }
+  throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'permission is invalid');
+}
+
+function publicLinkInput(args: Record<string, unknown>): {
+  expires_at?: string | null;
+  include_notes?: boolean;
+} {
+  const expires = args.expires_at;
+  const notes = args.include_notes;
+  if (expires !== undefined && expires !== null && typeof expires !== 'string') {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'expires_at is invalid');
+  }
+  if (notes !== undefined && typeof notes !== 'boolean') {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'include_notes is invalid',
+    );
+  }
+  return {
+    ...(expires === undefined ? {} : { expires_at: expires }),
+    ...(notes === undefined ? {} : { include_notes: notes }),
+  };
+}
+
+function keywordRules(keyword: string): CreateFilterDto['rules'] {
+  return {
+    combinator: 'AND',
+    groups: [
+      {
+        combinator: 'AND',
+        conditions: [{ field: 'keyword', op: 'contains', value: keyword }],
+      },
+    ],
+  };
+}
+
+function filterColor(args: Record<string, unknown>): string | null | undefined {
+  if (!('color' in args)) {
+    return undefined;
+  }
+  if (args.color === null) {
+    return null;
+  }
+  if (typeof args.color === 'string' && HEX_COLOR.test(args.color)) {
+    return args.color;
+  }
+  throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'color is invalid');
+}
+
+function filterDraft(
+  args: Record<string, unknown>,
+  required: boolean,
+): {
+  mode?: 'normal' | 'advanced';
+  rules?: CreateFilterDto['rules'];
+  color?: string | null;
+} {
+  const hasKeyword = args.keyword !== undefined;
+  const hasMatch = args.match !== undefined || args.conditions !== undefined;
+  const hasRules = args.mode !== undefined || args.rules !== undefined;
+  const forms = [hasKeyword, hasMatch, hasRules].filter(Boolean).length;
+  if (required && forms !== 1) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'provide keyword, match and conditions, or mode and rules',
+    );
+  }
+  if (!required && forms > 1) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'provide only one of keyword, match and conditions, or mode and rules',
+    );
+  }
+  const color = filterColor(args);
+  if (hasKeyword) {
+    return {
+      mode: 'normal' as const,
+      rules: keywordRules(requiredString(args, 'keyword', 200)),
+      ...(color === undefined ? {} : { color }),
+    };
+  }
+  if (hasMatch) {
+    if (args.match !== 'all' && args.match !== 'any') {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'match is invalid');
+    }
+    if (!Array.isArray(args.conditions)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'conditions are required',
+      );
+    }
+    const groupCombinator = args.match === 'all' ? 'AND' : 'OR';
+    const conditions = args.conditions as CreateFilterDto['rules']['groups'][number]['conditions'];
+    return {
+      mode: args.match === 'all' ? 'normal' : 'advanced',
+      rules: {
+        combinator: 'AND',
+        groups: [{ combinator: groupCombinator, conditions }],
+      },
+      ...(color === undefined ? {} : { color }),
+    };
+  }
+  if (hasRules) {
+    let mode: 'normal' | 'advanced' | undefined;
+    if (args.mode !== undefined) {
+      if (args.mode !== 'normal' && args.mode !== 'advanced') {
+        throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'mode is invalid');
+      }
+      mode = args.mode;
+    }
+    return {
+      ...(mode === undefined ? {} : { mode }),
+      ...(args.rules === undefined ? {} : { rules: asFilterRules(args.rules) }),
+      ...(color === undefined ? {} : { color }),
+    };
+  }
+  return color === undefined ? {} : { color };
+}
+
+function asFilterRules(value: unknown): CreateFilterDto['rules'] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'rules are invalid');
+  }
+  return value as CreateFilterDto['rules'];
+}
+
+function filterUpdate(args: Record<string, unknown>): UpdateFilterDto {
+  const drafted = filterDraft(args, false);
+  return {
+    ...(typeof args.name === 'string' ? { name: requiredString(args, 'name', 80) } : {}),
+    ...(drafted.color === undefined ? {} : { color: drafted.color }),
+    ...(drafted.mode === undefined ? {} : { mode: drafted.mode }),
+    ...(drafted.rules === undefined ? {} : { rules: drafted.rules }),
+    ...(typeof args.pinned === 'boolean' ? { pinned: args.pinned } : {}),
+  };
 }
 
 function requiredString(args: Record<string, unknown>, key: string, max: number): string {

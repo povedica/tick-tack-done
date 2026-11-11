@@ -1,0 +1,57 @@
+name: Funcionalidad
+description: Idea o funcionalidad nueva para ttd
+title: 'BKL-NNN · '
+labels: ['backlog', 'tipo:feature']
+# Cuando exista el Project, descomenta y pon su número para añadirla sola:
+# projects: ["povedica/N"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pon el siguiente ID libre en el título (BKL-NNN; mira `docs/backlog/BACKLOG.md`). Sin datos personales ni de clientes.
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: Qué problema resuelve y para quién.
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta
+      description: Qué se haría. Enlaza bocetos o spec por nombre de documento.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        [
+          calendario,
+          filtros,
+          correo,
+          infra,
+          repo,
+          hábitos,
+          plan del día,
+          nativo/PWA,
+          MCP/API,
+          proyectos,
+        ]
+    validations:
+      required: true
+  - type: dropdown
+    id: prioridad
+    attributes:
+      label: Prioridad propuesta
+      options: [P1, P2, P3]
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decisión que falta
+      description: Qué tiene que decidir Pablo antes de empezar (o «ninguna»).
+  - type: textarea
+    id: hecho
+    attributes:
+      label: Cómo se verifica en producción
+      description: La prueba que hará falta para marcarla como Desplegado.

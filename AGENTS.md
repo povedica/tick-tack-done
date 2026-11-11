@@ -1,9 +1,17 @@
 # AGENTS.md — guía para agentes de codificación (Cursor y otros)
 
 Este repositorio es un gestor de tareas personal extensible desplegado en
-`todo.reflexionia.com`. La referencia histórica del producto es la especificación
-[documentación histórica](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/spec/done/especificacion-producto-v1.1.md) (RF-xx = requisito testeable). Este archivo resume las
-normas; el detalle vive en `.cursor/rules/*.mdc`, que Cursor aplica automáticamente.
+`todo.reflexionia.com`. La referencia histórica del producto es un solo fichero
+de la revisión `340f34be17477ecab681ddc3dbfd790c9346a0ba`. El resto de ese commit
+no es fuente. Léelo antes de tocar código y cita los RF-xx que implementes:
+
+```bash
+git show 340f34be17477ecab681ddc3dbfd790c9346a0ba:docs/spec/done/especificacion-producto-v1.1.md
+```
+
+Un clon superficial no tiene ese objeto: hace falta `git fetch --unshallow`.
+Este archivo resume las normas; el detalle vive en `.cursor/rules/*.mdc`, que
+Cursor aplica automáticamente.
 
 ## Contexto mínimo antes de tocar código
 
@@ -46,6 +54,21 @@ pnpm db:seed            # datos de desarrollo
 pnpm lint && pnpm typecheck
 ```
 
+## Backlog (GitHub Projects)
+
+- El estado vivo del trabajo está en el Project «ttd · backlog». `docs/backlog/BACKLOG.md` es un
+  espejo generado (no editar su bloque a mano) y `docs/backlog/DECISIONES.md` es el registro de
+  decisiones. Reglas: `docs/backlog/PROTOCOLO-BACKLOG.md`; pasos y comandos: skill
+  `.cursor/skills/backlog-github-projects/SKILL.md`. Cursor la descubre como skill; Codex debe leer
+  ese mismo fichero al inicio y al cierre de tareas relacionadas con el backlog.
+- No empieces trabajo sin issue `BKL-NNN`. Máximo 3 elementos en «En Codex/PR».
+- Toda PR enlaza su issue: «Closes #N» si la termina, «Refs #N» si avanza. PR sin issue solo para
+  dependencias o CI, con la etiqueta `sin-backlog`.
+- Si la PR aplica o cambia una decisión, actualiza `DECISIONES.md` en la misma PR.
+- Hecho = «Desplegado»: commit visible en `/api/v1/health` y prueba en producción hecha. Antes de
+  eso, como mucho «Fusionado».
+- Las decisiones de producto son de Pablo: propón opciones y recomendación, no decidas.
+
 ## Antes de dar una tarea por terminada
 
 1. `pnpm lint`, `pnpm typecheck`, `pnpm test` en verde; integración si tocaste la API.
@@ -53,3 +76,5 @@ pnpm lint && pnpm typecheck
 3. Si tocaste eventos: catálogo de eventos actualizado (sección 11.1 de la spec).
 4. Si tocaste el modelo: migración incluida en el PR con su rollback verificado.
 5. La PR de ese punto se mergea al quedar el corte cerrado. No empieces el punto siguiente en la misma rama.
+6. Backlog al día: issue en el estado correcto del Project, PR con «Closes/Refs #N» y, si cambió una
+   decisión, `docs/backlog/DECISIONES.md` actualizado.

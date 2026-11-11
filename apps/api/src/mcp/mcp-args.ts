@@ -1,3 +1,5 @@
+import { isEmail } from 'class-validator';
+
 /**
  * TTD-AUD-54: validate MCP tool arguments against the published JSON Schema
  * (additionalProperties: false) before running the tool.
@@ -60,6 +62,9 @@ function validateNode(schema: JsonSchema, value: unknown, path: string, errors: 
     }
     if (schema.format === 'uuid' && !UUID_RE.test(value)) {
       errors.push(`${label(path)} must be a uuid`);
+    }
+    if (schema.format === 'email' && !isEmail(value)) {
+      errors.push(`${label(path)} must be an email`);
     }
     if (schema.format === 'date-time' && Number.isNaN(Date.parse(value))) {
       errors.push(`${label(path)} must be a date-time`);

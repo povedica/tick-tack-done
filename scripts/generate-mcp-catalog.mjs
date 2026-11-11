@@ -14,8 +14,10 @@ function resolve(value, seen = []) {
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, resolve(item, seen)]));
 }
 const operations = Object.entries(spec.paths).flatMap(([path, methods]) => {
-  if (!path.startsWith('/api/v1/') || path === '/api/v1/mcp') return [];
+  if (!path.startsWith('/api/v1/') || path === '/api/v1/mcp' || path.startsWith('/api/v1/mcp/'))
+    return [];
   return Object.entries(methods)
+    .filter(([method]) => agentVisible(path, method))
     .filter(([method]) => ['get', 'post', 'patch', 'put', 'delete'].includes(method))
     .map(([method, operation]) => ({
       method: method.toUpperCase(),
@@ -25,6 +27,11 @@ const operations = Object.entries(spec.paths).flatMap(([path, methods]) => {
       request_body: resolve(operation.requestBody ?? {}),
     }));
 });
+function agentVisible(path, method) {
+  if (!path.startsWith('/api/v1/auth/')) return true;
+  return path === '/api/v1/auth/session' && method === 'get';
+}
+
 await writeFile(
   new URL('apps/api/src/mcp/api-operations.json', root),
   await format(JSON.stringify(operations), {

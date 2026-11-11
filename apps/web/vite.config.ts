@@ -35,6 +35,9 @@ export default defineConfig(({ mode }) => {
           ? 'session'
           : (process.env.VITE_AUTH_MODE ?? env.VITE_AUTH_MODE ?? 'dev'),
       ),
+      'import.meta.env.VITE_RECAPTCHA_SITE_KEY': JSON.stringify(
+        process.env.VITE_RECAPTCHA_SITE_KEY ?? env.VITE_RECAPTCHA_SITE_KEY ?? '',
+      ),
       __APP_COMMIT__: JSON.stringify(/^[a-f0-9]{7,40}$/i.test(commit) ? commit : 'unknown'),
       __BUILD_TIME__: JSON.stringify(
         process.env.BUILD_TIME || env.BUILD_TIME || new Date().toISOString(),

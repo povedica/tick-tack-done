@@ -24,7 +24,7 @@ export interface LocalDayJobQueue {
 /** One waiting job per owner. A second change while it is queued does not fail the request. */
 export function timedRecalcJobOptions(ownerId: string): JobsOptions {
   return {
-    jobId: `${TIMED_RECALC}:${ownerId}`,
+    jobId: `${TIMED_RECALC}-${ownerId}`,
     removeOnComplete: true,
     removeOnFail: true,
     attempts: 3,
@@ -99,7 +99,7 @@ export class LocalDayQueue implements OnModuleInit, OnModuleDestroy {
         BACKFILL,
         { ownerId },
         {
-          jobId: `${BACKFILL}:${ownerId}`,
+          jobId: `${BACKFILL}-${ownerId}`,
           removeOnComplete: true,
           removeOnFail: true,
           attempts: 3,

@@ -4,6 +4,9 @@ export const PUBLIC_OPERATIONS = [
   'get /api/v1/auth/registration',
   'post /api/v1/auth/register',
   'post /api/v1/auth/login',
+  'post /api/v1/auth/password-reset/request',
+  'post /api/v1/auth/password-reset/verify',
+  'post /api/v1/auth/password-reset/confirm',
   'post /api/v1/oauth/token',
   'post /api/v1/oauth/register',
   'post /api/v1/oauth/revoke',
@@ -12,9 +15,11 @@ export const PUBLIC_OPERATIONS = [
   'get /browser-oauth/authorize',
   'post /api/v1/integrations/telegram/webhook',
   'post /api/v1/integrations/telegram/webhook/{ownerId}',
+  'post /api/v1/integrations/google/calendar/notifications',
   'get /api/v1/integrations/google/callback',
   'post /api/v1/inbound/email',
   'get /feeds/{token}',
+  'get /api/v1/public/lists/{token}',
 ] as const;
 
 const PUBLIC = new Set<string>(PUBLIC_OPERATIONS);

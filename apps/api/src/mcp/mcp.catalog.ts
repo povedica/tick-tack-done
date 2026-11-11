@@ -948,6 +948,102 @@ const CATALOG: readonly McpTool[] = [
     ),
   },
   {
+    name: 'list_project_members',
+    description: 'List members of a shared list.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'share_project',
+    description:
+      "Share a list with another ttd user by email. Two steps: call without confirm to preview, then confirm=true. Never share without the owner's explicit OK.",
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        email: { type: 'string', format: 'email' },
+        permission: {
+          type: 'string',
+          enum: ['read', 'comment', 'write'],
+          default: 'read',
+        },
+        confirm: { type: 'boolean' },
+      },
+      ['id', 'email'],
+    ),
+  },
+  {
+    name: 'unshare_project',
+    description: 'Remove a member from a list you own.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id, member_id: id }, ['id', 'member_id']),
+  },
+  {
+    name: 'update_project_member',
+    description: 'Change the permission of a member on a list you own.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        member_id: id,
+        permission: { type: 'string', enum: ['read', 'comment', 'write'] },
+      },
+      ['id', 'member_id', 'permission'],
+    ),
+  },
+  {
+    name: 'leave_project',
+    description: 'Leave a list that was shared with you. The owner cannot leave.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'list_share_invitations',
+    description: 'List pending invitations to lists shared with you.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({}),
+  },
+  {
+    name: 'respond_share_invitation',
+    description: 'Accept or decline a pending list invitation. accept=true accepts it.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id, accept: { type: 'boolean' } }, ['id', 'accept']),
+  },
+  {
+    name: 'get_project_public_link',
+    description:
+      'Read whether a list you own has a public read-only link. Never returns the token.',
+    scopes: ['lists:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'create_project_public_link',
+    description:
+      "Publish a read-only link to a list. Two steps. Never publish without the owner's explicit OK.",
+    scopes: ['lists:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        confirm: { type: 'boolean' },
+        include_notes: { type: 'boolean' },
+        expires_at: { type: 'string', format: 'date-time' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'regenerate_project_public_link',
+    description: 'Replace the public link. The previous link stops working. Requires confirm=true.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id, confirm: { type: 'boolean' } }, ['id']),
+  },
+  {
+    name: 'revoke_project_public_link',
+    description: 'Turn off the public link for a list you own.',
+    scopes: ['lists:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
     name: 'list_tags',
     description: 'List tags.',
     scopes: ['tags:read'],
@@ -961,18 +1057,125 @@ const CATALOG: readonly McpTool[] = [
   },
   {
     name: 'list_filters',
-    description: 'List saved filters.',
+    description: 'List saved filters. Pinned filters come first.',
     scopes: ['filters:read'],
     inputSchema: objectSchema({ limit, cursor }),
   },
   {
+    name: 'get_filter',
+    description: 'Read one saved filter.',
+    scopes: ['filters:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
     name: 'create_filter',
-    description: 'Save a normal filter that matches a keyword.',
+    description:
+      'Save a filter from a keyword, from match plus conditions, or from mode plus rules. folder: op in, value folder ids.',
     scopes: ['filters:write'],
-    inputSchema: objectSchema({ name, keyword: { type: 'string', minLength: 1 } }, [
-      'name',
-      'keyword',
-    ]),
+    inputSchema: objectSchema(
+      {
+        name,
+        keyword: { type: 'string', minLength: 1 },
+        match: { type: 'string', enum: ['all', 'any'] },
+        conditions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              field: {
+                type: 'string',
+                enum: [
+                  'list',
+                  'folder',
+                  'tag',
+                  'date',
+                  'priority',
+                  'keyword',
+                  'status',
+                  'assignee',
+                ],
+              },
+              op: { type: 'string' },
+              value: {},
+            },
+            required: ['field', 'op'],
+          },
+        },
+        mode: { type: 'string', enum: ['normal', 'advanced'] },
+        rules: { type: 'object' },
+        color: { type: 'string', nullable: true },
+      },
+      ['name'],
+    ),
+  },
+  {
+    name: 'update_filter',
+    description:
+      'Update a filter name, color, rules, or pinned state. folder: op in, value folder ids.',
+    scopes: ['filters:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        name,
+        color: { type: 'string', nullable: true },
+        match: { type: 'string', enum: ['all', 'any'] },
+        conditions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              field: {
+                type: 'string',
+                enum: [
+                  'list',
+                  'folder',
+                  'tag',
+                  'date',
+                  'priority',
+                  'keyword',
+                  'status',
+                  'assignee',
+                ],
+              },
+              op: { type: 'string' },
+              value: {},
+            },
+            required: ['field', 'op'],
+          },
+        },
+        mode: { type: 'string', enum: ['normal', 'advanced'] },
+        rules: { type: 'object' },
+        pinned: { type: 'boolean' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'delete_filter',
+    description: 'Soft-delete a saved filter.',
+    scopes: ['filters:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'restore_filter',
+    description: 'Restore a soft-deleted filter.',
+    scopes: ['filters:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'list_filter_tasks',
+    description: 'List tasks that match one saved filter.',
+    scopes: ['filters:read'],
+    inputSchema: objectSchema(
+      {
+        id,
+        group_by: { type: 'string', enum: ['none', 'section', 'date', 'tag', 'priority'] },
+        sort: { type: 'string', enum: ['manual', 'date', 'priority', 'title', 'created'] },
+        limit,
+        cursor,
+      },
+      ['id'],
+    ),
   },
   {
     name: 'list_smart_lists',
@@ -1181,7 +1384,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'list_external_calendars',
     description:
-      'List read-only external calendars. Events cannot be edited. With include_available, also list Google calendars that can be added. Times elsewhere are ISO 8601 with an offset.',
+      'List read-only external calendars. Each item includes health and last_reconciled_at. A top-level google field reports the account connection. Events cannot be edited. With include_available, also list Google calendars that can be added. Times elsewhere are ISO 8601 with an offset.',
     scopes: ['calendar:read'],
     inputSchema: objectSchema({ include_available: { type: 'boolean' } }),
   },
@@ -1228,7 +1431,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'list_calendar_events',
     description:
-      'List tasks and read-only external events in a range. include=external|tasks|all (default all). include_external=false is the older way to omit external events. External events cannot be edited. Times are ISO 8601 with an offset, in the user time zone when the event is all-day. Task rows respect the token list restriction.',
+      'List tasks and read-only external events in a range. include=external|tasks|all (default all). include_external=false is the older way to omit external events. The sync object reports aggregated health, reconnect_required, last_synced_at and last_error. Events stay listed when health is not ok. External events cannot be edited. Times are ISO 8601 with an offset, in the user time zone when the event is all-day. Task rows respect the token list restriction.',
     scopes: ['calendar:read'],
     inputSchema: objectSchema(
       {
@@ -1259,9 +1462,16 @@ const CATALOG: readonly McpTool[] = [
     ),
   },
   {
+    name: 'get_calendar_sync_status',
+    description:
+      'Read Google Calendar connection health and each subscription last_synced_at, last_error and last_reconciled_at. Health is ok, error or reconnect_required. Events stay readable when health is not ok.',
+    scopes: ['calendar:read'],
+    inputSchema: objectSchema({}),
+  },
+  {
     name: 'sync_calendar',
     description:
-      'Sync one external calendar, or every external calendar when subscription_id is omitted. Read-only for Google events.',
+      'Sync one external calendar, or every external calendar when subscription_id is omitted. Each result includes health, error and last_synced_at. google_reconnect_required is returned in that JSON. subscription_not_found stays a tool error. Read-only for Google events.',
     scopes: ['calendar:write'],
     inputSchema: objectSchema({ subscription_id: id }),
   },
@@ -1287,6 +1497,9 @@ const CATALOG: readonly McpTool[] = [
   },
 ];
 
+/** Members follow GET /projects/{id}/members: one id, no page. */
+const UNPAGED_LIST_TOOLS = new Set(['list_project_members', 'list_share_invitations']);
+
 /** Every listing shares paging inputs; task activity defaults to a compact summary. */
 const ACTIVITY_TOOLS = new Set([
   'get_task',
@@ -1304,7 +1517,9 @@ export const MCP_TOOLS: readonly McpTool[] = CATALOG.map((tool) => ({
   inputSchema: {
     ...tool.inputSchema,
     properties: {
-      ...(tool.name.startsWith('list_') ? { limit, cursor } : {}),
+      ...(tool.name.startsWith('list_') && !UNPAGED_LIST_TOOLS.has(tool.name)
+        ? { limit, cursor }
+        : {}),
       ...(ACTIVITY_TOOLS.has(tool.name)
         ? {
             include_activity: {

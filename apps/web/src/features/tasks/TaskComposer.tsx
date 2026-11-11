@@ -86,6 +86,7 @@ function TaskComposerLoaded({
   onCaptured,
   autoFocus = false,
   onDismiss,
+  placeholder,
 }: {
   readonly initialDraft?: CaptureDraft | undefined;
   readonly calendar?: boolean;
@@ -100,6 +101,7 @@ function TaskComposerLoaded({
   readonly viewDay?: ViewDay | null | undefined;
   readonly inputRef?: RefObject<HTMLInputElement | null>;
   readonly onCreated?: (() => void) | undefined;
+  readonly placeholder?: string | undefined;
 }) {
   const quickAddRequest = loadQuickAdd();
   const messages = useMessages();
@@ -450,7 +452,8 @@ function TaskComposerLoaded({
               value={text}
               disabled={frozen}
               placeholder={
-                calendar ? messages.calendarQuickTitle : fill(messages.addTaskTo, listLabel)
+                placeholder ??
+                (calendar ? messages.calendarQuickTitle : fill(messages.addTaskTo, listLabel))
               }
               autoComplete="off"
               onChange={(event) => {

@@ -38,6 +38,77 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
   `TOKEN_RATE_LIMIT_TEST` no existe en producción.
 - La línea base se reproduce con `pnpm perf:baseline`.
 
+## Backlog en GitHub Projects
+
+- Plantillas de issues y PR, workflow y scripts de sincronización del backlog.
+- Espejo del backlog, registro de decisiones y protocolo de trabajo.
+- Reglas compartidas en AGENTS.md y skill de backlog para Cursor y Codex, compatibles
+  con el campo nativo Status de GitHub. Espejo regenerado desde las issues reales.
+
+## Sin publicar
+
+## 0.2.0 (10 de noviembre de 2026)
+
+- La salud de Google Calendar (`ok`, `error`, `reconnect_required`) sale en
+  `GET /api/v1/calendar/sync-status`, en el campo `sync` de los eventos y en
+  MCP (`get_calendar_sync_status`, `sync_calendar`). Calendario y Hoy avisan
+  sin ocultar los eventos. El sondeo de Google pasa a 5 minutos; abrir
+  Calendario o Hoy sincroniza como mucho una vez por minuto, y el botón y el
+  atajo «.» llaman a `POST /calendar/sync` (RF-2563, RF-2564, RF-2565, RF-2567).
+- Google puede avisar con `events.watch`: un canal por suscripción de lectura,
+  webhook público verificado, renovación si queda menos de un día y
+  `channels.stop` al quitar la suscripción o desconectar. Sin `PUBLIC_URL`
+  https no se abre canal, queda `calendar_watch_unavailable` y el sondeo sigue.
+  No hay `robots.txt` restrictivo (RF-2566). Migración
+  `add_calendar_watch_channels`: el `down.sql` quita las columnas del canal.
+- Google Calendar borra las ocurrencias que ya no existen cuando una serie se
+  acorta o termina (`UNTIL`). La sync incremental pide `singleEvents` y
+  `showDeleted`, conserva el `syncToken` al paginar, y un maestro cancelado
+  borra también sus instancias. La primera sync tras el despliegue reconcilia
+  la ventana aunque el incremental venga vacío (RF-2560, RF-2561, RF-2562).
+  Migración `add_calendar_last_reconciled_at`: su `down.sql` quita solo
+  `last_reconciled_at`.
+- Hoy, mañana, los próximos 7 días y el calendario incluyen las tareas compartidas
+  que están asignadas a ti. La búsqueda sigue siendo solo tuya. La vista previa de
+  un filtro ya no enseña todas las tareas de una lista compartida: solo las que
+  te han asignado.
+- Un miembro puede cambiar de permiso, salir, aceptar o rechazar una invitación.
+  El dueño recibe un aviso en Compartir cuando aceptan, rechazan o se van, y
+  quien es mencionado también. Una invitación caduca a los 14 días y el
+  planificador la retira. Los recordatorios de una tarea ajena responden 403.
+- El dueño puede publicar un enlace de solo lectura (`/s/…`). Quien lo abre ve el
+  nombre de la lista y sus tareas, sin iniciar sesión y sin comentarios ni
+  personas. Regenerar o revocar deja el enlace anterior inservible al momento.
+  La fecha concreta del enlace usa un campo de fecha: el selector de tareas
+  también cambia recordatorios, y un enlace público no debe abrirlos.
+- Una lista compartida con otra persona aparece en «Compartidas conmigo» cuando
+  acepta la invitación. Leer solo mira, comentar añade comentarios y escribir
+  crea y completa tareas de esa lista. El dueño invita, cambia el permiso o
+  quita el acceso. Quien no es miembro recibe 404.
+- El editor de filtros usa campos, listas y fechas del propio diseño. Todas y
+  Alguna se distinguen, Cancelar es secundario y la pista de guardado solo se
+  marca al intentar guardar. Editar condiciones está en el menú. Una condición
+  puede citar una carpeta: vale para las tareas de las listas de esa carpeta.
+  Asignado sigue siendo un texto (nombre o email); no hay un listado global de
+  personas.
+- Un filtro guarda las etiquetas por id. Un nombre sigue valiendo al crear o
+  editar, y se resuelve sin distinguir mayúsculas. Fusionar dos etiquetas
+  reescribe los filtros que citaban la de origen. El paso de datos es
+  `pnpm --filter api exec tsx ../../scripts/backfill-filter-tag-ids.ts --dry-run`
+  antes de aplicarlo; no forma parte de la migración SQL.
+- Un filtro se puede fijar (`pinned`) y restaurar después del borrado lógico.
+  Crear o cambiar las reglas exige al menos una condición; un filtro vacío ya
+  guardado sigue leyéndose. El MCP lista, lee, crea, edita, fija, borra y
+  restaura filtros.
+- La página de filtros es una lista con menú, fijar, duplicar y borrar con
+  deshacer. La barra lateral usa el mismo menú. `/filters/:id` abre
+  `/filter/:id`.
+- El editor es un modal en escritorio y una pantalla completa en el móvil, con
+  Todas o Alguna, grupos y una vista previa que se calcula sola.
+- La vista del filtro muestra el embudo, las condiciones y las acciones en
+  «…». Un id que no existe lleva a los filtros. La captura rellena la etiqueta,
+  la lista o el día cuando la condición nombra solo uno.
+
 ## Revisión del paquete de listas
 
 - Planificar un día completo conserva la estimación de esfuerzo. Antes se
@@ -194,4 +265,4 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 
 Por petición de Pablo, se retira `docs/` del árbol. Las evidencias históricas siguen enlazadas en la PR; las nuevas ejecuciones generan artefactos ignorados por Git en `test-artifacts/`.
 
-Implementación y pruebas locales: [estado](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/audit/ESTADO.md). Las verificaciones externas pendientes se detallan en la PR; estos cambios no se han desplegado. [Contrato MCP](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/mcp/CHANGELOG.md).
+Implementación y pruebas locales: el estado quedó en la PR. Las verificaciones externas pendientes se detallan allí; estos cambios no se han desplegado. Contrato MCP: `docs/mcp/CHANGELOG.md`.

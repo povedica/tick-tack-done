@@ -24,8 +24,13 @@ fi
 
 compose_file="docker-compose.dev.yml"
 compose_args=(-f "$compose_file")
-if [[ -f "$ROOT/docker-compose.worktree.local.yml" ]]; then
+if [[ -f "$ROOT/docker-compose.worktree.local.yml" ]] \
+  && [[ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]]; then
   compose_file="docker-compose.worktree.local.yml"
-  compose_args=(-p "${COMPOSE_PROJECT_NAME:-$(basename "$ROOT")}" -f "$compose_file")
+  project="${COMPOSE_PROJECT_NAME:-}"
+  if [[ -z "$project" && -f "$ROOT/.env" ]]; then
+    project="$(grep -E '^COMPOSE_PROJECT_NAME=' "$ROOT/.env" | tail -1 | cut -d= -f2- | tr -d '"' | tr -d "'")"
+  fi
+  compose_args=(-p "${project:-$(basename "$ROOT")}" -f "$compose_file")
 fi
 exec docker compose "${compose_args[@]}" run --rm node "$@"

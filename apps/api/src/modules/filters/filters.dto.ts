@@ -21,7 +21,7 @@ const COMBINATORS = ['AND', 'OR'] as const;
 
 export class FilterConditionDto {
   @ApiProperty({
-    enum: ['list', 'tag', 'date', 'priority', 'keyword', 'status', 'assignee'],
+    enum: ['list', 'folder', 'tag', 'date', 'priority', 'keyword', 'status', 'assignee'],
   })
   @IsString()
   field!: string;
@@ -136,10 +136,22 @@ export class UpdateFilterDto {
   @IsBoolean()
   move_to_end?: boolean;
 
-  @ApiProperty({ required: false, description: 'Place the filter first in the sidebar (RF-903).' })
+  @ApiProperty({
+    required: false,
+    deprecated: true,
+    description: 'Obsolete alias of pinned. pin true sets pinned true.',
+  })
   @IsOptional()
   @IsBoolean()
   pin?: boolean;
+
+  @ApiProperty({
+    required: false,
+    description: 'Keep the filter in the pinned block (TTD-FIL-11).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  pinned?: boolean;
 }
 
 export class PreviewFilterDto {
@@ -277,6 +289,25 @@ export class ViewPageDto {
   next_cursor!: string | null;
 }
 
+export class FilterFolderLabelDto {
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  deleted!: boolean;
+}
+
+export class FilterTagLabelDto {
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  color!: string | null;
+
+  @ApiProperty()
+  deleted!: boolean;
+}
+
 export class FilterResponseDto {
   @ApiProperty()
   id!: string;
@@ -296,8 +327,17 @@ export class FilterResponseDto {
   @ApiProperty({ type: FilterRulesDto })
   rules!: FilterRulesDto;
 
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'object' } })
+  tag_labels!: Record<string, FilterTagLabelDto>;
+
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'object' } })
+  folder_labels!: Record<string, FilterFolderLabelDto>;
+
   @ApiProperty()
   sort_order!: string;
+
+  @ApiProperty()
+  pinned!: boolean;
 
   @ApiProperty()
   task_count!: number;

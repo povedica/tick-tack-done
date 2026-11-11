@@ -413,6 +413,8 @@ export interface ResourceClient {
   refreshCalendarSubscription(id: string): Promise<JsonObject>;
   deleteCalendarSubscription(id: string): Promise<void>;
   syncCalendars(): Promise<JsonObject>;
+  /** Health, last_synced_at, last_error and last_reconciled_at (RF-2563). */
+  getCalendarSyncStatus(): Promise<JsonObject>;
   matrixRules(): Promise<JsonObject>;
   saveMatrixRule(body: JsonObject): Promise<JsonObject>;
   getViewPreferences(key: string): Promise<JsonObject>;
@@ -475,6 +477,7 @@ export interface ResourceClient {
   achievements(): Promise<JsonObject>;
   setAchievements(enabled: boolean): Promise<JsonObject>;
   beginTotp(): Promise<JsonObject>;
+  totpStatus(): Promise<{ enabled: boolean }>;
   confirmTotp(code: string): Promise<JsonObject>;
   cancelTotp(): Promise<void>;
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
@@ -492,6 +495,38 @@ export interface ResourceClient {
     email: string,
     permission: 'read' | 'comment' | 'write',
   ): Promise<JsonObject>;
+  removeMember(projectId: string, memberId: string): Promise<void>;
+  updateMemberRole(
+    projectId: string,
+    memberId: string,
+    permission: 'read' | 'comment' | 'write',
+  ): Promise<JsonObject>;
+  listShareInvitations(): Promise<JsonObject>;
+  acceptShareInvitation(id: string): Promise<void>;
+  declineShareInvitation(id: string): Promise<void>;
+  leaveProject(projectId: string): Promise<void>;
+  resendShareInvitation(projectId: string, memberId: string): Promise<void>;
+  listShareNotices(): Promise<JsonObject>;
+  readShareNotice(id: string): Promise<void>;
+  assignTask(taskId: string, assigneeId: string | null): Promise<JsonObject>;
+  shareProject(
+    projectId: string,
+    email: string,
+    permission: 'read' | 'comment' | 'write',
+  ): Promise<JsonObject>;
+  unshareProject(projectId: string, memberId: string): Promise<void>;
+  getPublicLink(projectId: string): Promise<JsonObject>;
+  createPublicLink(
+    projectId: string,
+    input: { readonly expiresAt?: string | null; readonly includeNotes?: boolean },
+  ): Promise<JsonObject>;
+  regeneratePublicLink(projectId: string): Promise<JsonObject>;
+  updatePublicLink(
+    projectId: string,
+    input: { readonly expiresAt?: string | null; readonly includeNotes?: boolean },
+  ): Promise<JsonObject>;
+  revokePublicLink(projectId: string): Promise<void>;
+  getPublicList(token: string): Promise<JsonObject>;
 }
 
 export interface CalendarZoomQuery {
@@ -544,6 +579,16 @@ function pageQuery(query: PageQuery | undefined): string {
   }
   const text = params.toString();
   return text.length === 0 ? '' : `?${text}`;
+}
+
+function publicLinkBody(input: {
+  readonly expiresAt?: string | null;
+  readonly includeNotes?: boolean;
+}): JsonObject {
+  return {
+    ...(input.expiresAt === undefined ? {} : { expires_at: input.expiresAt }),
+    ...(input.includeNotes === undefined ? {} : { include_notes: input.includeNotes }),
+  };
 }
 
 export function resourceMethods(http: Http): ResourceClient {
@@ -808,6 +853,8 @@ export function resourceMethods(http: Http): ResourceClient {
       await ask('DELETE', `/api/v1/calendar/subscriptions/${id}`, undefined, undefined, isEmpty);
     },
     syncCalendars: () => ask('POST', '/api/v1/calendar/sync', undefined, undefined, isJsonObject),
+    getCalendarSyncStatus: () =>
+      ask('GET', '/api/v1/calendar/sync-status', undefined, undefined, isJsonObject),
     matrixRules: () => ask('GET', '/api/v1/matrix/rules', undefined, undefined, isJsonObject),
     saveMatrixRule: (body) => ask('PUT', '/api/v1/matrix/rules', body, undefined, isJsonObject),
     getViewPreferences: (key) =>
@@ -960,6 +1007,7 @@ export function resourceMethods(http: Http): ResourceClient {
     setAchievements: (enabled) =>
       ask('PATCH', '/api/v1/me/achievements', { enabled }, undefined, isJsonObject),
     beginTotp: () => ask('POST', '/api/v1/me/totp', undefined, undefined, isJsonObject),
+    totpStatus: () => ask('GET', '/api/v1/me/totp', undefined, undefined, isTotpStatus),
     confirmTotp: (code) =>
       ask('POST', '/api/v1/me/totp/confirm', { code }, undefined, isJsonObject),
     async cancelTotp() {
@@ -1009,6 +1057,136 @@ export function resourceMethods(http: Http): ResourceClient {
         undefined,
         isJsonObject,
       ),
+    async removeMember(projectId, memberId) {
+      await ask(
+        'DELETE',
+        `/api/v1/projects/${projectId}/members/${memberId}`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    updateMemberRole: (projectId, memberId, permission) =>
+      ask(
+        'PATCH',
+        `/api/v1/projects/${projectId}/members/${memberId}`,
+        { permission },
+        undefined,
+        isJsonObject,
+      ),
+    listShareInvitations: () =>
+      ask('GET', '/api/v1/me/share-invitations', undefined, undefined, isJsonObject),
+    async acceptShareInvitation(id) {
+      await ask('POST', `/api/v1/me/share-invitations/${id}/accept`, undefined, undefined, isEmpty);
+    },
+    async declineShareInvitation(id) {
+      await ask(
+        'POST',
+        `/api/v1/me/share-invitations/${id}/decline`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    async leaveProject(projectId) {
+      await ask(
+        'DELETE',
+        `/api/v1/projects/${projectId}/membership`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    async resendShareInvitation(projectId, memberId) {
+      await ask(
+        'POST',
+        `/api/v1/projects/${projectId}/members/${memberId}/resend`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    listShareNotices: () =>
+      ask('GET', '/api/v1/me/share-notices', undefined, undefined, isJsonObject),
+    async readShareNotice(id) {
+      await ask('POST', `/api/v1/me/share-notices/${id}/read`, undefined, undefined, isEmpty);
+    },
+    assignTask: (taskId, assigneeId) =>
+      ask(
+        'POST',
+        `/api/v1/tasks/${taskId}/assignee`,
+        { assignee_id: assigneeId },
+        undefined,
+        isJsonObject,
+      ),
+    shareProject: (projectId, email, permission) =>
+      ask(
+        'POST',
+        `/api/v1/projects/${projectId}/members`,
+        { email, permission },
+        undefined,
+        isJsonObject,
+      ),
+    async unshareProject(projectId, memberId) {
+      await ask(
+        'DELETE',
+        `/api/v1/projects/${projectId}/members/${memberId}`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    getPublicLink: (projectId) =>
+      ask('GET', `/api/v1/projects/${projectId}/public-link`, undefined, undefined, isJsonObject),
+    createPublicLink: (projectId, input) =>
+      ask(
+        'POST',
+        `/api/v1/projects/${projectId}/public-link`,
+        publicLinkBody(input),
+        undefined,
+        isJsonObject,
+      ),
+    regeneratePublicLink: (projectId) =>
+      ask(
+        'POST',
+        `/api/v1/projects/${projectId}/public-link/regenerate`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
+    updatePublicLink: (projectId, input) =>
+      ask(
+        'PATCH',
+        `/api/v1/projects/${projectId}/public-link`,
+        publicLinkBody(input),
+        undefined,
+        isJsonObject,
+      ),
+    async revokePublicLink(projectId) {
+      await ask(
+        'DELETE',
+        `/api/v1/projects/${projectId}/public-link`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    async getPublicList(token) {
+      const prefix = http.options.baseUrl.replace(/\/$/, '');
+      const response = await http.call(
+        `${prefix}/api/v1/public/lists/${encodeURIComponent(token)}`,
+        {
+          method: 'GET',
+          credentials: 'omit',
+          headers: { accept: 'application/json' },
+        },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok || !isJsonObject(payload)) {
+        throw new ApiError(response.status, 'request_failed', 'Public list was not found');
+      }
+      return payload;
+    },
   };
 }
 
@@ -1193,6 +1371,10 @@ function isCount(value: unknown): value is CountResult {
     typeof value.updated === 'number' ||
     typeof value.archived === 'number'
   );
+}
+
+function isTotpStatus(value: unknown): value is { enabled: boolean } {
+  return isJsonObject(value) && typeof value.enabled === 'boolean';
 }
 
 function isJsonObject(value: unknown): value is JsonObject {

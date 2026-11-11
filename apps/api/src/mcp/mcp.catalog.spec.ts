@@ -54,10 +54,26 @@ describe('MCP tool catalog', () => {
       'create_habit',
       'list_projects',
       'create_filter',
+      'get_filter',
+      'update_filter',
+      'delete_filter',
+      'restore_filter',
+      'list_filter_tasks',
       'list_notes',
       'start_focus',
     ]) {
       expect(names).not.toContain(hidden);
+    }
+  });
+
+  it('create_filter and update_filter list folder as a condition field', () => {
+    for (const name of ['create_filter', 'update_filter']) {
+      const tool = MCP_TOOLS.find((item) => item.name === name);
+      const conditions = tool?.inputSchema.properties.conditions as {
+        items?: { properties?: { field?: { enum?: string[] } } };
+      };
+      expect(conditions.items?.properties?.field?.enum).toContain('folder');
+      expect(tool?.description).toContain('folder: op in, value folder ids');
     }
   });
 
@@ -117,6 +133,7 @@ describe('MCP tool catalog', () => {
         'list_calendar_events',
         'calendar_summary',
         'calendar_range',
+        'get_calendar_sync_status',
       ]),
     );
     expect(read).not.toContain('sync_calendar');
@@ -181,7 +198,26 @@ describe('MCP tool catalog', () => {
   it('lists folders and project state on lists scopes', () => {
     const read = visibleTools(['lists:read']).map((tool) => tool.name);
     const write = visibleTools(['lists:write']).map((tool) => tool.name);
-    expect(read).toEqual(expect.arrayContaining(['list_folders', 'list_projects']));
+    expect(read).toEqual(
+      expect.arrayContaining([
+        'list_folders',
+        'list_projects',
+        'list_project_members',
+        'get_project_public_link',
+      ]),
+    );
+    expect(read).not.toContain('share_project');
+    expect(read).not.toContain('unshare_project');
+    expect(read).not.toContain('create_project_public_link');
+    expect(write).toContain('share_project');
+    expect(write).toContain('unshare_project');
+    expect(write).toContain('create_project_public_link');
+    expect(write).toContain('revoke_project_public_link');
+    expect(write).toContain('update_project_member');
+    expect(read).toContain('list_share_invitations');
+    expect(read).toContain('leave_project');
+    expect(read).toContain('respond_share_invitation');
+    expect(read).not.toContain('update_project_member');
     const writing = [
       'create_folder',
       'update_folder',
@@ -244,6 +280,21 @@ describe('MCP tool catalog', () => {
     expect(visibleTools(['lists:read']).map((tool) => tool.name)).not.toContain(
       'mark_project_reviewed',
     );
+    const share = MCP_TOOLS.find((tool) => tool.name === 'share_project');
+    expect(share?.inputSchema.additionalProperties).toBe(false);
+    expect(share?.inputSchema.properties).not.toHaveProperty('token_id');
+    expect(share?.description).toBe(
+      "Share a list with another ttd user by email. Two steps: call without confirm to preview, then confirm=true. Never share without the owner's explicit OK.",
+    );
+    expect(MCP_TOOLS.find((tool) => tool.name === 'unshare_project')?.description).toBe(
+      'Remove a member from a list you own.',
+    );
+    const publish = MCP_TOOLS.find((tool) => tool.name === 'create_project_public_link');
+    expect(publish?.inputSchema.additionalProperties).toBe(false);
+    expect(publish?.description).toContain("Never publish without the owner's explicit OK.");
+    const members = MCP_TOOLS.find((tool) => tool.name === 'list_project_members');
+    expect(members?.scopes).toEqual(['lists:read']);
+    expect(Object.keys(members?.inputSchema.properties ?? {})).toEqual(['id']);
   });
 });
 
@@ -255,7 +306,10 @@ it('TTD-AUD-82: cancellation explains history, reopening and trash separately', 
 });
 
 it('TTD-AUD-83: every list tool declares limit and opaque cursor', () => {
-  for (const tool of MCP_TOOLS.filter((tool) => tool.name.startsWith('list_'))) {
+  const unpaged = new Set(['list_project_members', 'list_share_invitations']);
+  for (const tool of MCP_TOOLS.filter(
+    (tool) => tool.name.startsWith('list_') && !unpaged.has(tool.name),
+  )) {
     expect(tool.inputSchema.properties, tool.name).toHaveProperty('cursor');
     expect(tool.inputSchema.properties, tool.name).toHaveProperty('limit');
   }

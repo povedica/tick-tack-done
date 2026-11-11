@@ -8,4 +8,4 @@ alwaysApply: true
 - Sin commits directos a `main`: rama por tarea (`feat/habits`), PR, CI en verde (lint, format, typecheck, unit, integration, openapi-check).
 - Una feature o un punto del roadmap = una PR. Cita los RF-xx. Cuando ese corte termina, se mergea. El punto siguiente abre otra rama desde `main`; no se apila en la PR abierta.
 - Si el PR toca el modelo: incluye migración y su rollback verificado. Si toca eventos: catálogo de la sección 11.1 actualizado. Si toca la API: OpenAPI regenerado.
-- Por petición expresa del usuario, `docs/` se ha retirado del repositorio. Documenta cambios y decisiones en la PR y en `CHANGELOG.md`; conserva evidencias con enlaces al commit histórico.
+- `docs/mcp/` vive en el repositorio. `docs/audit/`, `docs/spec/` y las capturas no. Documenta cambios y decisiones en la PR y en `CHANGELOG.md`.

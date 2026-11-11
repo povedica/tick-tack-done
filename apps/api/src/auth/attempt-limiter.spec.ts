@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DomainException } from '../http/domain.exception.js';
+import { hashSecret } from './session-cookie.js';
 import { AttemptLimiter } from './attempt-limiter.js';
 
 describe('AttemptLimiter OAuth isolation', () => {
@@ -75,5 +76,19 @@ describe('AttemptLimiter OAuth isolation', () => {
     await limiter.recordRegistration('10.0.0.4');
     await expect(limiter.assertRegistration('10.0.0.4')).rejects.toBeInstanceOf(DomainException);
     await expect(limiter.assertOauthAllowed('10.0.0.4', 'oauth:client')).resolves.toBeUndefined();
+  });
+
+  it('RF-PR-09: reset email uses a 60 minute window and a hashed key', async () => {
+    process.env.AUTH_RESET_EMAIL_LIMIT = '2';
+    const limiter = new AttemptLimiter();
+    const email = 'ada@example.test';
+    const bucket = `reset-email:${hashSecret(email)}`;
+    expect(bucket).not.toContain(email);
+    expect(limiter.windowMs(bucket)).toBe(60 * 60 * 1000);
+    expect(limiter.windowMs('reset-ip:10.0.0.8')).toBe(15 * 60 * 1000);
+    await limiter.consumeNamed(bucket);
+    await limiter.consumeNamed(bucket);
+    expect(await limiter.allowed(bucket)).toBe(false);
+    await expect(limiter.assertNamed('reset-ip:10.0.0.8')).resolves.toBeUndefined();
   });
 });

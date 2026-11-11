@@ -1,5 +1,6 @@
 import { McpRevision } from './mcp-revision.js';
 import { Module } from '@nestjs/common';
+import { CollaborationModule } from '../modules/collaboration/collaboration.module.js';
 import { FiltersModule } from '../modules/filters/filters.module.js';
 import { CountdownsModule } from '../modules/countdowns/countdowns.module.js';
 import { HabitsModule } from '../modules/habits/habits.module.js';
@@ -14,6 +15,7 @@ import { McpService } from './mcp.service.js';
 
 @Module({
   imports: [
+    CollaborationModule,
     TasksModule,
     PlanningModule,
     ListsModule,

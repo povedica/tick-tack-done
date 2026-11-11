@@ -17,7 +17,7 @@ import { purgeTrashTask } from './purge-trash';
 import { displayTitle } from './displayTitle';
 import { completeBody } from './complete-body';
 import { TaskComposer } from './TaskComposer';
-import { openTaskComposer } from '../capture/notice';
+import { openTaskComposer, type CaptureDraft } from '../capture/notice';
 import { formatTaskRowDate } from './row-date';
 import { isOverdue, isSameDay, type RowModel } from './model';
 import { calendarDay } from '../today/groups';
@@ -106,6 +106,8 @@ export function TaskList({
   manualOrder = false,
   trash = false,
   highlightQuery = '',
+  captureDraft,
+  capturePlaceholder,
 }: {
   readonly messages: Messages;
   readonly rows: readonly TaskListRow[];
@@ -123,6 +125,8 @@ export function TaskList({
   readonly manualOrder?: boolean | undefined;
   readonly trash?: boolean | undefined;
   readonly highlightQuery?: string;
+  readonly captureDraft?: CaptureDraft | undefined;
+  readonly capturePlaceholder?: string | undefined;
 }) {
   const queryClient = useQueryClient();
   const catalog = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
@@ -219,7 +223,9 @@ export function TaskList({
     <div>
       {createProjectId !== undefined && view !== 'kanban' ? (
         <TaskComposer
-          defaultProjectId={createProjectId}
+          defaultProjectId={captureDraft?.project ?? createProjectId}
+          {...(captureDraft === undefined ? {} : { initialDraft: captureDraft })}
+          {...(capturePlaceholder === undefined ? {} : { placeholder: capturePlaceholder })}
           viewDay={createViewDay}
           onCreated={onCreated}
         />

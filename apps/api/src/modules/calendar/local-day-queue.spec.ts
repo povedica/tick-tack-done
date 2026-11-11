@@ -14,7 +14,7 @@ describe('timed event recalc queue', () => {
     };
     await enqueueTimedRecalcJob(queue, 'owner-1');
     expect(added).toEqual([
-      { name: 'timed-recalc', ownerId: 'owner-1', jobId: 'timed-recalc:owner-1' },
+      { name: 'timed-recalc', ownerId: 'owner-1', jobId: 'timed-recalc-owner-1' },
     ]);
 
     const duplicate: LocalDayJobQueue = {

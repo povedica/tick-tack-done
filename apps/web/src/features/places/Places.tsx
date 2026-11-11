@@ -17,6 +17,11 @@ import { allDaySlot, type CalendarSlot, type SlotAnchor } from '../capture/calen
 import { runAction } from '../../components/run-action';
 import { CalendarMenu, CalendarPeriod } from '../calendar/CalendarControls';
 import {
+  CalendarSyncButton,
+  GoogleCalendarHealthBanner,
+} from '../calendar/GoogleCalendarHealthBanner';
+import { useCalendarSyncOnOpen } from '../calendar/sync-calendars';
+import {
   CalendarDays,
   ChevronDown,
   Plus,
@@ -91,6 +96,7 @@ const CAL_VIEWS = [
 
 
 export function CalendarPage() {
+  useCalendarSyncOnOpen();
   const composerClient = useQueryClient();
   const taskChange = useCalendarTaskChange();
   const [draft, setDraft] = useState<{ slot: CalendarSlot; anchor: SlotAnchor } | null>(null);
@@ -364,6 +370,7 @@ export function CalendarPage() {
   };
   return (
     <section className={`screen-page is-wide calendar-page calendar-${current ?? 'month'}`}>
+      <GoogleCalendarHealthBanner />
       <header className="calendar-toolbar">
         <SidebarFoldButton />
         {current !== 'agenda' ? (
@@ -430,6 +437,7 @@ export function CalendarPage() {
             <Plus size={17} aria-hidden="true" />
           </Button>
         ) : null}
+        <CalendarSyncButton />
         <CalendarMenu
           className="calendar-filter-menu"
           label={messages.calendarFilterTitle}

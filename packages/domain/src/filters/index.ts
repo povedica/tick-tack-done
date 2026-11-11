@@ -10,7 +10,9 @@ export {
 } from './clause';
 export type { FilterClause, FilterClock, FilterSubject } from './clause';
 
-export { parseFilterRules } from './parse';
+export { parseFilterRules, requireConditions } from './parse';
+export { isFilterTagId, partitionTagValues, resolveTagReference, rewriteMergedTag } from './tags';
+export type { TagRef } from './tags';
 export type { FilterParse } from './parse';
 
 export {

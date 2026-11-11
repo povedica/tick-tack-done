@@ -25,6 +25,7 @@ export async function requestPublicApi(
   } catch {
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Invalid API path');
   }
+  const method = typeof args.method === 'string' ? args.method : 'GET';
   if (
     url.origin !== origin ||
     !url.pathname.startsWith('/api/v1/') ||
@@ -32,15 +33,17 @@ export async function requestPublicApi(
     decoded.includes('%') ||
     url.hash ||
     decoded === '/api/v1/mcp' ||
-    decoded.startsWith('/api/v1/mcp/')
+    decoded.startsWith('/api/v1/mcp/') ||
+    agentBlockedAuth(decoded, method)
   ) {
     throw new DomainException(
       HttpStatus.BAD_REQUEST,
       'validation_failed',
-      'Only public API v1 paths excluding MCP are allowed',
+      agentBlockedAuth(decoded, method)
+        ? 'This API path is not available to agents'
+        : 'Only public API v1 paths excluding MCP are allowed',
     );
   }
-  const method = typeof args.method === 'string' ? args.method : 'GET';
   if (method === 'GET' && (args.body !== undefined || args.files !== undefined))
     throw new DomainException(
       HttpStatus.BAD_REQUEST,
@@ -164,6 +167,14 @@ function multipartFile(value: unknown): MultipartFile {
         : 'application/octet-stream',
   };
 }
+/** D-5. Agents may read the current session. Login, register and password reset stay human-only. */
+function agentBlockedAuth(path: string, method: string): boolean {
+  if (!path.startsWith('/api/v1/auth/')) {
+    return false;
+  }
+  return !(path === '/api/v1/auth/session' && method.toUpperCase() === 'GET');
+}
+
 function* multipartChunks(
   boundary: string,
   body: unknown,

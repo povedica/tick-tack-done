@@ -13,7 +13,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiExtraModels, ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -24,6 +24,7 @@ import {
   CreateFilterDto,
   FilterPageDto,
   FilterResponseDto,
+  FilterTagLabelDto,
   PreviewFilterDto,
   UpdateFilterDto,
   ViewPageDto,
@@ -31,6 +32,7 @@ import {
 import { FiltersService } from './filters.service.js';
 
 @ApiTags('filters')
+@ApiExtraModels(FilterTagLabelDto)
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })
 @Controller('filters')
 export class FiltersController {
@@ -136,6 +138,19 @@ export class FiltersController {
     @Res() res: Response,
   ): Promise<void> {
     respondJson(req, res, 200, await this.filters.update(user, id, dto), false);
+  }
+
+  @Post(':id/restore')
+  @Scopes('filters:write')
+  @ApiOperation({ summary: 'Restore a deleted filter (TTD-FIL-03)' })
+  @ApiOkResponse({ type: FilterResponseDto })
+  async restore(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.filters.restore(user, id), false);
   }
 
   @Delete(':id')
