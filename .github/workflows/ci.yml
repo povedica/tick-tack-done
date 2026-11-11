@@ -58,6 +58,8 @@ jobs:
               - 'scripts/**'
 
   code-checks:
+    env:
+      FORMAT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
     needs: changes
     if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
@@ -253,6 +255,8 @@ jobs:
           bash scripts/public-tree-guard.sh --diff-base "origin/${{ github.base_ref }}"
 
   docs-format:
+    env:
+      FORMAT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
     needs: changes
     if: github.event_name != 'push' && needs.changes.outputs.code != 'true'
     runs-on: ubuntu-24.04

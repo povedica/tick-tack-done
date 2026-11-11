@@ -16,7 +16,7 @@
     "build": "bash scripts/with-node.sh sh -c \"pnpm -r --filter '!reflexionia-tasks' build\"",
     "lint": "bash scripts/with-node.sh sh -c \"pnpm --filter @reflexionia/domain build && pnpm -r --filter '!reflexionia-tasks' lint\"",
     "format": "bash scripts/with-node.sh pnpm exec prettier --write .",
-    "format:check": "bash scripts/with-node.sh pnpm exec prettier --check .",
+    "format:check": "bash scripts/with-node.sh node scripts/ci/format-check.mjs",
     "typecheck": "bash scripts/with-node.sh sh -c \"pnpm --filter @reflexionia/domain build && pnpm -r --filter '!reflexionia-tasks' typecheck\"",
     "test": "bash scripts/with-node.sh sh -c \"pnpm --filter @reflexionia/domain build && pnpm -r --filter '!reflexionia-tasks' test\"",
     "test:integration": "bash scripts/with-node.sh pnpm --filter api test:integration",

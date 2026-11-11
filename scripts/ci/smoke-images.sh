@@ -3,7 +3,7 @@
 set -euo pipefail
 api=${1:?API image}; web=${2:?Web image}; sha=${3:?Expected API SHA}
 name="ttd-smoke-$$"
-# shellcheck disable=SC2329 # Invoked by EXIT trap.
+# shellcheck disable=SC2317,SC2329 # Invoked by EXIT trap (ShellCheck 0.9/0.11).
 cleanup() {
   docker rm -f "$name-api" "$name-web" "$name-pg" "$name-redis" >/dev/null 2>&1 || true
   docker network rm "$name" >/dev/null 2>&1 || true
