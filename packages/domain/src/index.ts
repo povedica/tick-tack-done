@@ -157,6 +157,7 @@ export {
 } from './priority/priority';
 export type { TickTickPriority } from './priority/priority';
 
+export { normalizeStoredNewlines } from './text/newlines';
 export { extractMarkdownChecklist } from './checklist/markdown';
 export type { ExtractedChecklist, ExtractedChecklistItem } from './checklist/markdown';
 export { checklistProgress } from './checklist/progress';
