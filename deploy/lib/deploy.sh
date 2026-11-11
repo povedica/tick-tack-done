@@ -65,8 +65,7 @@ running_web=$(current_image "$web")
 changed=()
 [[ $API_IMAGE == "$running_api" ]] || changed+=("$api")
 [[ $WEB_IMAGE == "$running_web" ]] || changed+=("$web")
-if [[ ${#changed[@]} == 0 ]]; then echo 'No image changes'; exit 0; fi
-if ! $build; then compose pull "${changed[@]}"; fi
+if ! $build && [[ ${#changed[@]} -gt 0 ]]; then compose pull "${changed[@]}"; fi
 image_commit() {
   docker image inspect "$1" --format '{{json .Config.Env}}' | jq -r '.[] | select(startswith("GIT_COMMIT=")) | sub("^GIT_COMMIT="; "")'
 }
@@ -98,14 +97,17 @@ rollback() {
   local proxy_status=0
   restore_proxy || proxy_status=$?
   API_IMAGE=$old_api; WEB_IMAGE=$old_web; export API_IMAGE WEB_IMAGE
-  compose up -d --no-build --no-deps "${changed[@]}"
+  if [[ ${#changed[@]} -gt 0 ]]; then compose up -d --no-build --no-deps "${changed[@]}" || return 1; fi
   health "$(image_commit "$old_api")" 45 || return 1
   return "$proxy_status"
 }
 # shellcheck source=deploy/lib/migrate.sh
 source "$root/deploy/lib/migrate.sh"
 if [[ $API_IMAGE != "$running_api" ]]; then migrate_before_replace; fi
-if ! compose up -d --no-build --no-deps --remove-orphans "${changed[@]}" || ! after_replace || ! health "$expected" 90; then
+replace_changed() {
+  if [[ ${#changed[@]} -gt 0 ]]; then compose up -d --no-build --no-deps --remove-orphans "${changed[@]}"; fi
+}
+if ! replace_changed || ! after_replace || ! health "$expected" 90; then
   rollback || echo 'Rollback health failed; operator action required' >&2
   exit 1
 fi
