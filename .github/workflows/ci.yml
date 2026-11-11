@@ -83,7 +83,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2]
     needs: changes
     if: github.event_name == 'push' || needs.changes.outputs.api == 'true'
     timeout-minutes: 15
@@ -121,7 +121,7 @@ jobs:
           echo "$RUNNER_TEMP/pg-bin" >> "$GITHUB_PATH"
       - run: pnpm db:deploy
       - run: pnpm --filter api exec nest build
-      - run: pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard=${{ matrix.shard }}/3
+      - run: pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard=${{ matrix.shard }}/2
         env:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
 

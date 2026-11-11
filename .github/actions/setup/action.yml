@@ -14,7 +14,7 @@ runs:
       id: domain
       with:
         path: packages/domain/dist
-        key: domain-${{ runner.os }}-${{ hashFiles('packages/domain/**', 'tsconfig.base.json', 'pnpm-lock.yaml') }}
+        key: domain-${{ runner.os }}-${{ hashFiles('packages/domain/src/**', 'packages/domain/tsconfig*.json', 'packages/domain/package.json', 'tsconfig.base.json', 'pnpm-lock.yaml') }}
     - if: steps.domain.outputs.cache-hit != 'true'
       run: pnpm --filter @reflexionia/domain build
       shell: bash

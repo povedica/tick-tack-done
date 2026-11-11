@@ -99,6 +99,12 @@ jobs:
             BUILD_TIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
+      - name: Smoke published API and migration failure isolation
+        env:
+          IMAGE: ghcr.io/povedica/tick-tack-done-api:${{ github.sha }}
+        run: |
+          docker pull "$IMAGE"
+          bash scripts/ci/test-migrations.sh "$IMAGE"
 
   web:
     needs: changes
@@ -149,6 +155,19 @@ jobs:
             VITE_RECAPTCHA_SITE_KEY=${{ vars.VITE_RECAPTCHA_SITE_KEY }}
           cache-from: type=gha,scope=web-${{ matrix.suffix }}
           cache-to: type=gha,mode=max,scope=web-${{ matrix.suffix }}
+      - name: Smoke published web
+        env:
+          IMAGE: ghcr.io/povedica/tick-tack-done-web:${{ github.sha }}-${{ matrix.suffix }}
+        run: |
+          docker pull "$IMAGE"
+          name="ttd-web-smoke-$GITHUB_RUN_ID"
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$name" "$IMAGE"
+          for _ in {1..15}; do
+            if docker exec "$name" wget -q -O /dev/null http://127.0.0.1:8080/; then exit 0; fi
+            sleep 1
+          done
+          exit 1
 
   deployment-plan:
     needs: [changes, api, web]

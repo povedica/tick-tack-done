@@ -17,7 +17,7 @@ for _ in {1..30}; do
   docker exec "$name-pg" pg_isready -U postgres >/dev/null 2>&1 && break
   sleep 1
 done
-docker run -d --name "$name-api" --network "$name" \
+docker run -d --name "$name-api" --network "$name" --read-only --tmpfs /tmp \
   -e NODE_ENV=development -e AUTH_MODE=dev -e SCHEDULER_AUTOSTART=false -e BUS_AUTOSTART=false \
   -e DATABASE_URL=postgresql://postgres:smoke@postgres:5432/smoke -e REDIS_URL=redis://redis:6379 \
   "$api" >/dev/null
@@ -29,7 +29,7 @@ for _ in {1..60}; do
   sleep 1
 done
 [[ $ok == 1 ]] || { echo 'API smoke failed' >&2; exit 1; }
-docker run -d --name "$name-web" --network "$name" --network-alias web "$web" >/dev/null
+docker run -d --name "$name-web" --network "$name" --network-alias web --read-only --tmpfs /tmp --tmpfs /var/cache/nginx --tmpfs /var/run "$web" >/dev/null
 for _ in {1..15}; do
   if docker exec "$name-web" wget -q -O /dev/null http://127.0.0.1:8080/; then
     echo 'Image smoke OK'; exit 0
