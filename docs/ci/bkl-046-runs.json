@@ -1,50 +1,53 @@
 {
-  "measured_at": "2026-11-11T22:42:40.371109+00:00",
-  "since_sha": "4bcd63e03a5c11641a0071cb7b10e245847f8a33",
-  "definition_sha256": "4f658955be2b31cd64e0ec0c29b20a75e16907facf2994d640afd2e854c5e845",
+  "measured_at": "2026-11-11T23:16:14.276825+00:00",
+  "since_sha": "6ede440543d007deb42830358e5595dde90f4d99",
+  "definition_sha256": "c4edf77a01f4ecadc6be53145c576b1b387a9bc0c9a85dbb7ebdeb858604416e",
   "summary": {
-    "n": 2,
-    "median_seconds": 204.0,
-    "p90_seconds": 219.0,
-    "median_runner_min": 8.225,
+    "n": 1,
+    "median_seconds": 170.0,
+    "p90_seconds": 170.0,
+    "median_runner_min": 7.516666666666667,
     "results": {
-      "success": 1,
-      "failure": 1
+      "success": 1
     }
   },
   "runs": [
     {
-      "id": 43111610312,
-      "sha": "4bcd63e03a5c11641a0071cb7b10e245847f8a33",
-      "created_at": "2026-11-11T22:25:14Z",
+      "id": 43117956330,
+      "sha": "6ede440543d007deb42830358e5595dde90f4d99",
+      "created_at": "2026-11-11T23:12:01Z",
       "conclusion": "success",
-      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43111610312",
-      "seconds": 219.0,
-      "queue_seconds": 32.0,
-      "runner_min": 7.916666666666667,
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43117956330",
+      "seconds": 170.0,
+      "queue_seconds": 2.0,
+      "runner_min": 7.516666666666667,
       "jobs": {
         "changes": {
-          "seconds": 16.0,
+          "seconds": 5.0,
           "conclusion": "success"
         },
         "public-tree-guard": {
           "seconds": 17.0,
           "conclusion": "success"
         },
-        "infra-check": {
-          "seconds": 22.0,
-          "conclusion": "success"
-        },
         "test-integration": {
-          "seconds": 130.0,
-          "conclusion": "success"
-        },
-        "code-checks": {
-          "seconds": 159.0,
+          "seconds": 157.0,
           "conclusion": "success"
         },
         "test-unit": {
-          "seconds": 118.0,
+          "seconds": 100.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 140.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 18.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 3.0,
           "conclusion": "success"
         },
         "openapi-check": {
@@ -55,65 +58,9 @@
           "seconds": 4.0,
           "conclusion": "success"
         },
-        "quality": {
-          "seconds": 2.0,
-          "conclusion": "success"
-        },
         "ci-ok": {
           "seconds": 3.0,
           "conclusion": "success"
-        }
-      }
-    },
-    {
-      "id": 43112636031,
-      "sha": "158623d9d287d9d8a5bdd5f5dfbc07935f471a6e",
-      "created_at": "2026-11-11T22:32:37Z",
-      "conclusion": "failure",
-      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43112636031",
-      "seconds": 189.0,
-      "queue_seconds": 2.0,
-      "runner_min": 8.533333333333333,
-      "jobs": {
-        "public-tree-guard": {
-          "seconds": 22.0,
-          "conclusion": "success"
-        },
-        "changes": {
-          "seconds": 5.0,
-          "conclusion": "success"
-        },
-        "test-integration": {
-          "seconds": 156.0,
-          "conclusion": "failure"
-        },
-        "test-unit": {
-          "seconds": 122.0,
-          "conclusion": "success"
-        },
-        "infra-check": {
-          "seconds": 26.0,
-          "conclusion": "success"
-        },
-        "code-checks": {
-          "seconds": 169.0,
-          "conclusion": "success"
-        },
-        "r80-browser-contracts": {
-          "seconds": 2.0,
-          "conclusion": "success"
-        },
-        "quality": {
-          "seconds": 3.0,
-          "conclusion": "success"
-        },
-        "openapi-check": {
-          "seconds": 3.0,
-          "conclusion": "success"
-        },
-        "ci-ok": {
-          "seconds": 4.0,
-          "conclusion": "failure"
         }
       }
     }

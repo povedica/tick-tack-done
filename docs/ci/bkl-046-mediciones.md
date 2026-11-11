@@ -12,18 +12,17 @@ No se da por aceptado el candidato sin medir la muestra suficiente y el head ver
 
 | Métrica              | Antes | Después |
 | -------------------- | ----- | ------- |
-| Nº de runs           | 30    | 2       |
-| Duración mediana     | 4:38  | 3:24    |
-| Duración p90         | 5:45  | 3:39    |
-| Runner-min mediana   | 11,3  | 8.22    |
-| Reducción runner-min | —     | 27.2 %  |
+| Nº de runs           | 30    | 1       |
+| Duración mediana     | 4:38  | 2:50    |
+| Duración p90         | 5:45  | 2:50    |
+| Runner-min mediana   | 11,3  | 7.52    |
+| Reducción runner-min | —     | 33.5 %  |
 
 ## Runs
 
 | Run                                                                                | SHA       | Resultado | Duración | Cola | Runner-min |
 | ---------------------------------------------------------------------------------- | --------- | --------- | -------- | ---- | ---------- |
-| [43111610312](https://github.com/povedica/tick-tack-done/actions/runs/43111610312) | `4bcd63e` | success   | 3:39     | 0:32 | 7.92       |
-| [43112636031](https://github.com/povedica/tick-tack-done/actions/runs/43112636031) | `158623d` | failure   | 3:09     | 0:02 | 8.53       |
+| [43117956330](https://github.com/povedica/tick-tack-done/actions/runs/43117956330) | `6ede440` | success   | 2:50     | 0:02 | 7.52       |
 
 ## Jobs correctos
 
@@ -32,16 +31,16 @@ No comparar sus segundos de resumen con los antiguos jobs completos. Unitarios e
 
 | Job                   | N   | Mediana | p90  |
 | --------------------- | --- | ------- | ---- |
-| changes               | 2   | 0:10    | 0:16 |
+| changes               | 1   | 0:05    | 0:05 |
 | ci-ok                 | 1   | 0:03    | 0:03 |
-| code-checks           | 2   | 2:44    | 2:49 |
-| infra-check           | 2   | 0:24    | 0:26 |
-| openapi-check         | 2   | 0:04    | 0:04 |
-| public-tree-guard     | 2   | 0:20    | 0:22 |
-| quality               | 2   | 0:02    | 0:03 |
-| r80-browser-contracts | 2   | 0:03    | 0:04 |
-| test-integration      | 1   | 2:10    | 2:10 |
-| test-unit             | 2   | 2:00    | 2:02 |
+| code-checks           | 1   | 2:20    | 2:20 |
+| infra-check           | 1   | 0:18    | 0:18 |
+| openapi-check         | 1   | 0:04    | 0:04 |
+| public-tree-guard     | 1   | 0:17    | 0:17 |
+| quality               | 1   | 0:03    | 0:03 |
+| r80-browser-contracts | 1   | 0:04    | 0:04 |
+| test-integration      | 1   | 2:37    | 2:37 |
+| test-unit             | 1   | 1:40    | 1:40 |
 
 ## Límites de evidencia
 
