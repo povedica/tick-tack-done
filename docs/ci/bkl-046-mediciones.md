@@ -12,17 +12,18 @@ No se da por aceptado el candidato sin medir la muestra suficiente y el head ver
 
 | Métrica              | Antes | Después |
 | -------------------- | ----- | ------- |
-| Nº de runs           | 30    | 1       |
-| Duración mediana     | 4:38  | 2:31    |
-| Duración p90         | 5:45  | 2:31    |
-| Runner-min mediana   | 11,3  | 6.65    |
-| Reducción runner-min | —     | 41.2 %  |
+| Nº de runs           | 30    | 2       |
+| Duración mediana     | 4:38  | 2:33    |
+| Duración p90         | 5:45  | 2:35    |
+| Runner-min mediana   | 11,3  | 7.00    |
+| Reducción runner-min | —     | 38.1 %  |
 
 ## Runs
 
 | Run                                                                                | SHA       | Resultado | Duración | Cola | Runner-min |
 | ---------------------------------------------------------------------------------- | --------- | --------- | -------- | ---- | ---------- |
 | [43120661019](https://github.com/povedica/tick-tack-done/actions/runs/43120661019) | `9737335` | success   | 2:31     | 0:02 | 6.65       |
+| [43121328108](https://github.com/povedica/tick-tack-done/actions/runs/43121328108) | `873d355` | success   | 2:35     | 0:02 | 7.35       |
 
 ## Jobs correctos
 
@@ -31,16 +32,16 @@ No comparar sus segundos de resumen con los antiguos jobs completos. Unitarios e
 
 | Job                   | N   | Mediana | p90  |
 | --------------------- | --- | ------- | ---- |
-| changes               | 1   | 0:05    | 0:05 |
-| ci-ok                 | 1   | 0:04    | 0:04 |
-| code-checks           | 1   | 2:00    | 2:00 |
-| infra-check           | 1   | 0:18    | 0:18 |
-| openapi-check         | 1   | 0:04    | 0:04 |
-| public-tree-guard     | 1   | 0:17    | 0:17 |
-| quality               | 1   | 0:13    | 0:13 |
-| r80-browser-contracts | 1   | 0:04    | 0:04 |
-| test-integration      | 1   | 2:15    | 2:15 |
-| test-unit             | 1   | 1:19    | 1:19 |
+| changes               | 2   | 0:06    | 0:07 |
+| ci-ok                 | 2   | 0:04    | 0:04 |
+| code-checks           | 2   | 2:06    | 2:13 |
+| infra-check           | 2   | 0:18    | 0:18 |
+| openapi-check         | 2   | 0:04    | 0:04 |
+| public-tree-guard     | 2   | 0:15    | 0:17 |
+| quality               | 2   | 0:08    | 0:13 |
+| r80-browser-contracts | 2   | 0:04    | 0:04 |
+| test-integration      | 2   | 2:16    | 2:17 |
+| test-unit             | 2   | 1:39    | 1:59 |
 
 ## Límites de evidencia
 
