@@ -4,12 +4,12 @@
 #
 #   sync.sh pr-check     <pr>   Falla si la PR no enlaza issue (Closes/Refs #N) o si cambia
 #                               una decisión sin tocar docs/backlog/DECISIONES.md.
-#   sync.sh pr-merged    <pr>   Issues que cierra la PR → Estado «Fusionado» + etiqueta
-#                               pendiente-despliegue + comentario. Las «Refs» solo reciben comentario.
-#   sync.sh check-deploy        Lee el commit de producción en /api/v1/health. Cada issue con
-#                               pendiente-despliegue cuyo merge ya está en producción pasa a
-#                               en-produccion (+ comentario). NO la mueve a «Desplegado»: eso exige
-#                               la prueba en producción (definición de hecho).
+#   sync.sh pr-merged    <pr>   Issues que cierra la PR → Estado «Hecho» + comentario.
+#                               No mueve a «Pausada» ni sale de «Pausada». Las «Refs» solo
+#                               reciben comentario.
+#   sync.sh check-deploy        Lee el commit de producción en /api/v1/health. Si el merge ya
+#                               está en producción, comenta y puede marcar en-produccion.
+#                               No cambia el Estado: la issue ya está en «Hecho».
 #
 # Variables: REPO, OWNER, PROJECT_NUMBER (o PROJECT_TITLE), HEALTH_URL,
 #   GH_TOKEN (repo), PROJECT_TOKEN (classic con scope «project»; si falta, no toca el Project),
@@ -77,7 +77,11 @@ project_number() {
 }
 
 set_estado() { # issue_number valor
-  local num="$1" value="$2" pn pid fields fid oid item owner identity
+  local num="$1" value="$2" pn pid fields fid oid item owner identity current line
+  if [ "$value" = "Pausada" ]; then
+    say "::warning::#$num: este script no mueve una issue a «Pausada»."
+    return 0
+  fi
   if [ -z "${PROJECT_TOKEN:-}" ]; then
     say "::warning::Sin PROJECT_TOKEN: no se actualiza el Project."
     return 0
@@ -91,8 +95,15 @@ set_estado() { # issue_number valor
   fields="$(ghp project field-list "$pn" --owner "$owner" --format json --limit 100)"
   fid="$(jq -r '.fields[] | select(.name=="Estado" or .name=="Status") | .id' <<<"$fields" | head -n1)"
   oid="$(jq -r --arg v "$value" '.fields[] | select(.name=="Estado" or .name=="Status") | .options[]? | select(.name==$v) | .id' <<<"$fields" | head -n1)"
-  item="$(ghp project item-list "$pn" --owner "$owner" --format json --limit 500 \
-    --jq ".items[] | select(.content.type==\"Issue\" and .content.number==$num and .content.repository==\"$REPO\") | .id" | head -n1)"
+  line="$(ghp project item-list "$pn" --owner "$owner" --format json --limit 500 \
+    --jq ".items[] | select(.content.type==\"Issue\" and .content.number==$num and .content.repository==\"$REPO\") | [.id, (.estado // .status // \"\")] | @tsv" | head -n1)"
+  item="${line%%$'\t'*}"
+  current="${line#*$'\t'}"
+  if [ -z "$line" ] || [ "$current" = "$line" ]; then current=""; fi
+  if [ "$current" = "Pausada" ]; then
+    say "::warning::#$num: está en «Pausada»; no se cambia el estado."
+    return 0
+  fi
   if [ -z "$fid" ] || [ -z "$oid" ] || [ -z "$item" ]; then
     say "::warning::#$num: no encuentro el item, el campo Estado o la opción «${value}»."
     return 0
@@ -151,11 +162,8 @@ cmd_pr_merged() {
   body="$(jq -r '.body // ""' <<<"$data")"
   closing="$(jq -r '.closingIssuesReferences[].number' <<<"$data")"
   for n in $closing; do
-    local label_status=0
-    edit_labels "$n" --add-label pendiente-despliegue || label_status=$?
-    [ "$label_status" -eq 0 ] || [ "$label_status" -eq 2 ] || return "$label_status"
-    comment_once "$n" "Fusionada en #$pr (\`${sha:0:7}\`). Estado → Fusionado. Pasará a «en-produccion» cuando /api/v1/health publique un commit que la contenga."
-    set_estado "$n" "Fusionado" || true
+    comment_once "$n" "Fusionada en #$pr (\`${sha:0:7}\`). Estado → Hecho."
+    set_estado "$n" "Hecho" || true
   done
   refs="$(refs_in_body "$body")"
   for n in $refs; do
@@ -183,16 +191,18 @@ cmd_check_deploy() {
     return 0
   fi
   say "Producción: $live"
-  for n in $(gh issue list --repo "$REPO" --state all --label pendiente-despliegue --limit 200 --json number --jq '.[].number'); do
+  # Marca opcional. No cambia el Estado y no toca las issues en Pausada:
+  # Pausada solo la mueve el agente, con comentario, o Pablo.
+  for n in $(gh issue list --repo "$REPO" --state closed --limit 200 --json number,labels --jq '.[] | select(any(.labels[]; .name == "en-produccion") | not) | .number'); do
     for pr in $(gh issue view "$n" --repo "$REPO" --json closedByPullRequestsReferences --jq '.closedByPullRequestsReferences[].number'); do
       sha="$(gh pr view "$pr" --repo "$REPO" --json mergeCommit --jq '.mergeCommit.oid // empty')"
       [ -n "$sha" ] || continue
       if git merge-base --is-ancestor "$sha" "$live"; then
         local label_status=0
-        edit_labels "$n" --add-label en-produccion --remove-label pendiente-despliegue || label_status=$?
+        edit_labels "$n" --add-label en-produccion || label_status=$?
         [ "$label_status" -ne 2 ] || continue
         [ "$label_status" -eq 0 ] || return "$label_status"
-        comment_once "$n" "En producción: /api/v1/health publica \`${live:0:7}\`, que contiene #$pr. Falta la prueba en producción para pasar a «Desplegado» y poner verificado-prod."
+        comment_once "$n" "En producción: /api/v1/health publica \`${live:0:7}\`, que contiene #$pr. La etiqueta en-produccion es opcional y no cambia el Estado."
         break
       fi
     done

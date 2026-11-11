@@ -36,7 +36,7 @@ case "$1 $2" in
   "issue view") echo 'tipo:decision' ;;
   "issue edit")
     if [ "$MOCK_EDIT_STATUS" != 0 ]; then
-      echo "'pendiente-despliegue' label not found" >&2
+      echo "'en-produccion' label not found" >&2
       exit "$MOCK_EDIT_STATUS"
     fi ;;
   "api --paginate") printf '%s\n' "$MOCK_COMMENTS" ;;
@@ -84,15 +84,49 @@ esac
 
     def test_generator_orders_issues_and_ignores_drafts(self):
         result, text = self.generate([
-            self.item("BKL-003 · Última", estado="Fusionado"),
+            self.item("BKL-006 · Hecha", estado="Hecho"),
+            self.item("BKL-005 · Revision", estado="En revisión"),
+            self.item("BKL-004 · Pausa", estado="Pausada"),
+            self.item("BKL-003 · Curso", estado="En curso"),
             {"content": {"type": "DraftIssue", "title": "Borrador"}},
-            self.item("BKL-002 · Segunda", estado="Idea", prioridad="P2"),
-            self.item("BKL-001 · Primera", estado="Idea", prioridad="P1"),
+            self.item("BKL-002 · Lista", estado="Listo para hacer", prioridad="P2"),
+            self.item("BKL-001 · Primera", estado="Ideas", prioridad="P1"),
         ])
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertLess(text.index("Primera"), text.index("Segunda"))
-        self.assertLess(text.index("Segunda"), text.index("Última"))
+        order = ["Primera", "Lista", "Curso", "Pausa", "Revision", "Hecha"]
+        for earlier, later in zip(order, order[1:]):
+            self.assertLess(text.index(earlier), text.index(later), text)
         self.assertNotIn("Borrador", text)
+
+    def test_generator_maps_legacy_states_and_shows_agent_columns(self):
+        result, text = self.generate([
+            self.item(
+                "BKL-007 · Descartada",
+                estado="Descartado",
+                zona=["docs", "api"],
+                agente="cursor-docs-1",
+                rama="chore/bkl",
+            ),
+            self.item("BKL-006 · Desplegada", estado="Desplegado"),
+            self.item("BKL-005 · Fusionada", estado="Fusionado"),
+            self.item("BKL-004 · Codex", estado="En Codex/PR"),
+            self.item("BKL-003 · Spec", estado="Spec lista"),
+            self.item("BKL-002 · Decision", estado="Decidir"),
+            self.item("BKL-001 · Idea vieja", estado="Idea"),
+        ])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        order = ["Idea vieja", "Decision", "Spec", "Codex", "Fusionada", "Desplegada", "Descartada"]
+        for earlier, later in zip(order, order[1:]):
+            self.assertLess(text.index(earlier), text.index(later), text)
+        for legacy in ("Idea |", "Decidir |", "Spec lista", "En Codex/PR", "Fusionado", "Desplegado", "Descartado"):
+            self.assertNotIn(legacy, text)
+        self.assertIn("Listo para hacer", text)
+        self.assertIn("En curso", text)
+        self.assertIn("Hecho", text)
+        self.assertIn("| Zona | Agente | Rama |", text)
+        self.assertIn("cursor-docs-1", text)
+        self.assertIn("chore/bkl", text)
+        self.assertIn("docs, api", text)
 
     def test_generator_rejects_truncated_input_without_writing(self):
         result, text = self.generate([], text="original", total=501)
@@ -137,7 +171,7 @@ esac
                 self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
 
     def test_merge_without_token_warns_and_deduplicates_comments(self):
-        body = "Fusionada en #1 (`abcdef0`). Estado → Fusionado. Pasará a «en-produccion» cuando /api/v1/health publique un commit que la contenga."
+        body = "Fusionada en #1 (`abcdef0`). Estado → Hecho."
         self.env["MOCK_PR"] = json.dumps({"body": "Closes #12", "mergeCommit": {"oid": "abcdef0"}, "closingIssuesReferences": [{"number": 12}]})
         self.env["MOCK_COMMENTS"] = body
         result = self.run_script("sync.sh", "pr-merged", "1")
@@ -145,13 +179,17 @@ esac
         self.assertIn("Sin PROJECT_TOKEN", result.stdout)
         self.assertNotIn("project ", self.log.read_text())
         self.assertNotIn("issue comment", self.log.read_text())
+        self.assertNotIn("issue edit", self.log.read_text())
 
-    def test_missing_label_warns_instead_of_failing_merge(self):
+    def test_merge_comments_hecho_without_editing_labels(self):
         self.env["MOCK_EDIT_STATUS"] = "1"
         self.env["MOCK_PR"] = json.dumps({"body": "Closes #12", "mergeCommit": {"oid": "abcdef0"}, "closingIssuesReferences": [{"number": 12}]})
         result = self.run_script("sync.sh", "pr-merged", "1")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("falta una etiqueta", result.stdout)
+        calls = self.log.read_text()
+        self.assertIn("Estado → Hecho.", calls)
+        self.assertNotIn("issue edit", calls)
+        self.assertNotIn("falta una etiqueta", result.stdout)
 
     def test_unavailable_health_is_nonblocking_and_does_not_call_github(self):
         self.env["DRY_RUN"] = "1"
@@ -179,7 +217,8 @@ esac
         result = self.run_script("sync.sh", "check-deploy")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         calls = self.log.read_text()
-        self.assertIn("--add-label en-produccion --remove-label pendiente-despliegue", calls)
+        self.assertIn("--add-label en-produccion", calls)
+        self.assertIn("no cambia el Estado", calls)
         self.assertIn("issue comment", calls)
         self.assertNotIn("project item-edit", calls)
         self.assertNotIn("verificado-prod --", calls)
@@ -252,6 +291,45 @@ esac
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("no encuentro el item", result.stdout)
         self.assertNotIn("unbound variable", result.stderr)
+
+    def test_merge_does_not_move_paused_issue_and_sets_hecho_otherwise(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.env["PROJECT_TOKEN"] = "test-only-token"
+        self.env["MOCK_PR"] = json.dumps({
+            "body": "Closes #12",
+            "mergeCommit": {"oid": "abcdef0123456789"},
+            "closingIssuesReferences": [{"number": 12}],
+        })
+        script = r'''#!/usr/bin/env bash
+set -eu
+printf '%s\n' "$*" >> "$CALLS"
+case "$1 $2" in
+  "pr view") printf '%s\n' "$MOCK_PR" ;;
+  "api user") echo povedica ;;
+  "project view") echo PVT_test ;;
+  "project field-list") echo '{"fields":[{"id":"F1","name":"Status","options":[{"id":"O1","name":"Hecho"}]}]}' ;;
+  "project item-list") printf '%s\n' "$MOCK_ITEM" ;;
+  "issue edit"|"issue comment"|"api --paginate") ;;
+  *) exit 99 ;;
+esac
+'''
+        self.env["MOCK_ITEM"] = "PVTI_paused\tPausada"
+        self.stub("gh", script)
+        paused = self.run_script("sync.sh", "pr-merged", "1")
+        self.assertEqual(paused.returncode, 0, paused.stdout + paused.stderr)
+        self.assertIn("está en «Pausada»", paused.stdout)
+        self.assertNotIn("project item-edit", self.log.read_text())
+
+        self.log.write_text("")
+        self.env["MOCK_ITEM"] = "PVTI_live\tEn curso"
+        self.env["MOCK_COMMENTS"] = ""
+        moving = self.run_script("sync.sh", "pr-merged", "1")
+        self.assertEqual(moving.returncode, 0, moving.stdout + moving.stderr)
+        calls = self.log.read_text()
+        self.assertIn("project item-edit", calls)
+        self.assertIn("--id PVTI_live", calls)
+        self.assertIn("--single-select-option-id O1", calls)
+        self.assertIn("→ Estado «Hecho»", moving.stdout)
 
     def test_invalid_health_commit_never_reaches_git(self):
         self.stub("curl", "#!/bin/sh\necho '{\"commit\":\"--invalid\"}'\n")

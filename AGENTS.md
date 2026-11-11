@@ -38,7 +38,11 @@ Cursor aplica automáticamente.
 - **Multiusuario desde el modelo** aunque hoy haya un usuario: toda entidad cuelga de un owner.
 - **Español en docs y UI, inglés en código** (identificadores, commits, nombres de API).
 - **Conventional Commits** (`feat:`, `fix:`, `test:`…). Sin commits directos a `main`.
-- **Una feature, una PR**: cada punto del roadmap va en su propia rama. Al terminarlo, se mergea la PR. El siguiente punto no se añade a esa rama.
+- **Una issue, una PR, en paralelo:** cada issue la termina un agente en su worktree
+  y en una sola PR. Se prefiere una PR un poco más grande a una cadena de issues
+  que se bloqueen entre sí. Lo que no se puede paralelizar se junta en una PR.
+  No se apila el siguiente trabajo en una PR ya abierta: esa PR se mergea y la
+  siguiente nace de `main`.
 - Cobertura >80% en `packages/domain` (recurrencias, filtros, NLP: es donde viven los bugs).
 - Migraciones Prisma siempre reversibles y generadas con `pnpm db:migrate`, nunca a mano sin revisar.
 
@@ -56,18 +60,32 @@ pnpm lint && pnpm typecheck
 
 ## Backlog (GitHub Projects)
 
-- El estado vivo del trabajo está en el Project «ttd · backlog». `docs/backlog/BACKLOG.md` es un
-  espejo generado (no editar su bloque a mano) y `docs/backlog/DECISIONES.md` es el registro de
-  decisiones. Reglas: `docs/backlog/PROTOCOLO-BACKLOG.md`; pasos y comandos: skill
-  `.cursor/skills/backlog-github-projects/SKILL.md`. Cursor la descubre como skill; Codex debe leer
-  ese mismo fichero al inicio y al cierre de tareas relacionadas con el backlog.
-- No empieces trabajo sin issue `BKL-NNN`. Máximo 3 elementos en «En Codex/PR».
-- Toda PR enlaza su issue: «Closes #N» si la termina, «Refs #N» si avanza. PR sin issue solo para
-  dependencias o CI, con la etiqueta `sin-backlog`.
-- Si la PR aplica o cambia una decisión, actualiza `DECISIONES.md` en la misma PR.
-- Hecho = «Desplegado»: commit visible en `/api/v1/health` y prueba en producción hecha. Antes de
-  eso, como mucho «Fusionado».
-- Las decisiones de producto son de Pablo: propón opciones y recomendación, no decidas.
+- El estado vivo está en el Project «ttd · backlog». Reglas:
+  `docs/backlog/PROTOCOLO-BACKLOG.md`. Comandos: skill
+  `.cursor/skills/backlog-github-projects/SKILL.md` (Codex debe leerla al
+  inicio y al cierre de cualquier tarea de backlog).
+- Columnas: Ideas → Listo para hacer → En curso → Pausada → En revisión → Hecho.
+- Tu nombre de agente es `<ejecutor>-<rol>-N` (p. ej. `codex-frontend-1`,
+  `cursor-api-2`). Es el valor del campo Agente.
+- No hay tope de trabajo en curso. El límite es la Zona.
+- Antes de escribir código, en este orden:
+  1. Si hay algo en **Pausada**, pregunta a Pablo si se retoma. No cojas
+     nada nuevo sin esa respuesta.
+  2. Elige en la vista «Siguiente» algo en «Listo para hacer» (cumple
+     `docs/backlog/DOR.md`) cuya Zona no esté ocupada por otra tarjeta en
+     En curso, Pausada o En revisión. En `prisma-migrations`, una sola
+     migración en vuelo.
+  3. Reclama: En curso, Agente y Rama. Trabaja en un worktree propio y
+     abre una PR en borrador al primer commit.
+- Pausar: pasa la tarjeta a «Pausada» **y** escribe en la issue un
+  comentario con el motivo detallado, el estado de la rama y la condición
+  para retomarla. Sin comentario no hay pausa.
+- No empieces trabajo sin issue `BKL-NNN`. La PR enlaza «Closes #N» o
+  «Refs #N». PR sin issue solo para dependencias o CI (`sin-backlog`).
+- Hecho = cumple `docs/backlog/DOD.md`. Si la entrega deja una mejora
+  obvia para la DoR o la DoD, propónla a Pablo en ese momento (opcional,
+  nunca bloquea).
+- Las decisiones de producto son de Pablo: propón opciones, no decidas.
 
 ## Antes de dar una tarea por terminada
 
@@ -75,6 +93,7 @@ pnpm lint && pnpm typecheck
 2. OpenAPI regenerado y sin diff (`pnpm --filter api openapi:generate`).
 3. Si tocaste eventos: catálogo de eventos actualizado (sección 11.1 de la spec).
 4. Si tocaste el modelo: migración incluida en el PR con su rollback verificado.
-5. La PR de ese punto se mergea al quedar el corte cerrado. No empieces el punto siguiente en la misma rama.
-6. Backlog al día: issue en el estado correcto del Project, PR con «Closes/Refs #N» y, si cambió una
-   decisión, `docs/backlog/DECISIONES.md` actualizado.
+5. La PR de esa issue se mergea al quedar el corte cerrado. No empieces otra
+   issue en la misma rama.
+6. Backlog al día: se cumple `docs/backlog/DOD.md` (columna correcta,
+   Agente y Rama, «Closes/Refs #N» y DECISIONES.md si aplica).
