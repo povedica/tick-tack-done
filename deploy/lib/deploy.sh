@@ -88,8 +88,12 @@ write_state() {
   chmod 600 "$temporary"
   mv "$temporary" "$state"
 }
+if ! declare -F after_replace >/dev/null; then after_replace() { :; }; fi
+if ! declare -F restore_proxy >/dev/null; then restore_proxy() { :; }; fi
+if ! declare -F after_success >/dev/null; then after_success() { :; }; fi
 rollback() {
   echo 'Restoring last-good images' >&2
+  restore_proxy || return 1
   API_IMAGE=$old_api; WEB_IMAGE=$old_web; export API_IMAGE WEB_IMAGE
   compose up -d --no-build --no-deps "${changed[@]}"
   health "$(image_commit "$old_api")" 45
@@ -97,9 +101,10 @@ rollback() {
 # shellcheck source=deploy/lib/migrate.sh
 source "$root/deploy/lib/migrate.sh"
 if [[ $API_IMAGE != "$running_api" ]]; then migrate_before_replace; fi
-if ! compose up -d --no-build --no-deps --remove-orphans "${changed[@]}" || ! health "$expected" 90; then
+if ! compose up -d --no-build --no-deps --remove-orphans "${changed[@]}" || ! after_replace || ! health "$expected" 90; then
   rollback || echo 'Rollback health failed; operator action required' >&2
   exit 1
 fi
 write_state
+after_success
 echo 'Deployment healthy; last-good saved'

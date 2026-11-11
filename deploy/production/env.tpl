@@ -5,7 +5,6 @@ POSTGRES_DB=op://ttd/prod/POSTGRES_DB
 DATABASE_URL=op://ttd/prod/DATABASE_URL
 REDIS_PASSWORD=op://ttd/prod/REDIS_PASSWORD
 REDIS_URL=op://ttd/prod/REDIS_URL
-GIT_COMMIT=op://ttd/prod/GIT_COMMIT
 NODE_ENV=op://ttd/prod/NODE_ENV
 PORT=op://ttd/prod/PORT
 AUTH_MODE=op://ttd/prod/AUTH_MODE

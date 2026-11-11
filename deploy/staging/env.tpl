@@ -5,7 +5,6 @@ POSTGRES_DB=op://ttd/staging/POSTGRES_DB
 DATABASE_URL=op://ttd/staging/DATABASE_URL
 REDIS_PASSWORD=op://ttd/staging/REDIS_PASSWORD
 REDIS_URL=op://ttd/staging/REDIS_URL
-GIT_COMMIT=op://ttd/staging/GIT_COMMIT
 NODE_ENV=op://ttd/staging/NODE_ENV
 PORT=op://ttd/staging/PORT
 AUTH_MODE=op://ttd/staging/AUTH_MODE
