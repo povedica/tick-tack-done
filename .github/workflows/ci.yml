@@ -85,7 +85,11 @@ jobs:
       - if: (github.event_name == 'push' || needs.changes.outputs.browser == 'true') && steps.browsers.outputs.cache-hit != 'true'
         run: pnpm --filter web exec playwright install --with-deps chromium
       - if: (github.event_name == 'push' || needs.changes.outputs.browser == 'true') && steps.browsers.outputs.cache-hit == 'true'
-        run: pnpm --filter web exec playwright install-deps chromium
+        run: |
+          browser=$(find "$HOME/.cache/ms-playwright" -type f \( -name chrome -o -name chrome-headless-shell \) -print -quit)
+          if [[ -z "$browser" ]] || ldd "$browser" | grep -q 'not found'; then
+            pnpm --filter web exec playwright install-deps chromium
+          fi
       - id: checks
         name: Run independent checks concurrently on one runner
         env:
@@ -166,7 +170,7 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U reflexionia"
-          --health-interval 5s --health-timeout 3s --health-retries 10
+          --health-interval 1s --health-timeout 3s --health-retries 30
       postgres-shard2:
         image: postgres:17-alpine
         env:
@@ -176,7 +180,7 @@ jobs:
         ports: ['5433:5432']
         options: >-
           --health-cmd "pg_isready -U reflexionia"
-          --health-interval 5s --health-timeout 3s --health-retries 10
+          --health-interval 1s --health-timeout 3s --health-retries 30
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
@@ -188,6 +192,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           build-api: true
+          api-only: true
       - name: Use the PostgreSQL service for backup tools
         run: |
           mkdir -p "$RUNNER_TEMP/pg-bin"
@@ -242,7 +247,15 @@ jobs:
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.11
       - name: Validate CI shell scripts
         run: shellcheck scripts/ci/*.sh scripts/secrets/*.sh deploy/lib/*.sh deploy/staging/deploy.sh deploy/production/*.sh scripts/backup.sh scripts/dev.sh .cursor/setup-worktree-unix.sh
+      - uses: actions/checkout@v7
+        with:
+          repository: dorny/paths-filter
+          ref: v3
+          path: .ci-tools/paths-filter
+          persist-credentials: false
       - name: Test private env and deployment contracts offline
+        env:
+          PATHS_FILTER_ACTION: ${{ github.workspace }}/.ci-tools/paths-filter/dist/index.js
         run: |
           python3 -B -m unittest discover -s scripts/secrets -v
           python3 -B -m unittest discover -s scripts/deploy -v

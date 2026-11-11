@@ -1,6 +1,9 @@
 name: Workspace setup
 description: Node 26, pnpm store and source-keyed domain build
 inputs:
+  api-only:
+    description: Install only the API dependency closure on integration runners
+    default: 'false'
   build-api:
     description: Restore or build the API once when needed
     default: 'false'
@@ -12,7 +15,14 @@ runs:
       with:
         node-version: 26
         cache: pnpm
-    - run: pnpm install --frozen-lockfile
+    - run: |
+        if [[ "$API_ONLY" == true ]]; then
+          pnpm install --frozen-lockfile --filter api...
+        else
+          pnpm install --frozen-lockfile
+        fi
+      env:
+        API_ONLY: ${{ inputs.api-only }}
       shell: bash
     - uses: actions/cache@v4
       id: domain

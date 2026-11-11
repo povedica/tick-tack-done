@@ -13,7 +13,7 @@ for shard in 1 2; do
   (
     set +e
     POSTGRES_CONTAINER="${postgres_containers[$((shard - 1))]}" DATABASE_URL="$database_url" REDIS_URL="redis://localhost:$redis_port" \
-      pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard="$shard/2" --pool=threads --maxWorkers=1 > "$logs/$shard.log" 2>&1
+      pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard="$shard/2" --pool=threads --maxWorkers=1 --reporter=dot > "$logs/$shard.log" 2>&1
     echo "$?" > "$logs/$shard.status"
   ) &
   pids+=("$!")
