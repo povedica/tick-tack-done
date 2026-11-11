@@ -106,13 +106,13 @@ Se queda en Ideas: `set_sel <num> Estado Ideas`, etiqueta `decision-pendiente` y
 
 En este orden, sin saltarse pasos. `<rama>` es el nombre de la rama
 (`chore/bkl-00N-breve`); el worktree queda en
-`/Users/pablo/Projects/worktrees-ttd/<rama>`.
+`../worktrees-ttd/<rama>`, al lado del checkout principal.
 
 ```bash
 set_sel <num> Estado "En curso"
 set_text <num> Agente "cursor-docs-1"
 set_text <num> Rama "chore/bkl-00N-breve"
-git worktree add "/Users/pablo/Projects/worktrees-ttd/chore/bkl-00N-breve" -b chore/bkl-00N-breve origin/main
+git worktree add "../worktrees-ttd/<rama>" -b <rama> origin/main
 # Tras el primer commit, la descripción empieza por Closes #N:
 gh pr create --draft --title "…" --body "Closes #<num>"
 ```

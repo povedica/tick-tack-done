@@ -121,13 +121,17 @@ refs_in_body() { # texto → números referenciados con Refs/Closes/Fixes/Resolv
   grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?|refs?) +#[0-9]+' <<<"$1" | grep -oE '[0-9]+' | sort -u || true
 }
 
+# Close/Closes/Closed, Fix/Fixes/Fixed y Resolve/Resolves/Resolved.
+# Refs no cierra la issue.
+CLOSING_REF='(close[sd]?|fix(e[sd])?|resolve[sd]?) +#[0-9]+'
+
 # Closes, Fixes y Resolves enlazan la PR en Development. Refs no.
 closing_numbers() {
-  grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) +#[0-9]+' <<<"$1" | grep -oE '[0-9]+' | sort -u || true
+  grep -oiE "$CLOSING_REF" <<<"$1" | grep -oE '[0-9]+' | sort -u || true
 }
 
 has_closes() {
-  grep -qiE 'closes +#[0-9]+' <<<"$1"
+  grep -qiE "$CLOSING_REF" <<<"$1"
 }
 
 # Escribe la Rama, avisa si Agente está vacío y saca de «Listo para hacer».
@@ -208,7 +212,7 @@ cmd_pr_check() {
     return 1
   fi
   trimmed="$(printf '%s' "$body" | sed -e 's/^[[:space:]]*//')"
-  if ! printf '%s\n' "$trimmed" | grep -qiE '^closes +#[0-9]+'; then
+  if ! printf '%s\n' "$trimmed" | grep -qiE "^${CLOSING_REF}"; then
     say "::warning::PR #$pr: «Closes #N» tiene que ser la primera línea de la descripción."
     comment_once "$pr" "Backlog: «Closes #N» tiene que ser la primera línea de la descripción." \
       || say "::warning::No pude avisar en la PR #$pr de dónde va «Closes #N»."

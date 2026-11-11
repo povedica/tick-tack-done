@@ -348,6 +348,38 @@ esac
         self.assertIn("issue comment", calls)
         self.assertNotIn("project item-edit", calls)
 
+    def test_check_accepts_fixes_as_first_line(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.env["PROJECT_TOKEN"] = "test-only-token"
+        self.env["MOCK_PR"] = json.dumps({
+            "body": "Fixes #12\n",
+            "labels": [],
+            "author": {"login": "developer"},
+            "closingIssuesReferences": [{"number": 12}],
+            "files": [],
+            "headRefName": "perf/f1",
+        })
+        self.env["MOCK_ITEM"] = "PVTI_ready\tListo para hacer\tcursor-api-1"
+        self.stub("gh", self._project_pr_stub())
+        result = self.run_script("sync.sh", "pr-check", "95")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Check de backlog OK", result.stdout)
+        self.assertNotIn("tiene que ser la primera línea", result.stdout)
+
+    def test_check_rejects_refs_keyword(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.env["MOCK_PR"] = json.dumps({
+            "body": "Refs #12\n",
+            "labels": [],
+            "author": {"login": "developer"},
+            "closingIssuesReferences": [],
+            "files": [],
+            "headRefName": "perf/f1",
+        })
+        result = self.run_script("sync.sh", "pr-check", "95")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("no tiene «Closes #N»", result.stdout)
+
     def test_check_sets_branch_and_moves_ready_issue_when_body_closes(self):
         self.env["PROJECT_NUMBER"] = "1"
         self.env["PROJECT_TOKEN"] = "test-only-token"

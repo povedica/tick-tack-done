@@ -65,7 +65,8 @@ Sin saltarse pasos:
    Zona no esté ocupada (En curso, Pausada o En revisión).
 3. Moverla a En curso.
 4. Rellenar Agente (`<ejecutor>-<rol>-N`) y Rama (el nombre de la rama).
-5. Crear el worktree en `/Users/pablo/Projects/worktrees-ttd/<rama>`.
+5. Crear el worktree en `../worktrees-ttd/<rama>` (al lado del checkout
+   principal): `git worktree add "../worktrees-ttd/<rama>" -b <rama> origin/main`.
 6. Abrir enseguida una PR en borrador. La descripción empieza por
    `Closes #N`.
 7. PR lista para revisar → En revisión. Para cerrar, comprobar `DOD.md`.

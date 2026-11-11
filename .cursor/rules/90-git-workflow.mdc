@@ -13,7 +13,8 @@ alwaysApply: true
   desde `main`; no se apila en la PR abierta.
 - Al coger una issue, en este orden y sin saltarse pasos: mover la tarjeta
   a En curso; rellenar Agente (`<ejecutor>-<rol>-N`) y Rama; crear el
-  worktree en `/Users/pablo/Projects/worktrees-ttd/<rama>`; abrir enseguida
+  worktree en `../worktrees-ttd/<rama>` (al lado del checkout principal,
+  `git worktree add "../worktrees-ttd/<rama>" -b <rama> origin/main`); abrir enseguida
   una PR en borrador cuya descripción empiece por `Closes #N`. Si la PR ya
   existía, se adopta: se añade esa línea y se rellenan Agente y Rama.
   Detalle en `AGENTS.md` y `docs/backlog/PROTOCOLO-BACKLOG.md`.
