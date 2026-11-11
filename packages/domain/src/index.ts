@@ -99,10 +99,13 @@ export type {
 } from './reminders/trigger';
 
 export {
+  ASSIGNED_BY_ME_KEY,
   arrangeTasks,
   calendarDateKey,
   compileRules,
+  isAssignedByActor,
   isSmartListKey,
+  isVirtualSmartListKey,
   matchesClause,
   matchesFilter,
   matchesSmartList,
@@ -131,6 +134,7 @@ export type {
   ParsedSearch,
   TagRef,
   SmartListInput,
+  VirtualSmartListKey,
   TaskGroup,
   TaskGroupBy,
   TaskSort,

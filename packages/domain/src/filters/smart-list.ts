@@ -57,6 +57,7 @@ export function smartListClause(key: SmartListKey, input: SmartListInput): Filte
         { op: 'deleted', deleted: false },
         notArchived(),
         { op: 'someday', value: false },
+        { op: 'assignee_self_or_none', id: input.assigneeId },
       ],
     };
   }
@@ -95,8 +96,29 @@ export function matchesSmartList(
   return matchesClause(smartListClause(key, input), subject, input.clock);
 }
 
+/** Virtual sidebar key. It is not a `smart_lists` row and must not be persisted. */
+export const ASSIGNED_BY_ME_KEY = 'assigned_by_me' as const;
+
+export type VirtualSmartListKey = typeof ASSIGNED_BY_ME_KEY;
+
 export function isSmartListKey(value: string): value is SmartListKey {
   return SMART_LIST_KEYS.some((key) => key === value);
+}
+
+export function isVirtualSmartListKey(value: string): value is VirtualSmartListKey {
+  return value === ASSIGNED_BY_ME_KEY;
+}
+
+/**
+ * The last assignment was made by this actor and the task is still someone else's.
+ * Reassignment by another person stops counting.
+ */
+export function isAssignedByActor(
+  assigneeId: string | null,
+  actorId: string,
+  lastAssignedBy: string | null,
+): boolean {
+  return assigneeId !== null && assigneeId !== actorId && lastAssignedBy === actorId;
 }
 
 function rulesFor(key: SmartListKey, input: SmartListInput): FilterRules {

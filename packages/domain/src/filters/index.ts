@@ -16,14 +16,17 @@ export type { TagRef } from './tags';
 export type { FilterParse } from './parse';
 
 export {
+  ASSIGNED_BY_ME_KEY,
+  isAssignedByActor,
   isSmartListKey,
+  isVirtualSmartListKey,
   matchesSmartList,
   RECENT_WINDOW_DAYS,
   SMART_LIST_KEYS,
   FIXED_SMART_LIST_KEYS,
   smartListClause,
 } from './smart-list';
-export type { SmartListInput } from './smart-list';
+export type { SmartListInput, VirtualSmartListKey } from './smart-list';
 
 export { arrangeTasks, pageTaskGroups, parseTaskView } from './arrange';
 export type { ArrangedTask, TaskGroup, TaskGroupBy, TaskSort, TaskViewOptions } from './arrange';

@@ -46,6 +46,8 @@ export type FilterClause =
   | { readonly op: 'keyword'; readonly text: string }
   | { readonly op: 'status'; readonly status: 'active' | 'completed' }
   | { readonly op: 'assignee'; readonly id: string }
+  /** Unassigned, or assigned to this person. Delegated work stays out. */
+  | { readonly op: 'assignee_self_or_none'; readonly id: string }
   | { readonly op: 'deleted'; readonly deleted: boolean }
   | { readonly op: 'exclude_status'; readonly status: 'archived' }
   | { readonly op: 'created_since'; readonly since: string }
@@ -144,6 +146,8 @@ export function matchesClause(
       return subject.status === clause.status;
     case 'assignee':
       return subject.assigneeId === clause.id;
+    case 'assignee_self_or_none':
+      return subject.assigneeId === null || subject.assigneeId === clause.id;
     case 'deleted':
       return subject.deleted === clause.deleted;
     case 'exclude_status':
