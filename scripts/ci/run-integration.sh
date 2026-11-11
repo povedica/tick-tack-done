@@ -6,7 +6,7 @@ postgres_containers=("$POSTGRES_CONTAINER" "$POSTGRES_CONTAINER_SHARD2" "$POSTGR
 logs=$(mktemp -d)
 pids=()
 # These strict budgets must measure idle application capacity, not shard contention.
-budget_pattern='RF-2321: yearly overview|GET /smart-lists answers in under|TTD-AUD-101: MCP settings validate'
+budget_pattern='RF-2321–2324 statistics API|GET /smart-lists answers in under|TTD-AUD-101: MCP settings validate'
 parallel_pattern="^(?!.*($budget_pattern)).*$"
 for shard in 1 2 3 4; do
   postgres_port=$((5431 + shard))
@@ -29,7 +29,7 @@ for shard in 1 2 3 4; do
   echo '::endgroup::'
   if [[ ! -f "$logs/$shard.status" ]] || [[ $(cat "$logs/$shard.status") != 0 ]]; then result=1; fi
 done
-# Run exactly the three unchanged budget cases after all concurrent work stops.
+# Preserve the complete statistics lifecycle and its original test order, plus two other strict budgets.
 if ! POSTGRES_CONTAINER="$POSTGRES_CONTAINER" DATABASE_URL="${DATABASE_URL%:*}:5432/reflexionia_test" REDIS_URL=redis://localhost:6379 \
   pnpm --filter api exec vitest run --config vitest.config.integration.ts \
     test/stats.e2e-spec.ts test/filters.e2e-spec.ts test/mcp.e2e-spec.ts \
@@ -43,7 +43,7 @@ if ! node -e '
   for(const file of report.testResults ?? []) for(const test of file.assertionResults ?? []) {
     if(test.status === "failed") console.error(test.fullName, ...(test.failureMessages ?? []));
   }
-  if(report.numPassedTests !== 3 || report.numFailedTests !== 0) process.exit(1);
+  if(report.numPassedTests !== 11 || report.numFailedTests !== 0) process.exit(1);
 ' "$logs/budgets.json"; then result=1; fi
 rm -rf "$logs"
 exit "$result"

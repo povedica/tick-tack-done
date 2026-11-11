@@ -13,7 +13,7 @@ with open(os.environ['CI_MOCK_LOG'],'a') as out:
     out.write(json.dumps({'args':sys.argv[1:],'database':os.environ.get('DATABASE_URL'),'redis':os.environ.get('REDIS_URL')})+'\n')
 a=' '.join(sys.argv[1:])
 for arg in sys.argv[1:]:
-    if arg.startswith('--outputFile='): Path(arg.split('=',1)[1]).write_text(json.dumps({'numPassedTests':3,'numFailedTests':0,'testResults':[]}))
+    if arg.startswith('--outputFile='): Path(arg.split('=',1)[1]).write_text(json.dumps({'numPassedTests':11,'numFailedTests':0,'testResults':[]}))
 if os.environ.get('FAIL_QUALITY') and 'lint:ci' in a: sys.exit(1)
 if os.environ.get('FAIL_BENCHMARK') and 'year-index.spec.ts' in a: sys.exit(1)
 if os.environ.get('FAIL_SHARD') and '--shard=4/4' in a: sys.exit(1)
@@ -58,7 +58,7 @@ class CIContracts(unittest.TestCase):
         self.assertEqual(len({c['database'] for c in tests}),4)
         self.assertEqual(len({c['redis'] for c in tests}),4)
 
-    def test_strict_budget_cases_are_run_once_after_parallel_shards(self):
+    def test_latency_group_runs_once_after_parallel_shards(self):
         result,_,calls=self.run_script('run-integration.sh')
         self.assertEqual(result.returncode,0,result.stderr)
         tests=[c for c in calls if 'vitest' in c['args']]
