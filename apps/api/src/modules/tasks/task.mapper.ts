@@ -1,4 +1,4 @@
-import { checklistProgress } from '@reflexionia/domain';
+import { checklistProgress, normalizeStoredNewlines } from '@reflexionia/domain';
 import { iso } from '../../http/json.js';
 
 export interface TaskRow {
@@ -105,7 +105,7 @@ export function toTaskSummary(
     parent_id: row.parentId,
     column_id: row.columnId,
     title: row.title,
-    content: row.content,
+    content: normalizeStoredNewlines(row.content),
     kind: row.kind,
     status: row.status,
     priority: row.priority,

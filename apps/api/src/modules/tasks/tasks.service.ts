@@ -23,6 +23,7 @@ import {
   deriveDurationMinutes,
   excludeOccurrence,
   extractMarkdownChecklist,
+  normalizeStoredNewlines,
   isIanaTimeZone,
   nextOccurrence,
   recurrenceAnchorWarning,
@@ -619,7 +620,7 @@ export class TasksService {
       const duration = planning
         ? this.plannedDuration(start, due, explicitDuration)
         : this.duration(start, due, explicitDuration);
-      let content = dto.content ?? current.content;
+      let content = normalizeStoredNewlines(dto.content ?? current.content);
       const extracted = dto.extract_checklist === true ? extractMarkdownChecklist(content) : null;
       if (extracted !== null) {
         content = extracted.content;
@@ -1857,7 +1858,7 @@ export class TasksService {
     }
     let title = captured === null ? this.title(dto.title ?? '') : captured.title;
     const timeZone = dto.time_zone === undefined ? user.timeZone : this.zone(dto.time_zone);
-    let content = dto.content ?? '';
+    let content = normalizeStoredNewlines(dto.content ?? '');
     if (preferences.parse_url_title && dto.raw_text !== undefined && dto.title === undefined) {
       const url = normalizeTaskUrl(title);
       if (url) {

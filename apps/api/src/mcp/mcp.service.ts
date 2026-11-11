@@ -16,6 +16,7 @@ import {
   LIST_REMINDER_OFF,
   HABIT_WEEKDAYS,
   parseMentions,
+  normalizeStoredNewlines,
   parseQuickAdd,
   proposeDaily,
   type PlanDecisionKind,
@@ -421,7 +422,9 @@ export class McpService {
               {
                 ...(parse ? { raw_text: title } : { title }),
                 ...(projectId === undefined ? {} : { project_id: projectId }),
-                ...(typeof args.content === 'string' ? { content: args.content } : {}),
+                ...(typeof args.content === 'string'
+                  ? { content: normalizeStoredNewlines(args.content) }
+                  : {}),
                 ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
                 ...(parentId === undefined ? {} : { parent_id: parentId }),
                 ...(columnId === undefined ? {} : { column_id: columnId }),
@@ -720,7 +723,7 @@ export class McpService {
               ...(args.content === null
                 ? { content: '' }
                 : typeof args.content === 'string'
-                  ? { content: args.content }
+                  ? { content: normalizeStoredNewlines(args.content) }
                   : {}),
               ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
               ...(columnId === undefined ? {} : { column_id: columnId }),
