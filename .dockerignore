@@ -11,3 +11,12 @@ backups
 coverage
 .cursor
 dist
+
+.env-config
+.github
+test-artifacts
+apps/web/test-results
+apps/*/e2e
+**/*.spec.ts
+**/*.e2e-spec.ts
+**/*.tsbuildinfo
