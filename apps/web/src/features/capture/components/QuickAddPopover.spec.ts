@@ -79,14 +79,11 @@ function open() {
   return { anchor, close, created, view };
 }
 describe('TTD-AUD-74 QuickAddPopover component', () => {
-  it('renders the date, focuses title, closes on Escape and restores focus', async () => {
+  it('renders the date, focuses title, closes on Escape and restores focus', () => {
     const { anchor, close, view } = open();
     const dialog = screen.getByRole('dialog', { name: '¿Qué quieres hacer?' });
     expect(dialog.getAttribute('aria-modal')).toBe('false');
-    const title = await screen.findByRole('textbox', { name: 'Añadir tarea' });
-    await waitFor(() => {
-      expect(title).toBe(document.activeElement);
-    });
+    expect(screen.getByRole('textbox', { name: 'Añadir tarea' })).toBe(document.activeElement);
     fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
     expect(close).toHaveBeenCalledOnce();
     view.unmount();
@@ -96,17 +93,14 @@ describe('TTD-AUD-74 QuickAddPopover component', () => {
   it('Enter creates using the slot and More options transfers the full draft', async () => {
     const user = userEvent.setup();
     const { created, view, anchor } = open();
-    await user.type(
-      await screen.findByRole('textbox', { name: 'Añadir tarea' }),
-      'Comprar pan{Enter}',
-    );
+    await user.type(screen.getByRole('textbox', { name: 'Añadir tarea' }), 'Comprar pan{Enter}');
     await waitFor(() => {
       expect(created).toHaveBeenCalledOnce();
     });
     view.unmount();
     anchor.remove();
     const next = open();
-    await user.type(await screen.findByRole('textbox', { name: 'Añadir tarea' }), 'Conservar');
+    await user.type(screen.getByRole('textbox', { name: 'Añadir tarea' }), 'Conservar');
     await user.click(screen.getByRole('button', { name: 'Más' }));
     await user.click(screen.getByRole('button', { name: 'Más opciones' }));
     expect(useCaptureOpen.getState().draft).toMatchObject({

@@ -1,10 +1,9 @@
-import { dateTimeFormat } from '../../lib/dates/formatters';
 export const GRID_START_HOUR = 0;
 export const GRID_END_HOUR = 24;
 export const HOUR_PX = 48;
 
 export function minutesInZone(iso: string, timeZone: string): number {
-  const parts = dateTimeFormat('en-GB', {
+  const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone,
     hour: '2-digit',
     minute: '2-digit',

@@ -1242,43 +1242,18 @@ export class McpService {
         const available = await this.calendars.listGoogleCalendars(user);
         return { ...listed, available };
       }
-      case 'calendar_summary':
-        return (
-          await this.calendars.summary(user, {
-            from: requiredString(args, 'from', 10),
-            to: requiredString(args, 'to', 10),
-            ...(typeof args.granularity === 'string' ? { granularity: args.granularity } : {}),
-            ...(typeof args.context === 'string' ? { context: args.context } : {}),
-            ...(typeof args.lists === 'string' ? { lists: args.lists } : {}),
-            ...(typeof args.tags === 'string' ? { tags: args.tags } : {}),
-            ...(typeof args.cals === 'string' ? { cals: args.cals } : {}),
-            ...(typeof args.include === 'string' ? { include: args.include } : {}),
-          })
-        ).body;
-      case 'calendar_range':
-        return (
-          await this.calendars.zoomRange(user, {
-            from: requiredString(args, 'from', 10),
-            to: requiredString(args, 'to', 10),
-            ...(typeof args.fields === 'string' ? { fields: args.fields } : {}),
-            ...(typeof args.include === 'string' ? { include: args.include } : {}),
-            ...(typeof args.context === 'string' ? { context: args.context } : {}),
-            ...(typeof args.lists === 'string' ? { lists: args.lists } : {}),
-            ...(typeof args.tags === 'string' ? { tags: args.tags } : {}),
-            ...(typeof args.cals === 'string' ? { cals: args.cals } : {}),
-            ...(typeof args.cursor === 'string' ? { cursor: args.cursor } : {}),
-            ...(typeof args.limit === 'number' ? { limit: String(args.limit) } : {}),
-          })
-        ).body;
       case 'list_calendar_events': {
-        return this.calendars.range(
+        const page = await this.calendars.range(
           user,
           requiredString(args, 'from', 40),
           requiredString(args, 'to', 40),
           typeof args.subscription_id === 'string' ? args.subscription_id : undefined,
           args.context === 'work' || args.context === 'personal' ? args.context : 'all',
-          calendarInclude(args),
         );
+        if (args.include_external === false) {
+          return { ...page, external: [] };
+        }
+        return page;
       }
       case 'add_external_calendar': {
         const provider = requiredString(args, 'provider', 16);
@@ -1949,20 +1924,6 @@ function projectFields(args: Record<string, unknown>): {
     ...(outcome === undefined ? {} : { outcome }),
     ...(reminder === undefined ? {} : { default_reminder_trigger: reminder }),
   };
-}
-
-function calendarInclude(args: Record<string, unknown>): 'external' | 'tasks' | 'all' {
-  if (args.include === 'external' || args.include === 'tasks' || args.include === 'all') {
-    return args.include;
-  }
-  if (args.include !== undefined) {
-    throw new DomainException(
-      HttpStatus.BAD_REQUEST,
-      'validation_failed',
-      'include must be external, tasks or all',
-    );
-  }
-  return args.include_external === false ? 'tasks' : 'all';
 }
 
 function sharePermission(value: unknown): 'read' | 'comment' | 'write' {

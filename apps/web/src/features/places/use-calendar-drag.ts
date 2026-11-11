@@ -1,4 +1,3 @@
-import { dateTimeFormat } from '../../lib/dates/formatters';
 import {
   useEffect,
   useId,
@@ -75,7 +74,7 @@ export function useCalendarDrag(
     const when = patch.start_date ?? patch.due_date;
     setAnnouncement(
       when
-        ? dateTimeFormat(locale, {
+        ? new Intl.DateTimeFormat(locale, {
             timeZone: zone,
             dateStyle: 'medium',
             ...(patch.is_all_day ? {} : { timeStyle: 'short' }),

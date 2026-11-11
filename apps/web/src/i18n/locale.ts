@@ -1,12 +1,11 @@
 import { create } from 'zustand';
-import { loadMessages } from './catalog';
 import { pushAccount } from '../theme/push-account';
 
 export type LocaleChoice = 'auto' | 'es' | 'en';
 
 const KEY = 'tick-tack-done.locale';
 
-export function readLocaleChoice(): LocaleChoice {
+function read(): LocaleChoice {
   try {
     const value = localStorage.getItem(KEY);
     if (value === 'es' || value === 'en' || value === 'auto') {
@@ -33,19 +32,13 @@ export function useAppLocale(): string {
 }
 
 export const useLocale = create<LocaleStore>((set) => ({
-  choice: readLocaleChoice(),
+  choice: read(),
   setChoice: (choice, source = 'user') => {
-    const locale = resolveLocale(choice);
-    void loadMessages(locale).then(
-      () => {
-        localStorage.setItem(KEY, choice);
-        document.documentElement.lang = locale;
-        set({ choice });
-        if (source === 'user') {
-          pushAccount({ locale: choice });
-        }
-      },
-      () => undefined,
-    );
+    localStorage.setItem(KEY, choice);
+    document.documentElement.lang = choice === 'auto' ? navigator.language : choice;
+    set({ choice });
+    if (source === 'user') {
+      pushAccount({ locale: choice });
+    }
   },
 }));

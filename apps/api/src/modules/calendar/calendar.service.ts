@@ -1,40 +1,26 @@
 import { GOOGLE_ACCESS_SELECT } from '../../integrations/google-access.js';
 import { createHash, randomBytes } from 'node:crypto';
-import { HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { formatInTimeZone } from 'date-fns-tz';
-import { parseIcal, projectConstraint, tasksToIcal, type IcalTask } from '@reflexionia/domain';
+import { parseIcal, tasksToIcal, type IcalTask } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { ICAL_MAX_BYTES, safeFetch } from '../../security/safe-fetch.js';
-import { eventLocalDayColumns } from '../../prisma/local-day-columns.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { googleConfigured } from '../../integrations/config.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
-import { CalendarZoomService } from './calendar-zoom.service.js';
+import { subscriptionHealth, worstHealth, type CalendarHealth } from './calendar-health.js';
 import {
   GoogleSyncService,
   type SubscriptionJson,
   type SyncReport,
 } from './google-sync.service.js';
-import { taskRangeWhere } from '../../reading/task-range.js';
-import { subscriptionHealth, worstHealth, type CalendarHealth } from './calendar-health.js';
 import { workFilterFor, type WorkContextMode } from '../../work/work-context.js';
 import { ListAccessService } from '../collaboration/list-access.js';
-
-export type CalendarInclude = 'external' | 'tasks' | 'all';
-
-const TASK_RANGE_SELECT = {
-  id: true,
-  title: true,
-  projectId: true,
-  startDate: true,
-  dueDate: true,
-  isAllDay: true,
-} as const;
 
 @Injectable()
 export class CalendarService {
@@ -42,9 +28,6 @@ export class CalendarService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(GoogleSyncService) private readonly googleSync: GoogleSyncService,
-    @Optional()
-    @Inject(CalendarZoomService)
-    private readonly zoom: CalendarZoomService | null = null,
     @Inject(ListAccessService) private readonly access: ListAccessService,
   ) {}
 
@@ -54,29 +37,40 @@ export class CalendarService {
     toIso: string,
     subscriptionId?: string,
     context: WorkContextMode = 'all',
-    include: CalendarInclude = 'all',
   ) {
     const from = this.instant(fromIso, 'from');
     const to = this.instant(toIso, 'to');
-    const tasks = include === 'external' ? [] : await this.tasksInRange(user, from, to, context);
-    const external =
-      include === 'tasks'
-        ? []
-        : await this.prisma.externalEvent.findMany({
-            where: {
-              ownerId: user.id,
-              deletedAt: null,
-              ...(subscriptionId === undefined ? {} : { subscriptionId }),
-              startsAt: { lt: to },
-              OR: [{ endsAt: { gte: from } }, { endsAt: null, startsAt: { gte: from } }],
-              subscription: { deletedAt: null, visible: true },
-            },
-            include: {
-              subscription: {
-                select: { color: true, provider: true, calendarId: true, summary: true },
-              },
-            },
-          });
+    const work = await workFilterFor(this.prisma, user.id, context);
+    const visibility = await this.access.assignedSharedWhere(user);
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        AND: [
+          visibility,
+          {
+            deletedAt: null,
+            status: 'active',
+            OR: [{ dueDate: { gte: from, lt: to } }, { startDate: { gte: from, lt: to } }],
+          },
+          ...(work === null ? [] : [work]),
+        ],
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+    const external = await this.prisma.externalEvent.findMany({
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        ...(subscriptionId === undefined ? {} : { subscriptionId }),
+        startsAt: { lt: to },
+        OR: [{ endsAt: { gte: from } }, { endsAt: null, startsAt: { gte: from } }],
+        subscription: { deletedAt: null, visible: true },
+      },
+      include: {
+        subscription: {
+          select: { color: true, provider: true, calendarId: true, summary: true },
+        },
+      },
+    });
     return {
       tasks: tasks.map((task) => ({
         id: task.id,
@@ -107,79 +101,6 @@ export class CalendarService {
       })),
       sync: await this.syncSummary(user.id, subscriptionId),
     };
-  }
-
-  private async tasksInRange(user: AuthUser, from: Date, to: Date, context: WorkContextMode) {
-    const lists = projectConstraint(user.listIds);
-    if (lists.id !== undefined) {
-      return [];
-    }
-    const work = await workFilterFor(this.prisma, user.id, context);
-    const range = taskRangeWhere(from, to, 'any');
-    const visibility = await this.access.assignedSharedWhere(user);
-    return this.prisma.task.findMany({
-      where: {
-        AND: [
-          visibility,
-          {
-            deletedAt: null,
-            status: 'active',
-            ...(lists.projectId === undefined ? {} : { projectId: lists.projectId }),
-            ...(range ?? {}),
-          },
-          ...(work === null ? [] : [work]),
-        ],
-      },
-      select: TASK_RANGE_SELECT,
-      orderBy: { dueDate: 'asc' },
-    });
-  }
-
-  summary(
-    user: AuthUser,
-    raw: {
-      readonly from?: string | undefined;
-      readonly to?: string | undefined;
-      readonly granularity?: string | undefined;
-      readonly context?: string | undefined;
-      readonly lists?: string | undefined;
-      readonly tags?: string | undefined;
-      readonly cals?: string | undefined;
-      readonly include?: string | undefined;
-    },
-    ifNoneMatch?: string,
-  ) {
-    return this.zoomOf().summary(user, raw, ifNoneMatch);
-  }
-
-  zoomRange(
-    user: AuthUser,
-    raw: {
-      readonly from?: string | undefined;
-      readonly to?: string | undefined;
-      readonly fields?: string | undefined;
-      readonly include?: string | undefined;
-      readonly context?: string | undefined;
-      readonly lists?: string | undefined;
-      readonly tags?: string | undefined;
-      readonly cals?: string | undefined;
-      readonly cursor?: string | undefined;
-      readonly limit?: string | undefined;
-    },
-    ifNoneMatch?: string,
-  ) {
-    return this.zoomOf().range(user, raw, ifNoneMatch);
-  }
-
-  private zoomOf(): CalendarZoomService {
-    if (this.zoom === null) {
-      throw new DomainException(
-        HttpStatus.INTERNAL_SERVER_ERROR,
-        'calendar_zoom_missing',
-        'Calendar zoom is not configured',
-      );
-    }
-    return this.zoom;
   }
 
   async syncStatus(user: AuthUser) {
@@ -546,14 +467,12 @@ export class CalendarService {
             startsAt: new Date(event.startsAt),
             endsAt: event.endsAt === null ? null : new Date(event.endsAt),
             isAllDay: event.isAllDay,
-            ...eventDayColumns(user.timeZone, event),
           },
           update: {
             title: event.title,
             startsAt: new Date(event.startsAt),
             endsAt: event.endsAt === null ? null : new Date(event.endsAt),
             isAllDay: event.isAllDay,
-            ...eventDayColumns(user.timeZone, event),
             deletedAt: null,
           },
         });
@@ -804,14 +723,11 @@ export class CalendarService {
             startsAt: new Date(event.startsAt),
             endsAt: event.endsAt === null ? null : new Date(event.endsAt),
             isAllDay: event.isAllDay,
-            ...eventDayColumns(user.timeZone, event),
           },
           update: {
             title: event.title,
             startsAt: new Date(event.startsAt),
             endsAt: event.endsAt === null ? null : new Date(event.endsAt),
-            isAllDay: event.isAllDay,
-            ...eventDayColumns(user.timeZone, event),
             deletedAt: null,
           },
         });
@@ -1089,19 +1005,6 @@ function googleEvent(
       isAllDay: typeof item.start?.date === 'string',
     },
   ];
-}
-
-function eventDayColumns(
-  profileTimeZone: string,
-  event: { startsAt: string; endsAt: string | null; isAllDay: boolean },
-) {
-  return eventLocalDayColumns({
-    start: new Date(event.startsAt),
-    end: event.endsAt === null ? null : new Date(event.endsAt),
-    timeZone: event.isAllDay ? 'UTC' : profileTimeZone,
-    allDay: event.isAllDay,
-    profileTimeZone,
-  });
 }
 
 function isoInZone(value: Date, timeZone: string): string {

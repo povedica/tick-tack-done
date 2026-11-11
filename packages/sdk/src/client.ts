@@ -32,9 +32,6 @@ export interface ListTasksQuery {
   readonly overdue?: boolean;
   readonly dueBefore?: string;
   readonly dueAfter?: string;
-  readonly from?: string;
-  readonly to?: string;
-  readonly rangeField?: 'due' | 'start' | 'any';
   readonly listId?: string;
   readonly sort?: string;
   readonly context?: 'all' | 'work' | 'personal' | 'auto';
@@ -665,15 +662,6 @@ function taskQuery(query: ListTasksQuery | undefined): string {
   }
   if (query.dueAfter !== undefined) {
     params.set('due_after', query.dueAfter);
-  }
-  if (query.from !== undefined) {
-    params.set('from', query.from);
-  }
-  if (query.to !== undefined) {
-    params.set('to', query.to);
-  }
-  if (query.rangeField !== undefined) {
-    params.set('range_field', query.rangeField);
   }
   if (query.listId !== undefined) {
     params.set('list_id', query.listId);

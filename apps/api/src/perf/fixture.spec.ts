@@ -55,7 +55,7 @@ describe('perf fixture', () => {
     const rank = ordered.findIndex((task) => task.title === SENTINEL_TITLE);
     expect(rank).toBeGreaterThanOrEqual(0);
     expect(rank).toBeLessThan(100);
-  }, 15_000);
+  });
 
   it('places the spring and autumn clock changes on their Madrid civil days', () => {
     const fixture = buildPerfFixture(PROFILE_S);

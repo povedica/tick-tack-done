@@ -194,22 +194,21 @@ export async function workFilterFor(
   ownerId: string,
   mode: WorkContextMode,
   now = new Date(),
-  row?: WorkRow,
 ): Promise<Prisma.TaskWhereInput | null> {
   if (mode === 'all') {
     return null;
   }
-  const loaded = row ?? (await loadWorkRow(db, ownerId));
+  const row = await loadWorkRow(db, ownerId);
   const hidden = workHiddenNow(
     {
-      ...workSchedule(loaded),
-      hideWorkOutsideHours: loaded.hideWorkOutsideHours,
-      showWorkUntil: loaded.showWorkUntil?.toISOString() ?? null,
-      timeZone: loaded.timeZone,
+      ...workSchedule(row),
+      hideWorkOutsideHours: row.hideWorkOutsideHours,
+      showWorkUntil: row.showWorkUntil?.toISOString() ?? null,
+      timeZone: row.timeZone,
     },
     now.toISOString(),
   );
-  return workTaskWhere(loaded, resolvedWorkMode(mode, hidden));
+  return workTaskWhere(row, resolvedWorkMode(mode, hidden));
 }
 
 export function clockOrNull(value: string | null | undefined): string | null {
@@ -315,15 +314,21 @@ export async function detachWorkReference(
   });
 }
 
-export function annotateWork(
-  row: WorkRow,
-  items: readonly {
-    project_id: string;
-    tag_ids: readonly string[];
-    folder_id: string | null;
-  }[],
-): boolean[] {
-  const folders = new Map(items.map((item) => [item.project_id, item.folder_id]));
+export async function annotateWork(
+  db: Db,
+  ownerId: string,
+  items: readonly { project_id: string; tag_ids: readonly string[] }[],
+): Promise<boolean[]> {
+  if (items.length === 0) {
+    return [];
+  }
+  const row = await loadWorkRow(db, ownerId);
+  const projectIds = [...new Set(items.map((item) => item.project_id))];
+  const projects = await db.project.findMany({
+    where: { id: { in: projectIds }, ownerId },
+    select: { id: true, folderId: true },
+  });
+  const folders = new Map(projects.map((project) => [project.id, project.folderId]));
   return items.map((item) =>
     isWorkTask(
       { projectId: item.project_id, tagIds: item.tag_ids },

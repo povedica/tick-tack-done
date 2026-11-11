@@ -1,7 +1,7 @@
 import type { UpdateMeBody } from '@reflexionia/sdk';
 import { api } from '../api';
 import { useActionToast } from '../components/action-toast';
-import { messagesFor } from '../i18n/catalog';
+import { extraEn, extraEs } from '../i18n/extra';
 
 function saveFailed(): string {
   let value: string | null = null;
@@ -15,7 +15,7 @@ function saveFailed(): string {
     (value === 'auto' &&
       typeof navigator !== 'undefined' &&
       navigator.language.toLowerCase().startsWith('en'));
-  return messagesFor(english ? 'en' : 'es').saveFailed;
+  return english ? extraEn.saveFailed : extraEs.saveFailed;
 }
 
 export function notifyAccountSaveFailed(): void {

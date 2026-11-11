@@ -61,8 +61,10 @@ function get(path, api) {
 }
 
 function taskQuery(cursor) {
+  const from = encodeURIComponent(manifest.yearWindow.dueAfter);
+  const to = encodeURIComponent(manifest.yearWindow.dueBefore);
   const cursorQuery = cursor.length > 0 ? `&cursor=${encodeURIComponent(cursor)}` : '';
-  return `/api/v1/tasks?status=active&limit=100&sort=due&from=${manifest.year}-01-01&to=${Number(manifest.year) + 1}-01-01&range_field=any&context=auto${cursorQuery}`;
+  return `/api/v1/tasks?status=active&limit=100&sort=due&due_after=${from}&due_before=${to}&context=auto${cursorQuery}`;
 }
 
 function walkTasks() {
@@ -92,7 +94,7 @@ function walkTasks() {
 function eventsPath() {
   const from = encodeURIComponent(manifest.yearWindow.dueAfter);
   const to = encodeURIComponent(manifest.yearWindow.dueBefore);
-  return `/api/v1/calendar/events?from=${from}&to=${to}&context=auto&include=external`;
+  return `/api/v1/calendar/events?from=${from}&to=${to}&context=auto`;
 }
 
 function oneOpen(countEvents) {

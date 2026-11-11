@@ -191,8 +191,6 @@ function memory() {
       }),
     },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
-    $executeRaw: async () => 0,
-    $queryRaw: async () => [],
   };
   return { prisma, subs, events, account };
 }
@@ -857,7 +855,6 @@ describe('Google calendar sync', () => {
       prisma as never,
       { record: vi.fn(async () => undefined) },
       serviceOf(prisma),
-      null,
       {} as never,
     );
     await calendars.removeSubscription(user, row.id);

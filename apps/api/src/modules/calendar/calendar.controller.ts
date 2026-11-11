@@ -12,7 +12,6 @@ import {
   Query,
   Req,
   Res,
-  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiNoContentResponse,
@@ -27,8 +26,7 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { respondJson } from '../../http/respond.js';
 import { FeedDto, SubscribeDto, SyncStatusDto, UpdateSubscriptionDto } from './calendar.dto.js';
-import { DomainException } from '../../http/domain.exception.js';
-import { CalendarService, type CalendarInclude } from './calendar.service.js';
+import { CalendarService } from './calendar.service.js';
 import { GoogleSyncService } from './google-sync.service.js';
 import { parseWorkContext } from '../../work/work-context.js';
 
@@ -60,18 +58,11 @@ export class CalendarController {
     enum: ['all', 'work', 'personal', 'auto'],
     description: 'Filters tasks only. External events stay visible. Default all.',
   })
-  @ApiQuery({
-    name: 'include',
-    required: false,
-    enum: ['external', 'tasks', 'all'],
-    description: 'external omits tasks, tasks omits external events. Default all.',
-  })
   async events(
     @CurrentUser() user: AuthUser,
     @Query('from') from: string,
     @Query('to') to: string,
     @Query('context') context: string | undefined,
-    @Query('include') include: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
@@ -79,112 +70,9 @@ export class CalendarController {
       req,
       res,
       200,
-      await this.calendar.range(
-        user,
-        from,
-        to,
-        undefined,
-        parseWorkContext(context),
-        parseCalendarInclude(include),
-      ),
+      await this.calendar.range(user, from, to, undefined, parseWorkContext(context)),
       false,
     );
-  }
-
-  @Get('summary')
-  @Scopes('calendar:read')
-  @ApiOperation({
-    summary:
-      'Day or month density for a calendar window. Reads tasks and external events. Max 400 days.',
-  })
-  @ApiQuery({ name: 'from', required: true, description: 'Inclusive civil day YYYY-MM-DD' })
-  @ApiQuery({ name: 'to', required: true, description: 'Inclusive civil day YYYY-MM-DD' })
-  @ApiQuery({ name: 'granularity', required: false, enum: ['day', 'month'] })
-  @ApiQuery({ name: 'context', required: false, enum: ['all', 'work', 'personal', 'auto'] })
-  @ApiQuery({ name: 'lists', required: false, description: 'Comma-separated list ids' })
-  @ApiQuery({ name: 'tags', required: false, description: 'Comma-separated tag ids' })
-  @ApiQuery({ name: 'cals', required: false, description: 'Comma-separated subscription ids' })
-  @ApiQuery({
-    name: 'include',
-    required: false,
-    description: 'tasks, events, projections. Projections add no rows.',
-  })
-  async summary(
-    @CurrentUser() user: AuthUser,
-    @Query('from') from: string | undefined,
-    @Query('to') to: string | undefined,
-    @Query('granularity') granularity: string | undefined,
-    @Query('context') context: string | undefined,
-    @Query('lists') lists: string | undefined,
-    @Query('tags') tags: string | undefined,
-    @Query('cals') cals: string | undefined,
-    @Query('include') include: string | undefined,
-    @Headers('if-none-match') ifNoneMatch: string | undefined,
-    @Res() res: Response,
-  ): Promise<void> {
-    const result = await this.calendar.summary(
-      user,
-      { from, to, granularity, context, lists, tags, cals, include },
-      ifNoneMatch,
-    );
-    this.respondZoom(res, result.etag, result.body);
-  }
-
-  @Get('range')
-  @Scopes('calendar:read')
-  @ApiOperation({
-    summary:
-      'Compact or full calendar entries for a window. Keyset (local_start_day, starts_at, id). Max 62 days, limit 500.',
-  })
-  @ApiQuery({ name: 'from', required: true, description: 'Inclusive civil day YYYY-MM-DD' })
-  @ApiQuery({ name: 'to', required: true, description: 'Inclusive civil day YYYY-MM-DD' })
-  @ApiQuery({ name: 'fields', required: false, enum: ['compact', 'full'] })
-  @ApiQuery({
-    name: 'include',
-    required: false,
-    description:
-      'tasks, events, projections. Default both tasks and events. Projections add no rows.',
-  })
-  @ApiQuery({ name: 'context', required: false, enum: ['all', 'work', 'personal', 'auto'] })
-  @ApiQuery({ name: 'lists', required: false, description: 'Comma-separated list ids' })
-  @ApiQuery({ name: 'tags', required: false, description: 'Comma-separated tag ids' })
-  @ApiQuery({ name: 'cals', required: false, description: 'Comma-separated subscription ids' })
-  @ApiQuery({ name: 'cursor', required: false })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: '1 to 500. Page size, not a silent cut.',
-  })
-  async rangeZoom(
-    @CurrentUser() user: AuthUser,
-    @Query('from') from: string | undefined,
-    @Query('to') to: string | undefined,
-    @Query('fields') fields: string | undefined,
-    @Query('include') include: string | undefined,
-    @Query('context') context: string | undefined,
-    @Query('lists') lists: string | undefined,
-    @Query('tags') tags: string | undefined,
-    @Query('cals') cals: string | undefined,
-    @Query('cursor') cursor: string | undefined,
-    @Query('limit') limit: string | undefined,
-    @Headers('if-none-match') ifNoneMatch: string | undefined,
-    @Res() res: Response,
-  ): Promise<void> {
-    const result = await this.calendar.zoomRange(
-      user,
-      { from, to, fields, include, context, lists, tags, cals, cursor, limit },
-      ifNoneMatch,
-    );
-    this.respondZoom(res, result.etag, result.body);
-  }
-
-  private respondZoom(res: Response, etag: string, body: unknown): void {
-    res.setHeader('ETag', etag);
-    if (body === null) {
-      res.status(304).end();
-      return;
-    }
-    res.status(200).json(body);
   }
 
   @Get('google/calendars')
@@ -376,18 +264,4 @@ export class FeedsController {
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.status(200).send(body);
   }
-}
-
-function parseCalendarInclude(raw: string | undefined): CalendarInclude {
-  if (raw === undefined || raw.length === 0 || raw === 'all') {
-    return 'all';
-  }
-  if (raw === 'external' || raw === 'tasks') {
-    return raw;
-  }
-  throw new DomainException(
-    HttpStatus.BAD_REQUEST,
-    'validation_failed',
-    'include must be external, tasks or all',
-  );
 }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { captureSettings } from './capture-settings';
-import { parseCapture } from './parse-capture';
+import { captureSettings, parseCapture } from './capture-settings';
 const context = { now: '2026-10-24T12:00:00Z', timeZone: 'Europe/Madrid' };
 describe('RF-102: configurable capture defaults', () => {
   it('preserves the existing recognition and title cleanup by default', () => {

@@ -1,7 +1,6 @@
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { observeQuery } from '../observability/request-timing.js';
-import { stampTaskRow } from './local-day-columns.js';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
@@ -15,22 +14,6 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
     });
     const timed = this.$extends({
       query: {
-        task: {
-          async create({ args, query }) {
-            args.data = stampTaskRow(args.data);
-            return query(args);
-          },
-          async update({ args, query }) {
-            args.data = stampTaskRow(args.data);
-            return query(args);
-          },
-          async createMany({ args, query }) {
-            args.data = Array.isArray(args.data)
-              ? args.data.map(stampTaskRow)
-              : stampTaskRow(args.data);
-            return query(args);
-          },
-        },
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
             const started = performance.now();

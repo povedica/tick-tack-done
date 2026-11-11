@@ -33,8 +33,7 @@ vi.mock('@reflexionia/sdk', () => ({
 }));
 
 import { ApiError } from '@reflexionia/sdk';
-import { LoginPage } from './AuthPages';
-import { ForgotPasswordPage, ResetPasswordPage } from './PasswordResetPages';
+import { ForgotPasswordPage, LoginPage, ResetPasswordPage } from './AuthPages';
 
 beforeEach(() => {
   Object.defineProperty(navigator, 'language', { value: 'es-ES', configurable: true });
