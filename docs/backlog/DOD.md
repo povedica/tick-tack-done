@@ -9,6 +9,8 @@ Fusionar no basta si falta un punto.
       qué uno no aplica).
 - [ ] Documentación y harness al día si cambian (AGENTS.md, protocolo,
       skill, CHANGELOG o `skip-changelog`).
+- [ ] Existe al menos un comentario de decisión en la issue por cada decisión tomada;
+      el último comentario resume el estado al pasar a En revisión.
 - [ ] PR fusionada en `main`; la issue se cierra con «Closes #N».
 - [ ] Tablero correcto: columna Hecho, Agente y Rama rellenados, Zona
       correcta.

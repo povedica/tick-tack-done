@@ -18,5 +18,7 @@ alwaysApply: true
   una PR en borrador cuya descripción empiece por `Closes #N`. Si la PR ya
   existía, se adopta: se añade esa línea y se rellenan Agente y Rama.
   Detalle en `AGENTS.md` y `docs/backlog/PROTOCOLO-BACKLOG.md`.
+- Tras cada avance relevante, comentario en la issue con
+  `docs/backlog/plantillas/comentario-decision.md`. Detalle en el protocolo.
 - Si el PR toca el modelo: incluye migración y su rollback verificado. Si toca eventos: catálogo de la sección 11.1 actualizado. Si toca la API: OpenAPI regenerado.
 - `docs/mcp/` vive en el repositorio. `docs/audit/`, `docs/spec/` y las capturas no. Documenta cambios y decisiones en la PR y en `CHANGELOG.md`.

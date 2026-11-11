@@ -134,6 +134,8 @@ has_closes() {
   grep -qiE "$CLOSING_REF" <<<"$1"
 }
 
+REVIEW_ISSUES=""
+
 # Escribe la Rama, avisa si Agente está vacío y saca de «Listo para hacer».
 # Nunca falla el check: sin token o sin item, solo avisa.
 sync_linked_issues() {
@@ -168,6 +170,7 @@ sync_linked_issues() {
     status="${rest%%$'\t'*}"
     if [ "$rest" = "$line" ]; then status=""; agente=""; else agente="${rest#*$'\t'}"; fi
     if [ "$agente" = "$rest" ]; then agente=""; fi
+    if [ "$status" = "En revisión" ]; then REVIEW_ISSUES="$REVIEW_ISSUES $n"; fi
     if [ -n "$branch" ] && [ -n "$rama_id" ]; then
       if GH_TOKEN="$PROJECT_TOKEN" run gh project item-edit --id "$item" --project-id "$pid" \
         --field-id "$rama_id" --text "$branch"; then
@@ -189,13 +192,31 @@ sync_linked_issues() {
   done
 }
 
+# Solo comprueba presencia: no inventa decisiones ni cambia estados al retomar.
+# El estado ya leído por sync_linked_issues sirve también con PR en borrador.
+warn_missing_decisions() {
+  local body="$1" draft="$2" n comments
+  for n in $(closing_numbers "$body"); do
+    if [ "$draft" != "false" ] && [[ " $REVIEW_ISSUES " != *" $n "* ]]; then
+      continue
+    fi
+    if ! comments="$(gh api --paginate "repos/$REPO/issues/$n/comments?per_page=100" --jq '.[].body')"; then
+      say "::warning::#$n: no pude leer los comentarios de decisión de la issue."
+      continue
+    fi
+    if ! grep -Fq -- '<!-- ttd-decision -->' <<<"$comments"; then
+      say "::warning::#$n: no hay comentario de decisión en la issue. Usa docs/backlog/plantillas/comentario-decision.md. Al retomar: Fase Retomada y vuelta a En curso."
+    fi
+  done
+}
+
 cmd_pr_check() {
   if [ -z "${PROJECT_NUMBER:-}" ]; then
     say "::warning::Sin PROJECT_NUMBER: check de backlog pendiente de configurar."
     return 0
   fi
   local pr="$1" data body labels author closing files branch trimmed
-  data="$(gh pr view "$pr" --repo "$REPO" --json body,labels,author,closingIssuesReferences,files,headRefName)"
+  data="$(gh pr view "$pr" --repo "$REPO" --json body,labels,author,closingIssuesReferences,files,headRefName,isDraft)"
   body="$(jq -r '.body // ""' <<<"$data")"
   labels="$(jq -r '.labels[].name' <<<"$data")"
   author="$(jq -r '.author.login' <<<"$data")"
@@ -218,6 +239,8 @@ cmd_pr_check() {
       || say "::warning::No pude avisar en la PR #$pr de dónde va «Closes #N»."
   fi
   sync_linked_issues "$pr" "$body" "$branch" || say "::warning::No pude actualizar el Project de la PR #$pr."
+  warn_missing_decisions "$body" "$(jq -r 'if .isDraft == false then "false" else "true" end' <<<"$data")" \
+    || say "::warning::No pude comprobar los comentarios de decisión."
   files="$(jq -r '.files[].path' <<<"$data")"
   closing="$(jq -r '.closingIssuesReferences[].number' <<<"$data")"
   local needs_dec=0 n
