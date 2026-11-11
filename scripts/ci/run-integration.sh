@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Two concurrent shards, separate databases and Redis instances, one runner/setup.
+# Four concurrent shards, separate databases and Redis instances, one runner/setup.
 set -euo pipefail
-: "${POSTGRES_CONTAINER:?}" "${POSTGRES_CONTAINER_SHARD2:?}" "${DATABASE_URL:?}"
-postgres_containers=("$POSTGRES_CONTAINER" "$POSTGRES_CONTAINER_SHARD2")
+: "${POSTGRES_CONTAINER:?}" "${POSTGRES_CONTAINER_SHARD2:?}" "${POSTGRES_CONTAINER_SHARD3:?}" "${POSTGRES_CONTAINER_SHARD4:?}" "${DATABASE_URL:?}"
+postgres_containers=("$POSTGRES_CONTAINER" "$POSTGRES_CONTAINER_SHARD2" "$POSTGRES_CONTAINER_SHARD3" "$POSTGRES_CONTAINER_SHARD4")
 logs=$(mktemp -d)
 pids=()
-for shard in 1 2; do
+for shard in 1 2 3 4; do
   postgres_port=$((5431 + shard))
   database_url="${DATABASE_URL%:*}:$postgres_port/reflexionia_test"
   DATABASE_URL="$database_url" pnpm db:deploy
@@ -13,14 +13,14 @@ for shard in 1 2; do
   (
     set +e
     POSTGRES_CONTAINER="${postgres_containers[$((shard - 1))]}" DATABASE_URL="$database_url" REDIS_URL="redis://localhost:$redis_port" \
-      pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard="$shard/2" --pool=threads --maxWorkers=1 --reporter=dot > "$logs/$shard.log" 2>&1
+      pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard="$shard/4" --pool=threads --maxWorkers=1 --reporter=dot > "$logs/$shard.log" 2>&1
     echo "$?" > "$logs/$shard.status"
   ) &
   pids+=("$!")
 done
 for pid in "${pids[@]}"; do wait "$pid" || true; done
 result=0
-for shard in 1 2; do
+for shard in 1 2 3 4; do
   echo "::group::integration shard $shard"
   cat "$logs/$shard.log"
   echo '::endgroup::'

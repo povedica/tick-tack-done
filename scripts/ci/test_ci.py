@@ -11,9 +11,9 @@ import json,os,sys
 with open(os.environ['CI_MOCK_LOG'],'a') as out:
     out.write(json.dumps({'args':sys.argv[1:],'database':os.environ.get('DATABASE_URL'),'redis':os.environ.get('REDIS_URL')})+'\n')
 a=' '.join(sys.argv[1:])
-if os.environ.get('FAIL_QUALITY') and 'format:check' in a: sys.exit(1)
+if os.environ.get('FAIL_QUALITY') and 'lint:ci' in a: sys.exit(1)
 if os.environ.get('FAIL_BENCHMARK') and 'year-index.spec.ts' in a: sys.exit(1)
-if os.environ.get('FAIL_SHARD') and '--shard=2/2' in a: sys.exit(1)
+if os.environ.get('FAIL_SHARD') and '--shard=4/4' in a: sys.exit(1)
 '''
 
 class CIContracts(unittest.TestCase):
@@ -23,7 +23,7 @@ class CIContracts(unittest.TestCase):
         binary=root/'bin';binary.mkdir()
         for tool in ['pnpm','docker']:
             path=binary/tool;path.write_text(MOCK);path.chmod(0o755)
-        env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'CI_MOCK_LOG':str(log),'GITHUB_OUTPUT':str(out),'RUN_API':'true','RUN_BROWSER':'true','DATABASE_URL':'postgresql://fixture@localhost/base','POSTGRES_CONTAINER':'fixture','POSTGRES_CONTAINER_SHARD2':'fixture2',**extra}
+        env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'CI_MOCK_LOG':str(log),'GITHUB_OUTPUT':str(out),'RUN_API':'true','RUN_BROWSER':'true','DATABASE_URL':'postgresql://fixture@localhost/base','POSTGRES_CONTAINER':'fixture','POSTGRES_CONTAINER_SHARD2':'fixture2','POSTGRES_CONTAINER_SHARD3':'fixture3','POSTGRES_CONTAINER_SHARD4':'fixture4',**extra}
         result=subprocess.run(['bash',str(ROOT/'scripts/ci'/name)],cwd=ROOT,env=env,capture_output=True,text=True)
         return result,out.read_text() if out.exists() else '',[json.loads(x) for x in log.read_text().splitlines()]
 
@@ -46,9 +46,9 @@ class CIContracts(unittest.TestCase):
         result,_,calls=self.run_script('run-integration.sh')
         self.assertEqual(result.returncode,0,result.stderr)
         tests=[c for c in calls if 'vitest' in c['args']]
-        self.assertEqual(len(tests),2)
-        self.assertEqual(len({c['database'] for c in tests}),2)
-        self.assertEqual(len({c['redis'] for c in tests}),2)
+        self.assertEqual(len(tests),4)
+        self.assertEqual(len({c['database'] for c in tests}),4)
+        self.assertEqual(len({c['redis'] for c in tests}),4)
 
     def test_failed_integration_shard_fails_job(self):
         result,_,_=self.run_script('run-integration.sh',FAIL_SHARD='1')

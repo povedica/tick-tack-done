@@ -72,6 +72,8 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           build-api: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
+      - name: Fail fast on formatting before launching expensive checks
+        run: pnpm format:check
       - name: Resolve installed Playwright version
         if: github.event_name == 'push' || needs.changes.outputs.browser == 'true'
         id: playwright
@@ -181,12 +183,38 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U reflexionia"
           --health-interval 1s --health-timeout 3s --health-retries 30
+      postgres-shard3:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ${{ env.CI_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.CI_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.CI_POSTGRES_DB }}
+        ports: ['5434:5432']
+        options: >-
+          --health-cmd "pg_isready -U reflexionia"
+          --health-interval 1s --health-timeout 3s --health-retries 30
+      postgres-shard4:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ${{ env.CI_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.CI_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.CI_POSTGRES_DB }}
+        ports: ['5435:5432']
+        options: >-
+          --health-cmd "pg_isready -U reflexionia"
+          --health-interval 1s --health-timeout 3s --health-retries 30
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
       redis-shard2:
         image: redis:7-alpine
         ports: ['6380:6379']
+      redis-shard3:
+        image: redis:7-alpine
+        ports: ['6381:6379']
+      redis-shard4:
+        image: redis:7-alpine
+        ports: ['6382:6379']
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -201,10 +229,13 @@ jobs:
             chmod +x "$RUNNER_TEMP/pg-bin/$tool"
           done
           echo "$RUNNER_TEMP/pg-bin" >> "$GITHUB_PATH"
+      - run: nproc
       - run: bash scripts/ci/run-integration.sh
         env:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
           POSTGRES_CONTAINER_SHARD2: ${{ job.services.postgres-shard2.id }}
+          POSTGRES_CONTAINER_SHARD3: ${{ job.services.postgres-shard3.id }}
+          POSTGRES_CONTAINER_SHARD4: ${{ job.services.postgres-shard4.id }}
 
   public-tree-guard:
     timeout-minutes: 5

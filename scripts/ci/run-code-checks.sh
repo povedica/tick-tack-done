@@ -4,7 +4,7 @@ set -euo pipefail
 : "${GITHUB_OUTPUT:?}"
 logs=$(mktemp -d)
 pids=()
-quality() { pnpm format:check && pnpm lint:ci && pnpm typecheck:ci; }
+quality() { pnpm lint:ci && pnpm typecheck:ci; }
 unit() { pnpm -r --filter '!reflexionia-tasks' test:ci; }
 openapi() {
   pnpm --filter api openapi:generate && git diff --exit-code apps/api/openapi.json apps/api/src/mcp/api-operations.json
