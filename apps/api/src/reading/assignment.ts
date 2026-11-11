@@ -1,4 +1,7 @@
+import { HttpStatus } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { DomainException } from '../http/domain.exception.js';
+import { optionalUuid } from '../http/uuid-query.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { Tx } from '../prisma/tx.js';
 
@@ -181,6 +184,43 @@ export async function loadAssignmentMap(
     );
   }
   return result;
+}
+
+/** `me`, `none`, or a uuid. Undefined when the query param is absent. */
+export function assigneeFilter(raw: unknown, userId: string): { id: string | null } | undefined {
+  const value = personToken(raw, 'assignee', true, userId);
+  return value === undefined ? undefined : { id: value };
+}
+
+/** `me` or a uuid. The current assignee must be someone else. */
+export function assignedByActor(raw: unknown, userId: string): string | undefined {
+  const value = personToken(raw, 'assigned_by', false, userId);
+  return typeof value === 'string' ? value : undefined;
+}
+
+function personToken(
+  raw: unknown,
+  field: 'assignee' | 'assigned_by',
+  allowNone: boolean,
+  userId: string,
+): string | null | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (typeof raw !== 'string' || raw.length === 0) {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', `${field} is invalid`);
+  }
+  if (raw === 'me') {
+    return userId;
+  }
+  if (allowNone && raw === 'none') {
+    return null;
+  }
+  const id = optionalUuid(raw, field);
+  if (id === undefined) {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', `${field} is invalid`);
+  }
+  return id;
 }
 
 /** Tasks this actor assigned that are still someone else's. */

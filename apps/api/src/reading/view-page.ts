@@ -12,6 +12,7 @@ export interface ViewGroupJson {
   key: string;
   label: string;
   tasks: ViewTaskJson[];
+  overdue_count?: number;
 }
 
 export interface ViewPageJson {

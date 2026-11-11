@@ -272,6 +272,12 @@ export class ViewGroupDto {
   @ApiProperty()
   label!: string;
 
+  @ApiProperty({
+    required: false,
+    description: 'Present when group_by=assignee. Active tasks in the group whose deadline has passed.',
+  })
+  overdue_count?: number;
+
   @ApiProperty({ type: [ViewTaskDto] })
   tasks!: ViewTaskDto[];
 }
@@ -280,7 +286,7 @@ export class ViewPageDto {
   @ApiProperty()
   count!: number;
 
-  @ApiProperty({ enum: ['none', 'section', 'date', 'tag', 'priority'] })
+  @ApiProperty({ enum: ['none', 'section', 'date', 'tag', 'priority', 'assignee'] })
   group_by!: string;
 
   @ApiProperty({ enum: ['manual', 'date', 'priority', 'title', 'created'] })
@@ -370,6 +376,7 @@ export class SmartListItemDto {
       'all',
       'inbox',
       'assigned_to_me',
+      'assigned_by_me',
       'completed',
       'trash',
       'no_date',
@@ -384,6 +391,7 @@ export class SmartListItemDto {
     'all',
     'inbox',
     'assigned_to_me',
+    'assigned_by_me',
     'completed',
     'trash',
     'no_date',

@@ -30,6 +30,7 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
 import { pageLimit } from '../../http/cursor.js';
 import { DomainException } from '../../http/domain.exception.js';
+import { assignedByActor, assigneeFilter } from '../../reading/assignment.js';
 import { optionalUuid } from '../../http/uuid-query.js';
 import { respondJson } from '../../http/respond.js';
 import { parseWorkContext } from '../../work/work-context.js';
@@ -631,35 +632,12 @@ export class TasksController {
     assignee: string | undefined,
     assignedBy: string | undefined,
   ): Pick<TaskListQuery, 'filterAssignee' | 'assignedByActorId'> {
-    const filterAssignee = this.personFilter(assignee, 'assignee', true, userId);
-    const assignedByActorId = this.personFilter(assignedBy, 'assigned_by', false, userId);
+    const filterAssignee = assigneeFilter(assignee, userId);
+    const actorId = assignedByActor(assignedBy, userId);
     return {
-      ...(filterAssignee === undefined ? {} : { filterAssignee: { id: filterAssignee } }),
-      ...(typeof assignedByActorId === 'string' ? { assignedByActorId } : {}),
+      ...(filterAssignee === undefined ? {} : { filterAssignee }),
+      ...(actorId === undefined ? {} : { assignedByActorId: actorId }),
     };
-  }
-
-  /** `me` is the caller. Assignee also accepts `none`. Anything else must be a uuid. */
-  private personFilter(
-    raw: string | undefined,
-    field: 'assignee' | 'assigned_by',
-    allowNone: boolean,
-    userId: string,
-  ): string | null | undefined {
-    if (raw === undefined || raw.length === 0) {
-      return undefined;
-    }
-    if (raw === 'me') {
-      return userId;
-    }
-    if (allowNone && raw === 'none') {
-      return null;
-    }
-    const id = optionalUuid(raw, field);
-    if (id === undefined) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', `${field} is invalid`);
-    }
-    return id;
   }
 
   private priority(raw: string): Priority {

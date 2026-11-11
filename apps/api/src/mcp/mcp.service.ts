@@ -30,6 +30,7 @@ import { EventRecorder } from '../events/event-recorder.js';
 import { asJson } from '../http/json.js';
 import { offsetOf, offsetCursor, offsetPage } from '../http/offset-page.js';
 import { projectConstraint } from '@reflexionia/domain';
+import { assignedByActor, assigneeFilter } from '../reading/assignment.js';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../reading/snapshot.js';
@@ -360,6 +361,7 @@ export class McpService {
           ...(args.context === 'work' || args.context === 'personal'
             ? { context: args.context }
             : {}),
+          ...assignmentQuery(user.id, args),
         });
         return {
           ...page,
@@ -662,6 +664,9 @@ export class McpService {
           requiredUuid(args, 'task_id'),
           requiredUuid(args, 'reminder_id'),
         );
+        return { ok: true };
+      case 'mark_task_seen':
+        await this.tasks.markSeen(user, requiredUuid(args, 'id'));
         return { ok: true };
       case 'assign_task': {
         const taskId = requiredUuid(args, 'id');
@@ -1002,8 +1007,8 @@ export class McpService {
         return this.smartLists.tasks(
           user,
           requiredString(args, 'key', 40),
-          undefined,
-          undefined,
+          typeof args.group_by === 'string' ? args.group_by : undefined,
+          typeof args.sort === 'string' ? args.sort : undefined,
           limit,
           cursorOf(args),
           args.context === 'work' || args.context === 'personal' ? args.context : 'all',
@@ -2205,6 +2210,18 @@ function uuidOrEmpty(value: unknown): string | undefined {
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'uuid is invalid');
   }
   return value;
+}
+
+function assignmentQuery(
+  userId: string,
+  args: Record<string, unknown>,
+): { filterAssignee?: { id: string | null }; assignedByActorId?: string } {
+  const filterAssignee = assigneeFilter(args.assignee, userId);
+  const actorId = assignedByActor(args.assigned_by, userId);
+  return {
+    ...(filterAssignee === undefined ? {} : { filterAssignee }),
+    ...(actorId === undefined ? {} : { assignedByActorId: actorId }),
+  };
 }
 
 function cursorOf(args: Record<string, unknown>): string | undefined {
