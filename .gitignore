@@ -37,3 +37,6 @@ docker-compose.worktree.local.yml
 **/evidencias/
 **/*-shots/
 .env-config/
+
+# Plantilla de referencias 1Password, sin valores.
+!.env.tpl

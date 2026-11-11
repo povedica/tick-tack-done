@@ -214,7 +214,11 @@ jobs:
       - name: Validate workflows
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.11
       - name: Validate CI shell scripts
-        run: shellcheck scripts/ci/*.sh
+        run: shellcheck scripts/ci/*.sh scripts/secrets/*.sh deploy/lib/*.sh deploy/staging/deploy.sh scripts/dev.sh .cursor/setup-worktree-unix.sh
+      - name: Test private env and deployment contracts offline
+        run: |
+          python3 -B -m unittest discover -s scripts/secrets -v
+          python3 -B -m unittest discover -s scripts/deploy -v
 
   ci-ok:
     if: always()

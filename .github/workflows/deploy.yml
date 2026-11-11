@@ -1,0 +1,43 @@
+name: Deploy
+on:
+  workflow_run:
+    workflows: [Images]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full SHA from a successful Images run, or last-good
+        required: true
+        default: last-good
+        type: string
+permissions:
+  contents: read
+  actions: read
+  packages: read
+jobs:
+  preflight:
+    if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      sha: ${{ steps.target.outputs.sha }}
+    steps:
+      - name: Check environment exists; never create it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/$GITHUB_REPOSITORY/environments/staging" --silent
+      - id: target
+        env:
+          TARGET: ${{ github.event.workflow_run.head_sha || inputs.sha }}
+        run: |
+          [[ "$TARGET" == last-good || "$TARGET" =~ ^[a-fA-F0-9]{40}$ ]] || exit 64
+          echo "sha=$TARGET" >> "$GITHUB_OUTPUT"
+  deploy-staging:
+    needs: preflight
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: staging
+      sha: ${{ needs.preflight.outputs.sha }}
+      image-run: ${{ github.event.workflow_run.id && format('{0}', github.event.workflow_run.id) || '' }}
+    secrets: inherit
