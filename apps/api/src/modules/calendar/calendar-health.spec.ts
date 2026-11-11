@@ -88,6 +88,7 @@ describe('calendar connection health', () => {
       prisma as never,
       { record: async () => undefined },
       google,
+      null,
       {} as never,
     );
     const status = await service.syncStatus(user);
@@ -132,6 +133,7 @@ describe('calendar connection health', () => {
       prisma as never,
       { record: async () => undefined },
       google,
+      null,
       {} as never,
     );
     const body = await service.syncReported(user, row.id);
@@ -152,6 +154,7 @@ describe('calendar connection health', () => {
       prisma as never,
       { record: async () => undefined },
       {} as GoogleSyncService,
+      null,
       {} as never,
     );
     await expect(service.syncReported(user, row.id)).rejects.toMatchObject({

@@ -1,3 +1,4 @@
+import { dateTimeFormat } from '../../lib/dates/formatters';
 import { runAction } from '../../components/run-action';
 import { useRef, useState } from 'react';
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
@@ -20,7 +21,7 @@ export function useCalendarTaskChange() {
   );
   const [failed, setFailed] = useState<{ task: Task; patch: TaskPatch } | null>(null);
   const patchCaches = (id: string, patch: TaskPatch) => {
-    for (const key of ['calendar-tasks', 'calendar-start-tasks']) {
+    for (const key of ['calendar-tasks']) {
       cache.setQueriesData<Task[]>({ queryKey: [key] }, (old) =>
         old?.map((task) =>
           task.id === id
@@ -56,7 +57,7 @@ export function useCalendarTaskChange() {
     let restore: TaskPatch = {};
     try {
       await Promise.all(
-        ['calendar-tasks', 'calendar-start-tasks', 'calendar-agenda'].map((key) =>
+        ['calendar-tasks', 'calendar-agenda'].map((key) =>
           cache.cancelQueries({ queryKey: [key] }),
         ),
       );
@@ -80,7 +81,7 @@ export function useCalendarTaskChange() {
       if (!restoring) {
         const instant = patch.start_date ?? patch.due_date;
         const when = instant
-          ? new Intl.DateTimeFormat(locale, {
+          ? dateTimeFormat(locale, {
               timeZone: patch.time_zone ?? task.time_zone,
               dateStyle: 'medium',
               ...(patch.is_all_day ? {} : { timeStyle: 'short' }),

@@ -9,6 +9,7 @@ import { AppModule } from '../src/app.module.js';
 import { EventRouter } from '../src/events/event-router.js';
 import { configureApp } from '../src/configure-app.js';
 import { loadRootEnv } from '../src/load-env.js';
+
 type SuperTestApp = Parameters<typeof request>[0];
 
 loadRootEnv();
@@ -799,14 +800,12 @@ describe('filters, smart lists and search', () => {
           .send({ name: `F${index}`, mode: 'normal', rules: keywordRules(`q${index}`) })
           .expect(201);
       }
-      await api.get('/api/v1/filters').expect(200);
       const listed = await api.get('/api/v1/filters').expect(200);
       expect(listed.body.items).toHaveLength(10);
-      // Prisma 6's extended client has no $on. Server-Timing counts the same request.
-      const count = Number(
-        /desc="(\d+) q"/.exec(String(listed.headers['server-timing']))?.[1] ?? '0',
-      );
-      expect(count).toBe(12);
+      const header = listed.headers['server-timing'];
+      const timing = typeof header === 'string' ? header : '';
+      const queries = Number(/desc="(\d+) q"/.exec(timing)?.[1] ?? '0');
+      expect(queries).toBe(12);
     } finally {
       await removeOwner(user.id);
     }

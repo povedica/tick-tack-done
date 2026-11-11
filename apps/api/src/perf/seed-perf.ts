@@ -1,6 +1,7 @@
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import { eventLocalDayColumns, taskLocalDayColumns } from '../prisma/local-day-columns.js';
 import argon2 from 'argon2';
 import { API_SCOPES } from '../auth/scopes.js';
 import { newSessionSecret } from '../auth/session-cookie.js';
@@ -59,6 +60,10 @@ export async function main(): Promise<void> {
     writeSecret(tokenPath, token.token);
     writeSecret(sessionPath, JSON.stringify({ token: session.token, csrf: session.csrf }));
     writeJson(manifestPath, manifestOf(fixture));
+    await prisma.$executeRawUnsafe('ANALYZE tasks');
+    await prisma.$executeRawUnsafe('ANALYZE external_events');
+    await prisma.$executeRawUnsafe('ANALYZE projects');
+    await prisma.$executeRawUnsafe('ANALYZE calendar_subscriptions');
     console.info(
       `seed-perf profile=${profile.name} tasks=${String(fixture.tasks.length)} events=${String(fixture.events.length)} projects=${String(fixture.projects.length)}`,
     );
@@ -154,6 +159,7 @@ function taskRow(ownerId: string, fixture: PerfFixture, task: TaskFixture) {
     dueDate: task.due,
     startDate: task.start,
     timeZone: PERF_ZONE,
+    ...taskLocalDayColumns({ start: task.start, due: task.due, timeZone: PERF_ZONE }),
     seriesId: task.seriesId,
     repeatRule: task.repeatRule,
     sortOrder: task.sortOrder,
@@ -178,6 +184,13 @@ async function insertEvents(
         endsAt: event.endsAt,
         isAllDay: event.allDay,
         timeZone: PERF_ZONE,
+        ...eventLocalDayColumns({
+          start: event.startsAt,
+          end: event.endsAt,
+          timeZone: PERF_ZONE,
+          allDay: event.allDay,
+          profileTimeZone: PERF_ZONE,
+        }),
       })),
     });
   }

@@ -165,6 +165,8 @@ export function isCalendarOverdue(
 
 /** dueAfter is exclusive (gt) and dueBefore is exclusive (lt). Covers every cell, including padding. */
 export function monthQueryRange(cells: readonly Date[]): {
+  readonly from: string;
+  readonly to: string;
   readonly dueAfter: string;
   readonly dueBefore: string;
 } {
@@ -172,22 +174,29 @@ export function monthQueryRange(cells: readonly Date[]): {
   const last = cells.at(-1);
   if (first === undefined || last === undefined) {
     const now = new Date().toISOString();
-    return { dueAfter: now, dueBefore: now };
+    const day = localDateParam(new Date());
+    return { from: day, to: day, dueAfter: now, dueBefore: now };
   }
   const before = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
   return {
+    from: localDateParam(first),
+    to: localDateParam(before),
     dueAfter: new Date(first.getTime() - 1).toISOString(),
     dueBefore: before.toISOString(),
   };
 }
 
 export function yearQueryRange(now: Date): {
+  readonly from: string;
+  readonly to: string;
   readonly dueAfter: string;
   readonly dueBefore: string;
 } {
   const start = new Date(now.getFullYear(), 0, 1);
   const end = new Date(now.getFullYear() + 1, 0, 1);
   return {
+    from: localDateParam(start),
+    to: localDateParam(end),
     dueAfter: new Date(start.getTime() - 1).toISOString(),
     dueBefore: end.toISOString(),
   };

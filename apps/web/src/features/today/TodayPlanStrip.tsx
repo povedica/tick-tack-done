@@ -1,6 +1,6 @@
 import { CalendarCheck } from 'lucide-react';
 import { Link } from 'react-router';
-import { useDayPlanStatus } from '../planning/DayPlanEntry';
+import { useDayPlanStatus } from '../planning/use-day-plan-status';
 import { useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { useWtFMessages } from '../planning/i18n-wt-f';

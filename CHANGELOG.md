@@ -1,5 +1,43 @@
 # Historial de cambios
 
+## Summary y range del calendario (F6, sin activar en la web)
+
+- `GET /api/v1/calendar/summary` y `GET /api/v1/calendar/range` leen `tasks` y
+  `external_events`. No hay `calendar_entries`. El calendario público sigue en
+  el camino anterior.
+- `calendar_versions` sube en la misma transacción que un cambio que afecta al
+  calendario. El ETag se calcula antes de la consulta principal. `Cache-Control:
+private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
+- Un token limitado a una lista no mete las otras listas en el resumen ni en
+  las páginas. Los eventos externos visibles no desaparecen por ese límite.
+- El conteo del año usa un índice de `external_events` sobre el dueño y los
+  días locales. No copia filas. Un día con varios calendarios visibles conserva
+  el orden de inicio.
+
+## Decisión B0 del calendario (sin read model)
+
+- En el seed efímero ×100, el resumen del año y la primera página de un mes
+  sobre `tasks` y `external_events` quedan por debajo de 50 ms (p95) y de
+  200 ms (p99). No se crea `calendar_entries`. El calendario público sigue
+  leyendo el camino anterior. Se reproduce con `bash scripts/perf-b0.sh`.
+
+## Días locales del calendario (F4, sin activar)
+
+- El cambio de zona del perfil encola el recálculo de los eventos con hora.
+  La petición no espera a reescribirlos. Las tareas siguen en su zona de captura.
+- Un backfill rellena, en tandas de 500, los días locales de las tareas y de
+  los eventos de día completo que ya existían. El calendario público sigue
+  leyendo el camino anterior.
+
+## Medición del calendario (F1)
+
+- Cada respuesta `/api/*` lleva `Server-Timing` (`auth`, `db` con el número de
+  consultas, `app`, `total`). Una consulta de más de 50 ms o una petición de
+  más de 200 ms queda en el log con `X-Request-Id`, sin datos personales.
+- `scripts/seed-perf.ts` solo escribe en Postgres efímero (`reflexionia_perf`).
+  `TOKEN_RATE_LIMIT_TEST` no existe en producción.
+- La línea base se reproduce con `pnpm perf:baseline`.
+
 ## Backlog en GitHub Projects
 
 - Plantillas de issues y PR, workflow y scripts de sincronización del backlog.
@@ -8,13 +46,6 @@
   con el campo nativo Status de GitHub. Espejo regenerado desde las issues reales.
 
 ## Sin publicar
-
-- Cada respuesta `/api/*` lleva `Server-Timing` (`auth`, `db` con el número de
-  consultas, `app`, `total`). Una consulta de más de 50 ms o una petición de
-  más de 200 ms queda en el log con `X-Request-Id`, sin datos personales.
-- `scripts/seed-perf.ts` solo escribe en Postgres efímero (`reflexionia_perf`).
-  `TOKEN_RATE_LIMIT_TEST` no existe en producción.
-- La línea base se reproduce con `pnpm perf:baseline`.
 
 ## 0.2.0 (10 de noviembre de 2026)
 
