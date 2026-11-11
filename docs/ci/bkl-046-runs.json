@@ -1,14 +1,14 @@
 {
-  "measured_at": "2026-11-11T23:44:23.461388+00:00",
+  "measured_at": "2026-11-11T23:47:14.277930+00:00",
   "since_sha": "9737335422d0fc6f6c035f03548fa10290b5f772",
   "definition_sha256": "1f87b874b7cf92cfa2489e84a1a1f18cd2735196703a04f9c1060328a15317cd",
   "summary": {
-    "n": 3,
-    "median_seconds": 155.0,
+    "n": 4,
+    "median_seconds": 157.5,
     "p90_seconds": 185.0,
-    "median_runner_min": 7.183333333333334,
+    "median_runner_min": 6.975,
     "results": {
-      "success": 3
+      "success": 4
     }
   },
   "runs": [
@@ -164,6 +164,58 @@
         },
         "ci-ok": {
           "seconds": 4.0,
+          "conclusion": "success"
+        }
+      }
+    },
+    {
+      "id": 43122121596,
+      "sha": "08926547be1c6708a1035782137006f33c7b7399",
+      "created_at": "2026-11-11T23:44:30Z",
+      "conclusion": "success",
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43122121596",
+      "seconds": 160.0,
+      "queue_seconds": 2.0,
+      "runner_min": 6.766666666666667,
+      "jobs": {
+        "changes": {
+          "seconds": 6.0,
+          "conclusion": "success"
+        },
+        "public-tree-guard": {
+          "seconds": 16.0,
+          "conclusion": "success"
+        },
+        "test-integration": {
+          "seconds": 147.0,
+          "conclusion": "success"
+        },
+        "test-unit": {
+          "seconds": 84.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 121.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 22.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 2.0,
+          "conclusion": "success"
+        },
+        "openapi-check": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "r80-browser-contracts": {
+          "seconds": 2.0,
+          "conclusion": "success"
+        },
+        "ci-ok": {
+          "seconds": 3.0,
           "conclusion": "success"
         }
       }

@@ -12,11 +12,11 @@ No se da por aceptado el candidato sin medir la muestra suficiente y el head ver
 
 | Métrica              | Antes | Después |
 | -------------------- | ----- | ------- |
-| Nº de runs           | 30    | 3       |
-| Duración mediana     | 4:38  | 2:35    |
+| Nº de runs           | 30    | 4       |
+| Duración mediana     | 4:38  | 2:38    |
 | Duración p90         | 5:45  | 3:05    |
-| Runner-min mediana   | 11,3  | 7.18    |
-| Reducción runner-min | —     | 36.4 %  |
+| Runner-min mediana   | 11,3  | 6.97    |
+| Reducción runner-min | —     | 38.3 %  |
 
 ## Runs
 
@@ -25,6 +25,7 @@ No se da por aceptado el candidato sin medir la muestra suficiente y el head ver
 | [43120661019](https://github.com/povedica/tick-tack-done/actions/runs/43120661019) | `9737335` | success   | 2:31     | 0:02 | 6.65       |
 | [43121328108](https://github.com/povedica/tick-tack-done/actions/runs/43121328108) | `873d355` | success   | 2:35     | 0:02 | 7.35       |
 | [43121690207](https://github.com/povedica/tick-tack-done/actions/runs/43121690207) | `2f66f17` | success   | 3:05     | 0:02 | 7.18       |
+| [43122121596](https://github.com/povedica/tick-tack-done/actions/runs/43122121596) | `0892654` | success   | 2:40     | 0:02 | 6.77       |
 
 ## Jobs correctos
 
@@ -33,16 +34,16 @@ No comparar sus segundos de resumen con los antiguos jobs completos. Unitarios e
 
 | Job                   | N   | Mediana | p90  |
 | --------------------- | --- | ------- | ---- |
-| changes               | 3   | 0:07    | 0:09 |
-| ci-ok                 | 3   | 0:04    | 0:04 |
-| code-checks           | 3   | 2:00    | 2:13 |
-| infra-check           | 3   | 0:18    | 0:19 |
-| openapi-check         | 3   | 0:03    | 0:04 |
-| public-tree-guard     | 3   | 0:17    | 0:20 |
-| quality               | 3   | 0:04    | 0:13 |
-| r80-browser-contracts | 3   | 0:04    | 0:04 |
-| test-integration      | 3   | 2:17    | 2:47 |
-| test-unit             | 3   | 1:37    | 1:59 |
+| changes               | 4   | 0:06    | 0:09 |
+| ci-ok                 | 4   | 0:04    | 0:04 |
+| code-checks           | 4   | 2:00    | 2:13 |
+| infra-check           | 4   | 0:18    | 0:22 |
+| openapi-check         | 4   | 0:03    | 0:04 |
+| public-tree-guard     | 4   | 0:16    | 0:20 |
+| quality               | 4   | 0:04    | 0:13 |
+| r80-browser-contracts | 4   | 0:04    | 0:04 |
+| test-integration      | 4   | 2:22    | 2:47 |
+| test-unit             | 4   | 1:30    | 1:59 |
 
 ## Límites de evidencia
 
