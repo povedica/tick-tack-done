@@ -26,7 +26,8 @@
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "typecheck:ci": "tsc --noEmit"
   },
   "dependencies": {
     "rrule": "^2.8.1",

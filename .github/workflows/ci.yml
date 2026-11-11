@@ -7,38 +7,86 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      api: ${{ steps.filter.outputs.api }}
+      browser: ${{ steps.filter.outputs.browser }}
+      tooling: ${{ steps.filter.outputs.tooling }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - 'packages/domain/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - '.npmrc'
+              - 'tsconfig*'
+              - '.github/**'
+              - 'scripts/!(backlog)/**'
+              - 'scripts/*'
+            code:
+              - *shared
+              - 'apps/**'
+              - 'packages/**'
+              - 'eslint*'
+            api:
+              - *shared
+              - 'apps/api/**'
+            browser:
+              - *shared
+              - 'apps/web/**'
+              - 'packages/sdk/**'
+              - 'apps/api/src/auth/**'
+              - 'apps/api/src/health/**'
+            tooling:
+              - '.github/**'
+              - 'deploy/**'
+              - 'scripts/**'
+
   quality:
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reflexionia/domain build
-      - run: pnpm lint
+      - uses: ./.github/actions/setup
       - run: pnpm format:check
-      - run: pnpm typecheck
+      - run: pnpm lint:ci
+      - run: pnpm typecheck:ci
 
   test-unit:
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reflexionia/domain build
-      - run: pnpm test
+      - uses: ./.github/actions/setup
+      - run: pnpm test:ci
 
   test-integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.api == 'true'
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     env:
       CI_POSTGRES_USER: reflexionia
@@ -62,53 +110,56 @@ jobs:
         ports: ['6379:6379']
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Install PostgreSQL 17 backup client
+      - uses: ./.github/actions/setup
+      - name: Use the PostgreSQL service for backup tools
         run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl --fail --silent --show-error -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          pgdg_codename="$(lsb_release -cs)"
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${pgdg_codename}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update
-          sudo apt-get install --yes postgresql-client-17
-          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          mkdir -p "$RUNNER_TEMP/pg-bin"
+          for tool in pg_dump pg_restore; do
+            cp scripts/ci/postgres-client.sh "$RUNNER_TEMP/pg-bin/$tool"
+            chmod +x "$RUNNER_TEMP/pg-bin/$tool"
+          done
+          echo "$RUNNER_TEMP/pg-bin" >> "$GITHUB_PATH"
       - run: pnpm db:deploy
-      - run: pnpm test:integration
+      - run: pnpm --filter api exec nest build
+      - run: pnpm --filter api exec vitest run --config vitest.config.integration.ts --shard=${{ matrix.shard }}/3
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
 
   openapi-check:
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.api == 'true'
+    timeout-minutes: 15
     # Sección 18: el OpenAPI se genera del código y CI verifica que no hay endpoints sin documentar.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter api build
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter api exec nest build
       - run: pnpm --filter api openapi:generate
       - name: El OpenAPI generado no debe tener diff sin commitear
         run: git diff --exit-code apps/api/openapi.json apps/api/src/mcp/api-operations.json
 
   r80-browser-contracts:
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.browser == 'true'
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reflexionia/domain build
+      - uses: ./.github/actions/setup
       - run: pnpm --filter web build
-      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Resolve installed Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter web exec playwright --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter web exec playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm --filter web exec playwright install-deps chromium
       - name: Verify Agenda timing and Google, links, About and push UI contracts
         env:
           R80_PHASE: despues
@@ -124,6 +175,7 @@ jobs:
           retention-days: 14
 
   public-tree-guard:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -136,3 +188,52 @@ jobs:
         run: |
           git fetch origin "${{ github.base_ref }}"
           bash scripts/public-tree-guard.sh --diff-base "origin/${{ github.base_ref }}"
+
+  docs-format:
+    needs: changes
+    if: github.event_name != 'push' && needs.changes.outputs.code != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+
+  infra-check:
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.tooling == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate workflows
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.11
+      - name: Validate CI shell scripts
+        run: shellcheck scripts/ci/*.sh
+
+  ci-ok:
+    if: always()
+    needs:
+      [
+        changes,
+        quality,
+        test-unit,
+        test-integration,
+        openapi-check,
+        r80-browser-contracts,
+        public-tree-guard,
+        docs-format,
+        infra-check,
+      ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")'

@@ -7,8 +7,12 @@ on:
     - cron: '0 6 * * 1'
 permissions:
   contents: read
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   audit:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -20,6 +24,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --prod --audit-level=high
   secrets:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,6 +41,7 @@ jobs:
     # responde 403). Volver a activar el job cuando el repo sea público o
     # pertenezca a una organización con GitHub Code Security.
     if: false
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     permissions:
       actions: read

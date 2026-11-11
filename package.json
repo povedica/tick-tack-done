@@ -25,7 +25,10 @@
     "db:deploy": "bash scripts/with-node.sh pnpm --filter api exec prisma migrate deploy",
     "db:seed": "bash scripts/with-node.sh pnpm --filter api seed",
     "backup": "bash scripts/backup.sh",
-    "backup:verify": "bash scripts/restore-verify.sh"
+    "backup:verify": "bash scripts/restore-verify.sh",
+    "lint:ci": "pnpm -r --filter '!reflexionia-tasks' lint",
+    "typecheck:ci": "pnpm -r --filter '!reflexionia-tasks' typecheck:ci",
+    "test:ci": "pnpm -r --filter '!reflexionia-tasks' test"
   },
   "pnpm": {
     "overrides": {

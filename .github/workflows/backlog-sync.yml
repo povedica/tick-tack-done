@@ -30,7 +30,7 @@ permissions:
 
 concurrency:
   group: backlog-sync-${{ github.event.pull_request.number || github.event_name }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
 
 env:
   REPO: ${{ github.repository }}
@@ -41,6 +41,7 @@ env:
 jobs:
   pr-check:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,6 +62,7 @@ jobs:
 
   pr-merged:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -77,6 +79,7 @@ jobs:
 
   check-deploy:
     if: (github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || (github.event_name == 'workflow_dispatch' && inputs.job == 'check-deploy')
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -93,6 +96,7 @@ jobs:
 
   regenerar:
     if: (github.event_name == 'schedule' && github.event.schedule == '0 5,6 * * 1-5') || (github.event_name == 'workflow_dispatch' && inputs.job == 'regenerar')
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     permissions:
       contents: write

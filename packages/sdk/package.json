@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src --no-error-on-unmatched-pattern",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck:ci": "tsc --noEmit"
   },
   "devDependencies": {
     "eslint": "9.17.0",

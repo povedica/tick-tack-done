@@ -15,7 +15,8 @@
     "seed": "tsx prisma/seed.ts",
     "admin:disable-totp": "tsx src/scripts/disable-totp.ts",
     "prisma": "prisma",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "typecheck:ci": "tsc --noEmit"
   },
   "dependencies": {
     "@nestjs/bullmq": "^12.0.0",
