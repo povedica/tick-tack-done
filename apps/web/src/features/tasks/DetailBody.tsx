@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
+import { normalizeStoredNewlines } from '@reflexionia/domain';
 import Markdown from 'react-markdown';
 import { TagIcon } from '../../components/TagIcon';
 import { displayTitle } from './displayTitle';
@@ -115,9 +116,10 @@ export function DetailBody({
   const [editing, setEditing] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState(false);
   const messages = useMessages();
-  const cleanContent = collapseRepeatedContent(content);
+  const storedContent = normalizeStoredNewlines(content);
+  const cleanContent = collapseRepeatedContent(storedContent);
   const draftKey = `tick-tack-done.description-draft.${taskId}`;
-  const draftContent = localStorage.getItem(draftKey) ?? content;
+  const draftContent = normalizeStoredNewlines(localStorage.getItem(draftKey) ?? storedContent);
   useLayoutEffect(() => {
     if (localStorage.getItem(draftKey) === content) localStorage.removeItem(draftKey);
   }, [content, draftKey]);
@@ -422,14 +424,16 @@ export function DetailBody({
           </button>
         </p>
       ) : null}
-      <h3 className="task-assets-heading">{messages.taskAssetsTitle}</h3>
-      <AttachmentSection
-        taskId={taskId}
-        files={attachments}
-        onFiles={onDropFiles}
-        onDelete={onDeleteAttachment}
-      />
-      <LinkSection taskId={taskId} />
+      <div className="detail-assets">
+        <h3 className="task-assets-heading">{messages.taskAssetsTitle}</h3>
+        <AttachmentSection
+          taskId={taskId}
+          files={attachments}
+          onFiles={onDropFiles}
+          onDelete={onDeleteAttachment}
+        />
+        <LinkSection taskId={taskId} />
+      </div>
     </div>
   );
 }

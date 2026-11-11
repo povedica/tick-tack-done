@@ -7,7 +7,7 @@ import { runAction } from '../../components/run-action';
 import { type CreateTaskBody, type TaskDetail as Detail } from '@reflexionia/sdk';
 import { describeRepeatRule, parseTrigger, recurrenceAnchorWarning } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Clock, Flag, Repeat } from 'lucide-react';
+import { CalendarDays, Clock, Flag, Repeat, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -20,13 +20,13 @@ import { useActionToast } from '../../components/action-toast';
 import { fill, useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { formatClock, useActiveFocus } from '../../shell/useActiveFocus';
-import { formatDueChip } from '../today/groups';
+import { formatDetailChip, formatDueChip } from '../today/groups';
 import { PIN_KEY, readPins, togglePin } from '../today/pins';
 import { newMutation, runOrQueue } from '../offline/client';
 import { apiMessage } from './api-message';
 import { collectTags } from './collect';
 import { activityText, relativeTime } from './detail-model';
-import { AssigneeField } from './AssigneeField';
+import { AssigneeField, AssigneeMark } from './AssigneeField';
 import { DetailBody } from './DetailBody';
 import { DetailFooter } from './DetailFooter';
 import { FormatBar } from './FormatBar';
@@ -136,6 +136,13 @@ export function TaskDetail({
       window.clearTimeout(timer);
     };
   }, [saved]);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (detail.data === undefined) {
+      return;
+    }
+    closeRef.current?.focus();
+  }, [detail.data?.id]);
 
   if (detail.data === undefined && detail.isError) {
     return (
@@ -155,6 +162,19 @@ export function TaskDetail({
   if (detail.data === undefined) {
     return (
       <aside className="detail-panel" aria-busy="true">
+        <header className="detail-head">
+          <span className="detail-head-spacer" />
+          <button
+            ref={closeRef}
+            type="button"
+            className="icon-button detail-close"
+            data-popover-initial=""
+            aria-label={messages.close}
+            onClick={onClose}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </header>
         <SkeletonRows />
         <p className="ui-muted">{messages.detailLoading}</p>
       </aside>
@@ -162,6 +182,36 @@ export function TaskDetail({
   }
 
   const task = detail.data;
+  const projectRole = (projects.data?.items ?? []).find(
+    (project) => project.id === task.project_id,
+  )?.role;
+  const canAssign = projectRole === 'owner' || projectRole === 'write';
+  const priorityName =
+    task.priority === 'high'
+      ? messages.priorityHigh
+      : task.priority === 'medium'
+        ? messages.priorityMedium
+        : task.priority === 'low'
+          ? messages.priorityLow
+          : messages.priorityNone;
+  const whenChip = formatDetailChip(
+    task.start_date ?? task.due_date,
+    task.time_zone,
+    task.is_all_day,
+    new Date(),
+    locale,
+    { empty: messages.whenField, today: messages.dateToday },
+  );
+  const deadlineChip = formatDetailChip(
+    task.due_date,
+    task.time_zone,
+    task.is_all_day,
+    new Date(),
+    locale,
+    { empty: messages.deadlineField, today: messages.dateToday },
+    task.start_date,
+  );
+  const durationEmpty = task.duration_minutes === null || task.duration_minutes === 0;
 
   function uploadFile(file: File): void {
     if (!driveConnection.connected) {
@@ -312,6 +362,14 @@ export function TaskDetail({
         dateLabel={messages.dateSet}
         priorityLabel={messages.prioritySet}
         closeLabel={messages.close}
+        closeRef={closeRef}
+        assignee={
+          <AssigneeMark
+            projectId={task.project_id}
+            assigneeId={task.assignee_id}
+            canAssign={canAssign}
+          />
+        }
         messages={messages}
         onComplete={complete}
         onOpenDate={() => {
@@ -438,36 +496,74 @@ export function TaskDetail({
         }
         metadata={
           <div className="detail-metadata">
-            <AssigneeField
-              taskId={task.id}
-              projectId={task.project_id}
-              assigneeId={task.assignee_id}
-              canAssign={
-                (projects.data?.items ?? []).find((project) => project.id === task.project_id)
-                  ?.role === 'owner' ||
-                (projects.data?.items ?? []).find((project) => project.id === task.project_id)
-                  ?.role === 'write'
-              }
-            />
             <button
               type="button"
               className="detail-meta-chip"
+              data-empty={whenChip.tone === 'empty'}
+              title={fill(messages.dateChipNamed, whenChip.title)}
+              aria-label={fill(messages.dateChipNamed, whenChip.title)}
               onClick={() => {
                 setDateSlot('when');
                 setDateOpen(true);
               }}
             >
               <CalendarDays size={14} aria-hidden="true" />
-              {(task.start_date ?? task.due_date) === null
-                ? messages.whenField
-                : formatDueChip(
-                    task.start_date ?? task.due_date,
-                    task.time_zone,
-                    task.is_all_day,
-                    new Date(),
-                    locale,
-                    { empty: messages.noDate, today: messages.dateToday },
-                  ).text}
+              {whenChip.text}
+            </button>
+            <button
+              type="button"
+              className="detail-meta-chip"
+              data-empty={durationEmpty}
+              title={durationEmpty ? messages.durationTab : `${String(task.duration_minutes)} min`}
+              aria-label={
+                durationEmpty ? messages.durationTab : `${String(task.duration_minutes)} min`
+              }
+              onClick={() => {
+                setDateSlot('due');
+                setDateOpen(true);
+              }}
+            >
+              <Clock size={14} aria-hidden="true" />
+              {durationEmpty ? messages.durationTab : `${String(task.duration_minutes)} min`}
+            </button>
+            <button
+              type="button"
+              className="detail-meta-chip"
+              data-empty={task.priority === 'none'}
+              title={fill(messages.priorityNamed, priorityName)}
+              aria-label={fill(messages.priorityNamed, priorityName)}
+              onClick={() => {
+                setPriorityOpen(true);
+              }}
+            >
+              <Flag
+                size={14}
+                color={`var(--prio-${task.priority})`}
+                fill={task.priority === 'none' ? 'none' : `var(--prio-${task.priority})`}
+                aria-hidden="true"
+              />
+              {priorityName}
+            </button>
+            <button
+              type="button"
+              className={`detail-meta-chip is-${deadlineChip.tone}`}
+              data-empty={deadlineChip.tone === 'empty'}
+              title={fill(messages.deadlineChipNamed, deadlineChip.title)}
+              aria-label={fill(messages.deadlineChipNamed, deadlineChip.title)}
+              onClick={() => {
+                setDateSlot('due');
+                setDateOpen(true);
+              }}
+            >
+              <Flag size={14} aria-hidden="true" />
+              {deadlineChip.tone === 'empty' ? (
+                deadlineChip.text
+              ) : (
+                <>
+                  <span className="chip-prefix">{messages.deadlinePrefix}</span>
+                  {deadlineChip.text}
+                </>
+              )}
             </button>
             {repeatText !== null && (task.start_date !== null || task.due_date !== null) ? (
               <span className="detail-repeat-field">
@@ -522,32 +618,6 @@ export function TaskDetail({
                 ) : null}
               </span>
             ) : null}
-            <button
-              type="button"
-              className="detail-meta-chip"
-              data-empty={task.duration_minutes === null}
-              onClick={() => {
-                setDateSlot('due');
-                setDateOpen(true);
-              }}
-            >
-              <Clock size={14} aria-hidden="true" />
-              {task.duration_minutes === null
-                ? messages.durationTab
-                : `${String(task.duration_minutes)} min`}
-            </button>
-            <button
-              type="button"
-              className={`detail-meta-chip is-${chip.tone}`}
-              data-empty={task.due_date === null}
-              onClick={() => {
-                setDateSlot('due');
-                setDateOpen(true);
-              }}
-            >
-              <Flag size={14} aria-hidden="true" />
-              {task.due_date === null ? messages.deadlineField : chip.text}
-            </button>
           </div>
         }
         title={task.title}
@@ -830,6 +900,16 @@ export function TaskDetail({
       />
       <DetailMenu
         open={menuOpen}
+        afterTags={
+          canAssign ? (
+            <AssigneeField
+              taskId={task.id}
+              projectId={task.project_id}
+              assigneeId={task.assignee_id}
+              canAssign={canAssign}
+            />
+          ) : null
+        }
         messages={messages}
         pinned={pins.includes(task.id)}
         onClose={() => {

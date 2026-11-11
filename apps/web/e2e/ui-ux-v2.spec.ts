@@ -1374,7 +1374,7 @@ for (const width of [1440, 390]) {
       );
       await expect(page.getByRole('link', { name: 'Ayúdame con esta tarea' })).toBeVisible();
       await expect(page.locator('.detail-title-row .task-check')).toHaveCount(1);
-      await expect(page.locator('.detail-meta-chip')).toHaveCount(4);
+      await expect(page.locator('.detail-meta-chip')).toHaveCount(5);
       await page.locator('.detail-description-preview').click();
       const field = page.locator('.detail-content');
       const text = 'Primera línea\nSegunda línea\n- lista\nLiteral: \\n';
