@@ -250,6 +250,19 @@ function deferRouteCss(): Plugin {
           renames.push([file, `${file.slice(0, slash + 1)}deferred-${file.slice(slash + 1)}`]);
         }
       }
+      // Vite writes the preload URLs after this hook, from importedCss. The
+      // asset rename alone leaves the JS requesting the old filename.
+      const renameMap = new Map(renames);
+      for (const chunk of chunks) {
+        const css = chunk.viteMetadata?.importedCss;
+        if (css === undefined) continue;
+        for (const file of [...css]) {
+          const renamed = renameMap.get(file);
+          if (renamed === undefined) continue;
+          css.delete(file);
+          css.add(renamed);
+        }
+      }
       for (const [from, to] of renames) {
         const fromBase = from.slice(from.lastIndexOf('/') + 1);
         const toBase = to.slice(to.lastIndexOf('/') + 1);
