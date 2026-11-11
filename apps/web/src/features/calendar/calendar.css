@@ -11,8 +11,9 @@
   background: var(--surface);
 }
 .calendar-toolbar .ui-button {
-  min-height: 32px;
-  padding: 4px 8px;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0 10px;
 }
 .calendar-nav {
   display: flex;
@@ -104,8 +105,10 @@
   font-size: 12px;
 }
 .calendar-week-number {
-  font-size: 11px;
-  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 .screen-page .calendar-mobile-view {
   display: none;
@@ -122,10 +125,11 @@
   overflow: visible;
   overflow-wrap: anywhere;
   min-width: 0;
-  line-height: 1.4;
-  padding: 3px 5px;
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
+  line-height: 1.35;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  font-size: 12px;
 }
 .calendar-cell-task {
   display: flex;
@@ -206,23 +210,27 @@
   text-align: left;
 }
 .calendar-page .hour-allday-label {
-  font-size: 10px;
+  font-size: 12px;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+.calendar-page .hour-col {
+  overflow: visible;
 }
 .calendar-page .hour-block {
   display: flex;
   align-items: flex-start;
-  gap: 3px;
-  border-left: 3px solid var(--accent);
+  gap: 4px;
+  border: 1px solid var(--border-strong);
+  border-left-width: 2px;
   height: auto;
   overflow: visible;
   white-space: normal;
   text-overflow: clip;
   overflow-wrap: anywhere;
-  padding: 4px;
-  background: var(--accent-soft);
-  font-size: 12px;
+  padding: 4px 6px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  font-size: 13px;
   line-height: 1.35;
 }
 .calendar-page .hour-block a {
@@ -233,8 +241,16 @@
 }
 .calendar-page .hour-block small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ink-2);
+}
+@media (max-width: 700px) {
+  .calendar-toolbar .ui-button {
+    min-height: var(--tap);
+  }
+  .calendar-page .calendar-overflow {
+    min-height: var(--tap);
+  }
 }
 .calendar-page .hour-now {
   background: var(--danger);
@@ -625,6 +641,9 @@
 }
 .calendar-page .calendar-cell-items {
   overflow: hidden;
+}
+.calendar-page .cal-cell:has(.calendar-overflow) .calendar-cell-items {
+  padding-bottom: 28px;
 }
 .calendar-page .calendar-cell-items > * {
   margin-top: 3px;

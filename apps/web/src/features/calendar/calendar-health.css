@@ -18,7 +18,10 @@
   min-width: var(--tap);
 }
 
+.calendar-sync {
+  gap: 6px;
+}
 .calendar-toolbar > .calendar-sync.ui-button {
-  min-height: var(--tap);
-  min-width: var(--tap);
+  width: auto;
+  max-width: 100%;
 }

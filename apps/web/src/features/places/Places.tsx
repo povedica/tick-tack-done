@@ -519,6 +519,7 @@ export function CalendarPage() {
   const rangedTasks = useQuery<Task[]>({
     enabled: current !== 'agenda',
     queryKey: ['calendar-tasks', 'auto', range.dueAfter, range.dueBefore],
+    placeholderData: (previous) => previous,
     queryFn: () =>
       collectTasks((query) => api.listTasks(query), {
         status: 'active',
@@ -830,11 +831,7 @@ export function CalendarPage() {
           }}
         />
       ) : null}
-      {tasks.isPending ||
-      externalQuery.isPending ||
-      (startTaskIds.length > 0 && startTasks.isPending) ? (
-        <SkeletonRows />
-      ) : null}
+      {tasks.isPending && tasks.data === undefined ? <SkeletonRows /> : null}
       {tasks.isError || externalQuery.isError || startTasks.isError ? (
         <ErrorState
           title={fill(messages.loadFailed, messages.calendarTitle)}
@@ -859,12 +856,7 @@ export function CalendarPage() {
           }}
         />
       ) : null}
-      {!tasks.isPending &&
-      !externalQuery.isPending &&
-      !(startTaskIds.length > 0 && startTasks.isPending) &&
-      !startTasks.isError &&
-      !tasks.isError &&
-      !externalQuery.isError ? (
+      {!(tasks.isPending && tasks.data === undefined) && !tasks.isError ? (
         <>
           {current === 'quarter' ? (
             <YearBoard
