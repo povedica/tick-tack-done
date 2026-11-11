@@ -52,3 +52,20 @@ scripts/          backups (RF-1704), utilidades
 Docker Compose + Caddy (HTTPS automático) en un VPS con Docker,
 migraciones al arrancar, backup diario externo y prueba de restauración semanal por cron.
 La política de avisos está en `SECURITY.md`. Licencia MIT.
+
+## CI/CD y configuración centralizada
+
+El flujo es PR → CI (`ci-ok`) → merge → imágenes GHCR → staging → aprobación de Pablo → producción.
+El Compose raíz no despliega el servicio público. El procedimiento operativo vive en [deploy/README.md](deploy/README.md).
+
+En un Mac nuevo, instala 1Password, activa la integración del CLI con la app de escritorio e inicia sesión.
+Con acceso a la bóveda `ttd`, instala Docker y pnpm y ejecuta:
+
+```bash
+pnpm install --frozen-lockfile
+op run --env-file=.env.tpl -- pnpm dev
+```
+
+No copies `.env` ni `.env-config/` de otro equipo. `.env.example` es el esquema; las plantillas solo contienen referencias.
+El flujo anterior con `.env`/`RUNTIME_ENV_FILE` sigue disponible durante la transición.
+Antes de empujar: `pnpm format:check`.

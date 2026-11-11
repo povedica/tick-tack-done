@@ -11,6 +11,7 @@ set -euo pipefail
 : "${PUBLIC_HEALTH_URL:?Missing PUBLIC_HEALTH_URL}"
 [[ $DEPLOY_USER =~ ^[a-z_][a-z0-9_-]*$ && $DEPLOY_HOST =~ ^[a-zA-Z0-9.-]+$ ]] || exit 64
 for path in "$DEPLOY_APP_DIR" "$RUNTIME_ENV_FILE"; do [[ $path =~ ^/[a-zA-Z0-9_./-]+$ && $path != *..* ]] || exit 64; done
+[[ $TARGET == last-good || $TARGET =~ ^[a-fA-F0-9]{40}$ ]] || exit 64
 [[ $ENVIRONMENT == staging || $ENVIRONMENT == production ]] || exit 64
 [[ $PUBLIC_HEALTH_URL =~ ^https://[a-zA-Z0-9./_-]+$ ]] || exit 64
 for value in "${EDGE_NETWORK:-}" "${CADDY_SITES_DIR:-}" "${EDGE_CADDY_CONTAINER:-}"; do

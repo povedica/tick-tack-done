@@ -19,8 +19,6 @@ RUN pnpm --filter api build && pnpm --filter api exec prisma generate \
 
 # pnpm 9 deploy isolates production dependencies, including the generated client.
 RUN pnpm --filter api deploy --prod /runtime \
-    && cp -R apps/api/dist /runtime/dist \
-    && cp -R apps/api/prisma /runtime/prisma \
     && for client in /runtime/node_modules/.pnpm/@prisma+client*/node_modules; do \
          cp -R node_modules/.pnpm/@prisma+client*/node_modules/.prisma/. "$client/.prisma/"; \
        done

@@ -27,7 +27,8 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
-    "typecheck:ci": "tsc --noEmit"
+    "typecheck:ci": "tsc --noEmit",
+    "test:ci": "vitest run --coverage"
   },
   "dependencies": {
     "rrule": "^2.8.1",

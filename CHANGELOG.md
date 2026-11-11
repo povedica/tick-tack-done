@@ -228,3 +228,11 @@
 Por petición de Pablo, se retira `docs/` del árbol. Las evidencias históricas siguen enlazadas en la PR; las nuevas ejecuciones generan artefactos ignorados por Git en `test-artifacts/`.
 
 Implementación y pruebas locales: el estado quedó en la PR. Las verificaciones externas pendientes se detallan allí; estos cambios no se han desplegado. Contrato MCP: `docs/mcp/CHANGELOG.md`.
+
+## BKL-046 · CI/CD y 1Password
+
+- CI por paths con `ci-ok`, caché de domain/Playwright, integración en shards y timeouts.
+- Imágenes ligeras con healthcheck, GHCR y caché BuildKit; el VPS hace pull incremental.
+- Configuración centralizada en 1Password; importación privada, referencias por entorno y runbook.
+- Staging previo, aprobación de producción, backup antes de migrar y rollback de imágenes.
+- Pasos manuales M1–M9 y métricas pendientes documentados, sin cambios de protección ni migraciones Prisma.

@@ -117,4 +117,38 @@ class DeployTest(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertFalse(any('pg_dump' in c or 'migrate' in c for c in calls))
 
+class ProxyTest(unittest.TestCase):
+    def proxy(self, same=False, restore=False):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            sites=root/'sites';sites.mkdir()
+            site=sites/'todo.caddy'
+            source=(ROOT/'deploy/production/todo.caddy').read_text()
+            original=source if same else 'previous site'
+            site.write_text(original)
+            binary=root/'bin';binary.mkdir()
+            log=root/'restarts'
+            docker=binary/'docker';docker.write_text('#!/bin/sh\necho restart >> "$PROXY_LOG"\n');docker.chmod(0o755)
+            script=(ROOT/'deploy/production/deploy.sh').read_text().replace('root="$(cd "$(dirname "$0")/../.." && pwd)"','root='+str(ROOT))
+            script=script.replace('source "$root/deploy/lib/deploy.sh"','after_replace; '+('restore_proxy' if restore else 'after_success'))
+            path=root/'proxy.sh';path.write_text(script)
+            env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'CADDY_SITES_DIR':str(sites),'EDGE_CADDY_CONTAINER':'fixture-edge','EDGE_NETWORK':'fixture-edge','PROXY_LOG':str(log)}
+            result=subprocess.run(['bash',str(path)],env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            return site.read_text(),original,log.read_text().splitlines() if log.exists() else []
+
+    def test_unchanged_proxy_is_not_restarted(self):
+        _,_,restarts=self.proxy(same=True)
+        self.assertEqual(restarts,[])
+
+    def test_changed_proxy_is_restarted_once(self):
+        current,original,restarts=self.proxy()
+        self.assertNotEqual(current,original)
+        self.assertEqual(len(restarts),1)
+
+    def test_proxy_is_restored_on_rollback(self):
+        current,original,restarts=self.proxy(restore=True)
+        self.assertEqual(current,original)
+        self.assertEqual(len(restarts),2)
+
 if __name__=='__main__': unittest.main()

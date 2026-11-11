@@ -36,6 +36,8 @@ export API_IMAGE=${API_IMAGE:-bootstrap-api} WEB_IMAGE=${WEB_IMAGE:-bootstrap-we
 compose config --quiet
 if [[ $DEPLOY_ENVIRONMENT == staging ]]; then
   compose config --format json | jq -e '.services["staging-api"].environment.PUBLIC_URL == "https://staging-todo.reflexionia.com" and .services.postgres.environment.POSTGRES_DB == "ttd_staging"' >/dev/null
+else
+  compose config --format json | jq -e '.services.api.environment.PUBLIC_URL == "https://todo.reflexionia.com" and .services.postgres.environment.POSTGRES_DB != "ttd_staging"' >/dev/null
 fi
 old_api=''; old_web=''
 if [[ -r "$state" ]]; then
@@ -93,10 +95,12 @@ if ! declare -F restore_proxy >/dev/null; then restore_proxy() { :; }; fi
 if ! declare -F after_success >/dev/null; then after_success() { :; }; fi
 rollback() {
   echo 'Restoring last-good images' >&2
-  restore_proxy || return 1
+  local proxy_status=0
+  restore_proxy || proxy_status=$?
   API_IMAGE=$old_api; WEB_IMAGE=$old_web; export API_IMAGE WEB_IMAGE
   compose up -d --no-build --no-deps "${changed[@]}"
-  health "$(image_commit "$old_api")" 45
+  health "$(image_commit "$old_api")" 45 || return 1
+  return "$proxy_status"
 }
 # shellcheck source=deploy/lib/migrate.sh
 source "$root/deploy/lib/migrate.sh"

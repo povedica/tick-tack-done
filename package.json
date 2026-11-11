@@ -28,7 +28,7 @@
     "backup:verify": "bash scripts/restore-verify.sh",
     "lint:ci": "pnpm -r --filter '!reflexionia-tasks' lint",
     "typecheck:ci": "pnpm -r --filter '!reflexionia-tasks' typecheck:ci",
-    "test:ci": "pnpm -r --filter '!reflexionia-tasks' test"
+    "test:ci": "pnpm -r --filter '!reflexionia-tasks' test:ci && pnpm --filter web exec vitest run src/features/places/year-index.spec.ts --maxWorkers=1"
   },
   "pnpm": {
     "overrides": {

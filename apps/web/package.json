@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "e2e:screens": "playwright test --config playwright.r80.config.ts r80.screens.spec.ts",
-    "typecheck:ci": "tsc -b --noEmit"
+    "typecheck:ci": "tsc -b --noEmit",
+    "test:ci": "vitest run --exclude src/features/places/year-index.spec.ts"
   },
   "dependencies": {
     "@floating-ui/react": "0.27.20",
