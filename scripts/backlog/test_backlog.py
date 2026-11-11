@@ -159,7 +159,7 @@ esac
         data = json.loads(self.env["MOCK_PR"])
         for body, closing, files, expected in (
             ("Sin referencia", [], [], 1),
-            ("Refs #12", [], [], 0),
+            ("Refs #12", [], [], 1),
             ("Closes #12", [{"number": 12}], [], 1),
             ("Closes #12", [{"number": 12}], [{"path": "docs/backlog/DECISIONES.md"}], 0),
             ("Refs #12\n- [x] Cambia una decisión", [], [], 1),
@@ -330,6 +330,80 @@ esac
         self.assertIn("--id PVTI_live", calls)
         self.assertIn("--single-select-option-id O1", calls)
         self.assertIn("→ Estado «Hecho»", moving.stdout)
+
+    def test_check_blocks_when_closes_is_missing(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.env["MOCK_PR"] = json.dumps({
+            "body": "Refs #12\nSin línea de cierre.",
+            "labels": [],
+            "author": {"login": "developer"},
+            "closingIssuesReferences": [],
+            "files": [],
+            "headRefName": "perf/f1",
+        })
+        result = self.run_script("sync.sh", "pr-check", "95")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("no tiene «Closes #N»", result.stdout)
+        calls = self.log.read_text()
+        self.assertIn("issue comment", calls)
+        self.assertNotIn("project item-edit", calls)
+
+    def test_check_sets_branch_and_moves_ready_issue_when_body_closes(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.env["PROJECT_TOKEN"] = "test-only-token"
+        self.env["MOCK_PR"] = json.dumps({
+            "body": "Closes #12\n",
+            "labels": [],
+            "author": {"login": "developer"},
+            "closingIssuesReferences": [{"number": 12}],
+            "files": [],
+            "headRefName": "perf/f1",
+        })
+        self.env["MOCK_ITEM"] = "PVTI_ready\tListo para hacer\tcursor-api-1"
+        self.stub("gh", self._project_pr_stub())
+        result = self.run_script("sync.sh", "pr-check", "95")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = self.log.read_text()
+        self.assertIn("--text perf/f1", calls)
+        self.assertIn("--field-id FRAMA", calls)
+        self.assertIn("--single-select-option-id OCURSO", calls)
+        self.assertNotIn("Agente está vacío", result.stdout)
+
+    def test_check_warns_when_agent_is_empty_and_does_not_fail(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.env["PROJECT_TOKEN"] = "test-only-token"
+        self.env["MOCK_PR"] = json.dumps({
+            "body": "Closes #102\n",
+            "labels": [],
+            "author": {"login": "developer"},
+            "closingIssuesReferences": [{"number": 102}],
+            "files": [],
+            "headRefName": "perf/f1",
+        })
+        self.env["MOCK_ITEM"] = "PVTI_open\tEn curso\t"
+        self.stub("gh", self._project_pr_stub())
+        result = self.run_script("sync.sh", "pr-check", "95")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Agente está vacío", result.stdout)
+        calls = self.log.read_text()
+        self.assertIn("--text perf/f1", calls)
+        self.assertIn("issue comment", calls)
+        self.assertNotIn("--single-select-option-id", calls)
+
+    def _project_pr_stub(self):
+        return r'''#!/usr/bin/env bash
+set -eu
+printf '%s\n' "$*" >> "$CALLS"
+case "$1 $2" in
+  "pr view") printf '%s\n' "$MOCK_PR" ;;
+  "api user") echo povedica ;;
+  "project view") echo PVT_test ;;
+  "project field-list") echo '{"fields":[{"id":"FSTATUS","name":"Status","options":[{"id":"OCURSO","name":"En curso"}]},{"id":"FRAMA","name":"Rama"}]}' ;;
+  "project item-list") printf '%s\n' "$MOCK_ITEM" ;;
+  "project item-edit"|"issue comment"|"api --paginate"|"issue view") ;;
+  *) echo "Unexpected gh call: $*" >&2; exit 99 ;;
+esac
+'''
 
     def test_invalid_health_commit_never_reaches_git(self):
         self.stub("curl", "#!/bin/sh\necho '{\"commit\":\"--invalid\"}'\n")

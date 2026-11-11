@@ -1,20 +1,18 @@
+Closes #
+
+- Agente (`<ejecutor>-<rol>-N`):
+- Rama:
+
 ## Qué cambia
 
 <!-- Una o dos frases. Una issue, una PR. -->
 
-## Issue
-
-<!-- Obligatorio (lo comprueba backlog-sync). Usa «Closes #N» si la PR termina la issue
-     y «Refs #N» si solo avanza. Para PR de dependencias o CI sin issue: etiqueta sin-backlog. -->
-
-Closes #
-
 ## Backlog
 
 - [ ] La issue cumplía la DoR (`docs/backlog/DOR.md`) cuando la reclamé.
-- [ ] Agente (`<ejecutor>-<rol>-N`): <!-- p. ej. codex-frontend-1 -->
-- [ ] Rama y Zona rellenadas; ninguna otra tarjeta en curso, pausada o en
-      revisión comparte mi Zona (y nada más en prisma-migrations).
+- [ ] Agente y Rama de arriba están rellenados. Agente es `<ejecutor>-<rol>-N`.
+- [ ] Zona rellenada; ninguna otra tarjeta en curso, pausada o en revisión
+      comparte mi Zona (y nada más en prisma-migrations).
 - [ ] Pregunté por las tarjetas pausadas antes de coger esta.
 - [ ] Cambia una decisión: he actualizado `docs/backlog/DECISIONES.md`.
 

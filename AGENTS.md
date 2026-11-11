@@ -68,20 +68,25 @@ pnpm lint && pnpm typecheck
 - Tu nombre de agente es `<ejecutor>-<rol>-N` (p. ej. `codex-frontend-1`,
   `cursor-api-2`). Es el valor del campo Agente.
 - No hay tope de trabajo en curso. El límite es la Zona.
-- Antes de escribir código, en este orden:
+- Antes de escribir código, en este orden y sin saltarse pasos:
   1. Si hay algo en **Pausada**, pregunta a Pablo si se retoma. No cojas
      nada nuevo sin esa respuesta.
   2. Elige en la vista «Siguiente» algo en «Listo para hacer» (cumple
      `docs/backlog/DOR.md`) cuya Zona no esté ocupada por otra tarjeta en
      En curso, Pausada o En revisión. En `prisma-migrations`, una sola
      migración en vuelo.
-  3. Reclama: En curso, Agente y Rama. Trabaja en un worktree propio y
-     abre una PR en borrador al primer commit.
+  3. Mueve la tarjeta a «En curso».
+  4. Rellena Agente (`<ejecutor>-<rol>-N`) y Rama (el nombre de la rama).
+  5. Crea el worktree en `/Users/pablo/Projects/worktrees-ttd/<rama>`.
+  6. Abre enseguida una PR en borrador. La descripción empieza por
+     `Closes #N`. Sin esa línea GitHub no muestra la PR en Development.
+- Una PR que ya existía se adopta igual: se añade `Closes #N` como primera
+  línea y se rellenan Agente y Rama. No se deja la tarjeta a medias.
 - Pausar: pasa la tarjeta a «Pausada» **y** escribe en la issue un
   comentario con el motivo detallado, el estado de la rama y la condición
   para retomarla. Sin comentario no hay pausa.
-- No empieces trabajo sin issue `BKL-NNN`. La PR enlaza «Closes #N» o
-  «Refs #N». PR sin issue solo para dependencias o CI (`sin-backlog`).
+- No empieces trabajo sin issue `BKL-NNN`. La descripción de la PR empieza
+  por `Closes #N`. PR sin issue solo para dependencias o CI (`sin-backlog`).
 - Hecho = cumple `docs/backlog/DOD.md`. Si la entrega deja una mejora
   obvia para la DoR o la DoD, propónla a Pablo en ese momento (opcional,
   nunca bloquea).
@@ -96,4 +101,4 @@ pnpm lint && pnpm typecheck
 5. La PR de esa issue se mergea al quedar el corte cerrado. No empieces otra
    issue en la misma rama.
 6. Backlog al día: se cumple `docs/backlog/DOD.md` (columna correcta,
-   Agente y Rama, «Closes/Refs #N» y DECISIONES.md si aplica).
+   Agente y Rama, la descripción empieza por `Closes #N` y DECISIONES.md si aplica).

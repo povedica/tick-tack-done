@@ -2,8 +2,12 @@
 # Sincroniza issues y Project «ttd · backlog» con el ciclo de vida de las PR y del despliegue.
 # Lo usa .github/workflows/backlog-sync.yml; también se puede ejecutar a mano.
 #
-#   sync.sh pr-check     <pr>   Falla si la PR no enlaza issue (Closes/Refs #N) o si cambia
-#                               una decisión sin tocar docs/backlog/DECISIONES.md.
+#   sync.sh pr-check     <pr>   Falla solo si la descripción no tiene «Closes #N».
+#                               Si hay Closes/Fixes/Resolves, rellena Rama con la rama
+#                               de la PR, avisa si Agente está vacío y, si la tarjeta
+#                               estaba en «Listo para hacer», la pasa a «En curso».
+#                               También falla si cambia una decisión sin tocar
+#                               docs/backlog/DECISIONES.md.
 #   sync.sh pr-merged    <pr>   Issues que cierra la PR → Estado «Hecho» + comentario.
 #                               No mueve a «Pausada» ni sale de «Pausada». Las «Refs» solo
 #                               reciben comentario.
@@ -117,24 +121,99 @@ refs_in_body() { # texto → números referenciados con Refs/Closes/Fixes/Resolv
   grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?|refs?) +#[0-9]+' <<<"$1" | grep -oE '[0-9]+' | sort -u || true
 }
 
+# Closes, Fixes y Resolves enlazan la PR en Development. Refs no.
+closing_numbers() {
+  grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) +#[0-9]+' <<<"$1" | grep -oE '[0-9]+' | sort -u || true
+}
+
+has_closes() {
+  grep -qiE 'closes +#[0-9]+' <<<"$1"
+}
+
+# Escribe la Rama, avisa si Agente está vacío y saca de «Listo para hacer».
+# Nunca falla el check: sin token o sin item, solo avisa.
+sync_linked_issues() {
+  local pr="$1" body="$2" branch="$3" numbers n line item rest status agente rama_id
+  local owner identity pn pid fields
+  numbers="$(closing_numbers "$body")"
+  [ -n "$numbers" ] || return 0
+  if [ -z "${PROJECT_TOKEN:-}" ]; then
+    say "::warning::Sin PROJECT_TOKEN: no se rellena la Rama ni se mueve el estado."
+    return 0
+  fi
+  if [ -z "$branch" ]; then
+    say "::warning::PR #$pr sin nombre de rama; no relleno Rama."
+  fi
+  owner="$OWNER"
+  identity="$(ghp api user --jq .login)" || { say "::warning::No pude leer el Project."; return 0; }
+  if [ "$identity" = "$OWNER" ]; then owner="@me"; fi
+  pn="$(project_number "$owner")" || { say "::warning::No pude leer el Project."; return 0; }
+  [ -n "$pn" ] || { say "::warning::No encuentro el Project «${TITLE}»."; return 0; }
+  pid="$(ghp project view "$pn" --owner "$owner" --format json --jq .id)" || { say "::warning::No pude leer el Project."; return 0; }
+  fields="$(ghp project field-list "$pn" --owner "$owner" --format json --limit 100)" || { say "::warning::No pude leer el Project."; return 0; }
+  rama_id="$(jq -r '.fields[] | select(.name=="Rama") | .id' <<<"$fields" | head -n1)"
+  for n in $numbers; do
+    line="$(ghp project item-list "$pn" --owner "$owner" --format json --limit 500 \
+      --jq ".items[] | select(.content.type==\"Issue\" and .content.number==$n and .content.repository==\"$REPO\") | [.id, (.estado // .status // \"\"), (.agente // \"\")] | @tsv" | head -n1 || true)"
+    if [ -z "$line" ]; then
+      say "::warning::#$n: no está en el Project."
+      continue
+    fi
+    item="${line%%$'\t'*}"
+    rest="${line#*$'\t'}"
+    status="${rest%%$'\t'*}"
+    if [ "$rest" = "$line" ]; then status=""; agente=""; else agente="${rest#*$'\t'}"; fi
+    if [ "$agente" = "$rest" ]; then agente=""; fi
+    if [ -n "$branch" ] && [ -n "$rama_id" ]; then
+      if GH_TOKEN="$PROJECT_TOKEN" run gh project item-edit --id "$item" --project-id "$pid" \
+        --field-id "$rama_id" --text "$branch"; then
+        say "#$n → Rama «${branch}»"
+      else
+        say "::warning::#$n: no pude escribir la Rama."
+      fi
+    elif [ -z "$rama_id" ]; then
+      say "::warning::#$n: el Project no tiene campo Rama."
+    fi
+    if [ -z "$agente" ]; then
+      say "::warning::#$n: Agente está vacío. Rellena <ejecutor>-<rol>-N."
+      comment_once "$pr" "Backlog: la issue #$n no tiene Agente. Rellena <ejecutor>-<rol>-N en el Project." \
+        || say "::warning::No pude avisar en la PR #$pr de que Agente está vacío."
+    fi
+    if [ "$status" = "Listo para hacer" ]; then
+      set_estado "$n" "En curso" || say "::warning::#$n: no pude pasarla a «En curso»."
+    fi
+  done
+}
+
 cmd_pr_check() {
   if [ -z "${PROJECT_NUMBER:-}" ]; then
     say "::warning::Sin PROJECT_NUMBER: check de backlog pendiente de configurar."
     return 0
   fi
-  local pr="$1" data body labels author closing files
-  data="$(gh pr view "$pr" --repo "$REPO" --json body,labels,author,closingIssuesReferences,files)"
+  local pr="$1" data body labels author closing files branch trimmed
+  data="$(gh pr view "$pr" --repo "$REPO" --json body,labels,author,closingIssuesReferences,files,headRefName)"
   body="$(jq -r '.body // ""' <<<"$data")"
   labels="$(jq -r '.labels[].name' <<<"$data")"
   author="$(jq -r '.author.login' <<<"$data")"
+  branch="$(jq -r '.headRefName // empty' <<<"$data")"
   if grep -qx 'sin-backlog' <<<"$labels" || [[ "$author" == dependabot* ]] || [[ "$author" == "github-actions"* ]]; then
     say "PR #$pr exenta del check de backlog (sin-backlog o bot)."
     return 0
   fi
-  if [ -z "$(refs_in_body "$body")" ]; then
-    say "::error::La PR #$pr no enlaza ninguna issue. Añade «Closes #N» (la termina) o «Refs #N» (avanza), o la etiqueta sin-backlog."
+  if ! has_closes "$body"; then
+    say "::error::La PR #$pr no tiene «Closes #N». Sin eso GitHub no la muestra en Development. La etiqueta sin-backlog exime a dependencias y CI."
+    comment_once "$pr" "Backlog: falta «Closes #N» en la descripción. Tiene que ser la primera línea para que GitHub enlace la PR en Development." \
+      || say "::warning::No pude avisar en la PR #$pr de que falta «Closes #N»."
+    sync_linked_issues "$pr" "$body" "$branch" || say "::warning::No pude actualizar el Project de la PR #$pr."
     return 1
   fi
+  trimmed="$(printf '%s' "$body" | sed -e 's/^[[:space:]]*//')"
+  if ! printf '%s\n' "$trimmed" | grep -qiE '^closes +#[0-9]+'; then
+    say "::warning::PR #$pr: «Closes #N» tiene que ser la primera línea de la descripción."
+    comment_once "$pr" "Backlog: «Closes #N» tiene que ser la primera línea de la descripción." \
+      || say "::warning::No pude avisar en la PR #$pr de dónde va «Closes #N»."
+  fi
+  sync_linked_issues "$pr" "$body" "$branch" || say "::warning::No pude actualizar el Project de la PR #$pr."
   files="$(jq -r '.files[].path' <<<"$data")"
   closing="$(jq -r '.closingIssuesReferences[].number' <<<"$data")"
   local needs_dec=0 n

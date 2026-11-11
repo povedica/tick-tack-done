@@ -45,16 +45,17 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-      issues: read
+      issues: write
     steps:
       - uses: actions/checkout@v7
       - name: Regresiones del backlog sin red
         run: |
           for script in scripts/backlog/*.sh; do bash -n "$script"; done
           python3 -B -m unittest discover -s scripts/backlog -v
-      - name: La PR enlaza issue y actualiza DECISIONES si cambia una decisión
+      - name: La descripción lleva Closes #N; Rama y aviso si Agente está vacío
         env:
           GH_TOKEN: ${{ github.token }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
         run: scripts/backlog/sync.sh pr-check "$PR"
 

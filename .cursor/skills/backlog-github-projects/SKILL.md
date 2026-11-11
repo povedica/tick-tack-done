@@ -104,11 +104,22 @@ Se queda en Ideas: `set_sel <num> Estado Ideas`, etiqueta `decision-pendiente` y
 
 ## Reclamar
 
+En este orden, sin saltarse pasos. `<rama>` es el nombre de la rama
+(`chore/bkl-00N-breve`); el worktree queda en
+`/Users/pablo/Projects/worktrees-ttd/<rama>`.
+
 ```bash
 set_sel <num> Estado "En curso"
-set_text <num> Agente "codex-frontend-1"
-set_text <num> Rama "feat/bkl-00N-breve"
+set_text <num> Agente "cursor-docs-1"
+set_text <num> Rama "chore/bkl-00N-breve"
+git worktree add "/Users/pablo/Projects/worktrees-ttd/chore/bkl-00N-breve" -b chore/bkl-00N-breve origin/main
+# Tras el primer commit, la descripción empieza por Closes #N:
+gh pr create --draft --title "…" --body "Closes #<num>"
 ```
+
+Adoptar una PR que ya existía: añadir `Closes #N` como primera línea y
+rellenar Agente y Rama. El check escribe la Rama con la rama de la PR y
+avisa si Agente sigue vacío. No se toca la PR de otro agente.
 
 ## Pausar
 
@@ -148,6 +159,7 @@ Actualiza la fila de `DECISIONES.md` (estado «Decidida», fecha, decisión, qui
 - [ ] Pregunté por las pausadas antes de reclamar.
 - [ ] Zona libre (y nada más en prisma-migrations).
 - [ ] Agente `<ejecutor>-<rol>-N` y Rama rellenados.
+- [ ] La descripción de la PR empieza por `Closes #N`.
 - [ ] Si pausé: comentario con motivo, estado y condición para retomar.
 - [ ] DoD cumplida.
 - [ ] Si cambió una decisión, DECISIONES.md está actualizado en la misma PR.

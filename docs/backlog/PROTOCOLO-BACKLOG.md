@@ -58,12 +58,34 @@ No hay un tope global de tarjetas en «En curso». El tope es una por Zona.
 
 ## 4. Cómo se reclama una issue
 
+Sin saltarse pasos:
+
 1. Si hay algo en Pausada, preguntar a Pablo si se retoma.
 2. En la vista «Siguiente», elegir una tarjeta en Listo para hacer cuya
    Zona no esté ocupada (En curso, Pausada o En revisión).
-3. Pasarla a En curso; Agente = `<ejecutor>-<rol>-N`; Rama = la del worktree.
-4. Crear el worktree propio y abrir una PR en borrador al primer commit.
-5. PR lista para revisar → En revisión. Para cerrar, comprobar `DOD.md`.
+3. Moverla a En curso.
+4. Rellenar Agente (`<ejecutor>-<rol>-N`) y Rama (el nombre de la rama).
+5. Crear el worktree en `/Users/pablo/Projects/worktrees-ttd/<rama>`.
+6. Abrir enseguida una PR en borrador. La descripción empieza por
+   `Closes #N`.
+7. PR lista para revisar → En revisión. Para cerrar, comprobar `DOD.md`.
+
+### Adoptar una PR que ya existía
+
+Si la rama y la PR son anteriores a este flujo (Development no muestra la
+PR, Agente está vacío o Rama se rellenó a mano):
+
+1. Añadir `Closes #N` como primera línea de la descripción.
+2. Rellenar Agente y Rama en el Project.
+
+El check de `backlog-sync`, al ver `Closes`, `Fixes` o `Resolves`:
+
+- escribe la Rama con la rama de la PR;
+- avisa en la PR si Agente está vacío;
+- si la tarjeta estaba en Listo para hacer, la pasa a En curso.
+
+Solo falla el check si falta `Closes #N`. Lo demás son avisos. Una PR
+antigua queda cubierta en cuanto se edita la descripción.
 
 ## 5. Reglas por evento
 
@@ -74,7 +96,8 @@ No hay un tope global de tarjetas en «En curso». El tope es una por Zona.
 | Decisión tomada | A Listo para hacer, o se descarta | Quitar `decision-pendiente` | Fila «Decidida» en la PR que la aplica | Pablo decide; el agente registra |
 | Cumple la definición de listo | Listo para hacer | — | — | Quien escribe la spec |
 | Un agente empieza | En curso; Agente y Rama | — | Worktree propio | Ese agente |
-| PR abierta para revisar | En revisión | La PR lleva Closes/Refs | — | Ese agente |
+| PR abierta para revisar | En revisión | La descripción empieza por `Closes #N` | — | Ese agente |
+| PR ya existente, sin enlace | En curso si estaba en Listo para hacer; si no, no se mueve | Se añade `Closes #N` y se rellenan Agente y Rama | — | Quien la adopta; el check escribe la Rama |
 | PR fusionada | Hecho (automático) | Se cierra | — | Workflow; el agente revisa |
 | Descartada | Hecho | Cerrar como «not planned» con el motivo | Fila de DECISIONES a Decidida si aplicaba | Pablo |
 | Se pausa | Pausada | Comentario obligatorio: motivo, estado, condición para retomar | — | Ese agente |
@@ -90,7 +113,10 @@ No hay un tope global de tarjetas en «En curso». El tope es una por Zona.
 - **Grok Bot (ticktackdone):** propone movimientos, reagrupa el trabajo en
   piezas paralelas y prepara decisiones. No decide producto.
 - **Pablo:** decide, prioriza, aprueba PRs y descarta.
-- **Workflows:** al fusionar una PR que cierra la issue, Status = Hecho.
+- **Workflows:** al abrir o editar una PR con `Closes`/`Fixes`/`Resolves`,
+  backlog-sync escribe la Rama, avisa si Agente está vacío y pasa de
+  Listo para hacer a En curso. El check solo falla si falta `Closes #N`.
+  Al fusionar una PR que cierra la issue, Status = Hecho.
 
 ## 7. Higiene
 
