@@ -47,8 +47,23 @@ fi
 
 STAMP="$(TZ=Europe/Madrid date '+%d/%m/%Y %H:%M')"
 TABLE="$(jq -r '
-  def estado: (.estado // .status // "—");
-  def orden: {"Idea":0,"Decidir":1,"Spec lista":2,"En Codex/PR":3,"Fusionado":4,"Desplegado":5,"Descartado":6}[estado] // 9;
+  # Nombres viejos del tablero, solo para un rerun a medias. No son estados válidos.
+  def crudo: (.estado // .status // "—");
+  def estado:
+    {
+      "Idea": "Ideas",
+      "Decidir": "Ideas",
+      "Spec lista": "Listo para hacer",
+      "En Codex/PR": "En curso",
+      "Fusionado": "Hecho",
+      "Desplegado": "Hecho",
+      "Descartado": "Hecho"
+    }[crudo] // crudo;
+  def orden: {"Ideas":0,"Listo para hacer":1,"En curso":2,"Pausada":3,"En revisión":4,"Hecho":5}[estado] // 9;
+  def plano:
+    if . == null or . == "" then "—"
+    elif type == "array" then (if length == 0 then "—" else map(tostring) | join(", ") end)
+    else tostring end;
   def cell: tostring | gsub("\\|"; "\\|") | gsub("[\r\n]"; " ");
   [.items[] | select(.content.type == "Issue")]
   | sort_by(orden, (.prioridad // "P9"), (.content.title // .title))
@@ -56,7 +71,7 @@ TABLE="$(jq -r '
   | (.content.title // .title // "") as $title
   | ([$title | capture("^(?<id>BKL-[0-9]+) · (?<t>.*)$")] | first) as $match
   | ($match // {id: "—", t: $title}) as $tt
-  | "| \($tt.id) | [#\(.content.number)](\(.content.url)) | \($tt.t | cell) | \((estado) | cell) | \((.prioridad // "—") | cell) | \((.area // "—") | cell) | \((.tipo // "—") | cell) | \((.referencia // "—") | cell) | \(((.labels // []) | map(select(. == "en-produccion" or . == "verificado-prod" or . == "decision-pendiente")) | join(", ")) // "") |"
+  | "| \($tt.id) | [#\(.content.number)](\(.content.url)) | \($tt.t | cell) | \((estado) | cell) | \((.prioridad // "—") | cell) | \((.area // "—") | cell) | \((.tipo // "—") | cell) | \((.zona | plano) | cell) | \((.agente | plano) | cell) | \((.rama | plano) | cell) | \((.referencia // "—") | cell) | \(((.labels // []) | map(select(. == "en-produccion" or . == "verificado-prod" or . == "decision-pendiente")) | join(", ")) // "") |"
 ' <<<"$ITEMS")"
 
 BLOCK="$(cat <<MD
@@ -64,8 +79,8 @@ BLOCK="$(cat <<MD
 
 _Generado el $STAMP (hora de Madrid)._
 
-| ID | # | Título | Estado | Prioridad | Área | Tipo | Referencia | Marcas |
-|---|---|---|---|---|---|---|---|---|
+| ID | # | Título | Estado | Prioridad | Área | Tipo | Zona | Agente | Rama | Referencia | Marcas |
+|---|---|---|---|---|---|---|---|---|---|---|---|
 $TABLE
 
 <!-- backlog:fin -->

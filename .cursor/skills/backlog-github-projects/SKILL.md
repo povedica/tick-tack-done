@@ -1,17 +1,20 @@
 ---
 name: backlog-github-projects
-description: Mantener el backlog de ttd en GitHub Projects («ttd · backlog») y sus espejos docs/backlog/BACKLOG.md y DECISIONES.md. Úsala al empezar o terminar una tarea, al abrir o fusionar una PR, cuando se toma o descarta una decisión, tras un despliegue y cuando pregunten «¿qué hago ahora?» o por el estado del proyecto.
+description: Mantener el backlog de ttd en GitHub Projects («ttd · backlog») y DECISIONES.md. Úsala antes de empezar (mirar el tablero, reclamar, comprobar Zona), al abrir o fusionar una PR, cuando se toma o descarta una decisión, y cuando pregunten «¿qué hago ahora?».
 ---
 
 # Backlog en GitHub Projects (ttd)
 
 Fuente de verdad del estado: el Project «ttd · backlog» (n.º en la variable `PROJECT_NUMBER`).
-`docs/backlog/BACKLOG.md` es un espejo generado; `docs/backlog/DECISIONES.md` es el registro de decisiones.
+`docs/backlog/DECISIONES.md` es el registro de decisiones. `docs/backlog/BACKLOG.md` es un
+espejo generado; no edites su bloque a mano.
 Reglas completas: `docs/backlog/PROTOCOLO-BACKLOG.md`.
+DoR: `docs/backlog/DOR.md`. DoD: `docs/backlog/DOD.md`.
 
-GitHub mantiene el campo nativo `Status` y no permite renombrarlo. «Estado» es el concepto del
-protocolo: usa `Status` con las siete opciones en español. Los comandos admiten también un
-campo `Estado` existente; no crees otro campo para sustituir el nativo.
+GitHub mantiene el campo nativo `Status` y no permite renombrarlo. «Estado»
+es el concepto del protocolo: usa `Status` con las seis opciones en español
+(Ideas, Listo para hacer, En curso, Pausada, En revisión, Hecho). Los comandos admiten
+también un campo `Estado` existente; no crees otro campo para sustituir el nativo.
 
 Para un Project de la cuenta autenticada se usa `--owner @me`: evita la consulta de
 organizaciones de `gh project` y funciona con el PAT classic de scopes `repo` y `project`.
@@ -20,26 +23,30 @@ Este procedimiento lo comparten Cursor y Codex. La entrada para ambos está en `
 
 ## Cuándo se activa
 
-- Antes de empezar trabajo: confirmar que hay issue y que el WIP lo permite.
-- Al abrir una PR, al fusionarla y tras un despliegue.
+- Antes de escribir código: abrir el Project, mirar «Siguiente» y «En curso»,
+  comprobar Zona y reclamar (En curso + Agente + Rama).
+- Al abrir una PR (pasar a En revisión) y al fusionarla (Hecho).
+- Tras cada avance relevante o decisión, también al retomar y responder a revisión.
 - Cuando Pablo decide algo, descarta una idea o aparece una idea nueva.
-- En el repaso semanal y cuando preguntan por el estado.
 
 ## Límites
 
 - No envíes mensajes ni comentarios a otras personas sin autorización de Pablo.
 - Nunca decides producto: las decisiones son de Pablo. Tú propones opciones y recomendación.
-- Nunca marcas «Desplegado» sin prueba en producción (definición de hecho).
-- Nunca editas a mano el bloque generado de BACKLOG.md.
-- Sin datos personales, de familia ni nombres de clientes en issues, PRs o ficheros.
-- Si tu token no tiene el scope `project`, no fuerces: deja los comandos en la PR para que los ejecute Pablo.
+- Nunca empieces una issue que no esté en «Listo para hacer», ni una cuya Zona
+  ya esté ocupada en «En curso», «Pausada» o «En revisión».
+- Si hay tarjetas en Pausada, pregunta a Pablo si se retoman antes de coger algo nuevo.
+- Si tu token no tiene el scope `project`, no fuerces: deja los comandos en la PR.
 
 ## Valores válidos
 
-- Estado: Idea · Decidir · Spec lista · En Codex/PR · Fusionado · Desplegado · Descartado
+- Estado: Ideas · Listo para hacer · En curso · Pausada · En revisión · Hecho
 - Prioridad: P1 · P2 · P3
 - Area (sin tilde a propósito): calendario · filtros · correo · infra · repo · hábitos · plan del día · nativo/PWA · MCP/API · proyectos
 - Tipo: feature · bug · decisión · deuda
+- Zona (multiselección): api · web · domain · sdk · prisma-migrations · infra · android · docs
+- Agente: texto `<ejecutor>-<rol>-N` (codex-frontend-1, cursor-api-2, grok-docs-1, pablo)
+- Rama: texto (nombre de la rama del worktree)
 - Referencia: texto (documento por nombre o PR)
 
 ## Pasos
@@ -63,7 +70,12 @@ set_sel() {
   [ "$field" != Estado ] || field="$STATE_FIELD"
   gh project item-edit --id "$(item_of "$1")" --project-id "$PID" --field-id "$(fid "$field")" --single-select-option-id "$(oid "$field" "$3")"
 }
+set_text() {
+  gh project item-edit --id "$(item_of "$1")" --project-id "$PID" --field-id "$(fid "$2")" --text "$3"
+}
 ```
+
+`set_text` es el análogo de `set_sel` para campos de texto.
 
 ### 1. Idea nueva
 
@@ -72,45 +84,100 @@ NEXT=$(gh issue list --repo "$REPO" --state all --limit 1000 --json title --jq '
 gh issue create --repo "$REPO" --title "$(printf 'BKL-%03d · Título' "$NEXT")" --body-file cuerpo.md \
   --label backlog --label area:<area> --label tipo:<tipo> --label prio:P3
 gh project item-add "$N" --owner "$PROJECT_OWNER" --url <url>
-set_sel <num> Estado Idea; set_sel <num> Prioridad P3; set_sel <num> Area <area>; set_sel <num> Tipo <tipo>
+set_sel <num> Estado Ideas; set_sel <num> Prioridad P3; set_sel <num> Area <area>; set_sel <num> Tipo <tipo>
 ```
 
-### 2. Necesita decisión → «Decidir»
+### 2. Necesita decisión
 
-`set_sel <num> Estado Decidir`, etiqueta `decision-pendiente` y fila nueva en `DECISIONES.md` (estado «Abierta») en la siguiente PR de docs.
+Se queda en Ideas: `set_sel <num> Estado Ideas`, etiqueta `decision-pendiente` y fila nueva en `DECISIONES.md` (estado «Abierta») en la siguiente PR de docs.
 
-### 3. Spec o prompt entregado → «Spec lista»
+### 3. Spec o prompt entregado → «Listo para hacer»
 
-`set_sel <num> Estado "Spec lista"` y `gh project item-edit … --field-id "$(fid Referencia)" --text "<doc o PR>"`.
+`set_sel <num> Estado "Listo para hacer"` y `gh project item-edit … --field-id "$(fid Referencia)" --text "<doc o PR>"`.
 
-### 4. Empieza la implementación / PR abierta → «En Codex/PR»
+## Antes de reclamar (en orden)
 
-Comprueba el WIP antes (máximo 3). Si hay más de 500 elementos, no uses un recuento truncado:
-lee todos los elementos antes de decidir si hay hueco.
+1. Pausadas: `gh project item-list ... --jq '[.items[] | select((.status // .estado)=="Pausada")]'`.
+   Si hay alguna, pregunta a Pablo si se retoma antes de seguir.
+2. Zona: ninguna tarjeta en En curso, Pausada o En revisión comparte Zona
+   con la tuya; en `prisma-migrations`, ninguna.
+3. DoR: la tarjeta cumple `docs/backlog/DOR.md`.
+
+## Reclamar
+
+En este orden, sin saltarse pasos. `<rama>` es el nombre de la rama
+(`chore/bkl-00N-breve`); el worktree queda en
+`../worktrees-ttd/<rama>`, al lado del checkout principal.
 
 ```bash
-gh project item-list "$N" --owner "$PROJECT_OWNER" --format json --limit 500 --jq '[.items[]|select((.estado // .status)=="En Codex/PR")]|length'
+set_sel <num> Estado "En curso"
+set_text <num> Agente "cursor-docs-1"
+set_text <num> Rama "chore/bkl-00N-breve"
+git worktree add "../worktrees-ttd/<rama>" -b <rama> origin/main
+# Tras el primer commit, la descripción empieza por Closes #N:
+gh pr create --draft --title "…" --body "Closes #<num>"
 ```
 
-Si ya hay 3, no empieces: avisa y propone cuál cerrar. Si hay hueco: `set_sel <num> Estado "En Codex/PR"`. La PR lleva «Closes #N» o «Refs #N».
+Adoptar una PR que ya existía: añadir `Closes #N` como primera línea y
+rellenar Agente y Rama. El check escribe la Rama con la rama de la PR y
+avisa si Agente sigue vacío. No se toca la PR de otro agente.
 
-### 5. PR fusionada → «Fusionado»
+## Comentar una decisión
 
-Automático (workflow integrado «Item closed» y backlog-sync). Comprueba que la issue tiene `pendiente-despliegue`.
+Tras cada avance relevante, publica un comentario de decisión en la issue con
+`docs/backlog/plantillas/comentario-decision.md` (marcador `<!-- ttd-decision -->`).
+Registra también las decisiones de Pablo en el chat, con fecha y decisión.
 
-### 6. Desplegado y verificado → «Desplegado»
+Usa la plantilla y guarda el texto en `comentario.md`:
 
-1. `curl -s https://todo.reflexionia.com/api/v1/health` → el `commit` contiene el merge (`git merge-base --is-ancestor <merge> <commit>`). backlog-sync pone `en-produccion`.
-2. Haz la prueba descrita en la PR con una cuenta de prueba.
-3. `set_sel <num> Estado Desplegado`; `gh issue edit <num> --add-label verificado-prod --remove-label en-produccion`; marca la casilla de la PR.
+```bash
+gh issue comment <num> --repo "$REPO" --body-file comentario.md
+```
+
+Un comentario por avance (reclamar, diseño/alcance, cambio de plan, pausa,
+retomar, revisión, respuesta a Pablo y cierre), sin editar anteriores salvo
+errores de hecho. No sustituye a `DECISIONES.md`. Si no puedes comentar,
+deja el texto en la PR e indica la limitación. Tras reclamar, publica el primero.
+
+## Retomar
+
+Al retomar una tarea pausada, en revisión o abandonada, publica un comentario
+con Fase «Retomada»: quién retoma, commit/estado de partida, qué falta y plan.
+Devuelve la tarjeta a «En curso» en Project 2 y actualiza Agente si cambia.
+
+## Pausar
+
+```bash
+set_sel <num> Estado "Pausada"
+gh issue comment <num> --repo "$REPO" --body-file comentario.md
+```
+
+`comentario.md` usa la plantilla, incluido `<!-- ttd-decision -->`, con
+Fase «Pausada». Motivo e Impacto / siguiente paso incluyen motivo detallado,
+rama/último commit y condición para retomar. Sin comentario no hay pausa.
+
+## Cerrar
+
+Comprueba `docs/backlog/DOD.md`. Si salió una mejora obvia, propónla a Pablo (opcional).
+
+Primero publica el comentario de decisión con Fase «En revisión»: qué está
+hecho, qué debe mirar Pablo y enlace a la PR. Entonces, al abrirla lista para revisión: `set_sel <num> Estado "En revisión"`.
+
+### 5. PR fusionada → «Hecho»
+
+El workflow pasa a Hecho. No hace falta una etiqueta de cola. Comprueba que la issue se ha cerrado.
+
+### 6. Verificación en producción (opcional)
+
+No es una columna. Si se quiere, comentar el SHA de `/api/v1/health` y poner la etiqueta `verificado-prod`.
 
 ### 7. Decisión tomada
 
-Actualiza la fila de `DECISIONES.md` (estado «Decidida», fecha, decisión, quién) en una PR con «Refs #N». Quita `decision-pendiente` y mueve la issue al estado que toque (Spec lista, Idea o Descartado).
+Actualiza la fila de `DECISIONES.md` (estado «Decidida», fecha, decisión, quién) en una PR con «Refs #N». Quita `decision-pendiente` y mueve la issue al estado que toque (Listo para hacer, Ideas o Hecho si se descarta).
 
-### 8. Descartado
+### 8. Descartada
 
-`set_sel <num> Estado Descartado`; `gh issue close <num> --reason "not planned" --comment "Descartada: <motivo>"`. Ojo: el workflow «Item closed» la pondrá en Fusionado; vuelve a ponerla en Descartado.
+`set_sel <num> Estado Hecho` y `gh issue close <num> --reason "not planned" --comment "Descartada: <motivo>"`. El workflow «Item closed» debe dejarla en Hecho.
 
 ### 9. Regenerar el espejo
 
@@ -118,8 +185,12 @@ Actualiza la fila de `DECISIONES.md` (estado «Decidida», fecha, decisión, qui
 
 ## Checklist al cerrar una tarea
 
-- [ ] La issue tiene Estado, Prioridad, Area, Tipo y Referencia.
-- [ ] La PR enlaza la issue (Closes/Refs) y respeta el WIP ≤ 3.
+- [ ] Pregunté por las pausadas antes de reclamar.
+- [ ] Zona libre (y nada más en prisma-migrations).
+- [ ] Agente `<ejecutor>-<rol>-N` y Rama rellenados.
+- [ ] La descripción de la PR empieza por `Closes #N`.
+- [ ] Si pausé: comentario con motivo, estado y condición para retomar.
+- [ ] Comentarios de decisión publicados; el último resume el estado al pasar a En revisión.
+- [ ] Al retomar: comentario «Retomada», vuelta a En curso y Agente actualizado si cambia.
+- [ ] DoD cumplida.
 - [ ] Si cambió una decisión, DECISIONES.md está actualizado en la misma PR.
-- [ ] Nada pasa a «Desplegado» sin /health + prueba.
-- [ ] BACKLOG.md regenerado (o PR de backlog-sync pendiente de revisar).

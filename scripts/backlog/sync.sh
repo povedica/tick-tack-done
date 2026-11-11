@@ -2,14 +2,18 @@
 # Sincroniza issues y Project «ttd · backlog» con el ciclo de vida de las PR y del despliegue.
 # Lo usa .github/workflows/backlog-sync.yml; también se puede ejecutar a mano.
 #
-#   sync.sh pr-check     <pr>   Falla si la PR no enlaza issue (Closes/Refs #N) o si cambia
-#                               una decisión sin tocar docs/backlog/DECISIONES.md.
-#   sync.sh pr-merged    <pr>   Issues que cierra la PR → Estado «Fusionado» + etiqueta
-#                               pendiente-despliegue + comentario. Las «Refs» solo reciben comentario.
-#   sync.sh check-deploy        Lee el commit de producción en /api/v1/health. Cada issue con
-#                               pendiente-despliegue cuyo merge ya está en producción pasa a
-#                               en-produccion (+ comentario). NO la mueve a «Desplegado»: eso exige
-#                               la prueba en producción (definición de hecho).
+#   sync.sh pr-check     <pr>   Falla solo si la descripción no tiene «Closes #N».
+#                               Si hay Closes/Fixes/Resolves, rellena Rama con la rama
+#                               de la PR, avisa si Agente está vacío y, si la tarjeta
+#                               estaba en «Listo para hacer», la pasa a «En curso».
+#                               También falla si cambia una decisión sin tocar
+#                               docs/backlog/DECISIONES.md.
+#   sync.sh pr-merged    <pr>   Issues que cierra la PR → Estado «Hecho» + comentario.
+#                               No mueve a «Pausada» ni sale de «Pausada». Las «Refs» solo
+#                               reciben comentario.
+#   sync.sh check-deploy        Lee el commit de producción en /api/v1/health. Si el merge ya
+#                               está en producción, comenta y puede marcar en-produccion.
+#                               No cambia el Estado: la issue ya está en «Hecho».
 #
 # Variables: REPO, OWNER, PROJECT_NUMBER (o PROJECT_TITLE), HEALTH_URL,
 #   GH_TOKEN (repo), PROJECT_TOKEN (classic con scope «project»; si falta, no toca el Project),
@@ -77,7 +81,11 @@ project_number() {
 }
 
 set_estado() { # issue_number valor
-  local num="$1" value="$2" pn pid fields fid oid item owner identity
+  local num="$1" value="$2" pn pid fields fid oid item owner identity current line
+  if [ "$value" = "Pausada" ]; then
+    say "::warning::#$num: este script no mueve una issue a «Pausada»."
+    return 0
+  fi
   if [ -z "${PROJECT_TOKEN:-}" ]; then
     say "::warning::Sin PROJECT_TOKEN: no se actualiza el Project."
     return 0
@@ -91,8 +99,15 @@ set_estado() { # issue_number valor
   fields="$(ghp project field-list "$pn" --owner "$owner" --format json --limit 100)"
   fid="$(jq -r '.fields[] | select(.name=="Estado" or .name=="Status") | .id' <<<"$fields" | head -n1)"
   oid="$(jq -r --arg v "$value" '.fields[] | select(.name=="Estado" or .name=="Status") | .options[]? | select(.name==$v) | .id' <<<"$fields" | head -n1)"
-  item="$(ghp project item-list "$pn" --owner "$owner" --format json --limit 500 \
-    --jq ".items[] | select(.content.type==\"Issue\" and .content.number==$num and .content.repository==\"$REPO\") | .id" | head -n1)"
+  line="$(ghp project item-list "$pn" --owner "$owner" --format json --limit 500 \
+    --jq ".items[] | select(.content.type==\"Issue\" and .content.number==$num and .content.repository==\"$REPO\") | [.id, (.estado // .status // \"\")] | @tsv" | head -n1)"
+  item="${line%%$'\t'*}"
+  current="${line#*$'\t'}"
+  if [ -z "$line" ] || [ "$current" = "$line" ]; then current=""; fi
+  if [ "$current" = "Pausada" ]; then
+    say "::warning::#$num: está en «Pausada»; no se cambia el estado."
+    return 0
+  fi
   if [ -z "$fid" ] || [ -z "$oid" ] || [ -z "$item" ]; then
     say "::warning::#$num: no encuentro el item, el campo Estado o la opción «${value}»."
     return 0
@@ -106,28 +121,130 @@ refs_in_body() { # texto → números referenciados con Refs/Closes/Fixes/Resolv
   grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?|refs?) +#[0-9]+' <<<"$1" | grep -oE '[0-9]+' | sort -u || true
 }
 
+# Close/Closes/Closed, Fix/Fixes/Fixed y Resolve/Resolves/Resolved.
+# Refs no cierra la issue.
+CLOSING_REF='(close[sd]?|fix(e[sd])?|resolve[sd]?) +#[0-9]+'
+
+# Closes, Fixes y Resolves enlazan la PR en Development. Refs no.
+closing_numbers() {
+  grep -oiE "$CLOSING_REF" <<<"$1" | grep -oE '[0-9]+' | sort -u || true
+}
+
+has_closes() {
+  grep -qiE "$CLOSING_REF" <<<"$1"
+}
+
+REVIEW_ISSUES=""
+
+# Escribe la Rama, avisa si Agente está vacío y saca de «Listo para hacer».
+# Nunca falla el check: sin token o sin item, solo avisa.
+sync_linked_issues() {
+  local pr="$1" body="$2" branch="$3" numbers n line item rest status agente rama_id
+  local owner identity pn pid fields
+  numbers="$(closing_numbers "$body")"
+  [ -n "$numbers" ] || return 0
+  if [ -z "${PROJECT_TOKEN:-}" ]; then
+    say "::warning::Sin PROJECT_TOKEN: no se rellena la Rama ni se mueve el estado."
+    return 0
+  fi
+  if [ -z "$branch" ]; then
+    say "::warning::PR #$pr sin nombre de rama; no relleno Rama."
+  fi
+  owner="$OWNER"
+  identity="$(ghp api user --jq .login)" || { say "::warning::No pude leer el Project."; return 0; }
+  if [ "$identity" = "$OWNER" ]; then owner="@me"; fi
+  pn="$(project_number "$owner")" || { say "::warning::No pude leer el Project."; return 0; }
+  [ -n "$pn" ] || { say "::warning::No encuentro el Project «${TITLE}»."; return 0; }
+  pid="$(ghp project view "$pn" --owner "$owner" --format json --jq .id)" || { say "::warning::No pude leer el Project."; return 0; }
+  fields="$(ghp project field-list "$pn" --owner "$owner" --format json --limit 100)" || { say "::warning::No pude leer el Project."; return 0; }
+  rama_id="$(jq -r '.fields[] | select(.name=="Rama") | .id' <<<"$fields" | head -n1)"
+  for n in $numbers; do
+    line="$(ghp project item-list "$pn" --owner "$owner" --format json --limit 500 \
+      --jq ".items[] | select(.content.type==\"Issue\" and .content.number==$n and .content.repository==\"$REPO\") | [.id, (.estado // .status // \"\"), (.agente // \"\")] | @tsv" | head -n1 || true)"
+    if [ -z "$line" ]; then
+      say "::warning::#$n: no está en el Project."
+      continue
+    fi
+    item="${line%%$'\t'*}"
+    rest="${line#*$'\t'}"
+    status="${rest%%$'\t'*}"
+    if [ "$rest" = "$line" ]; then status=""; agente=""; else agente="${rest#*$'\t'}"; fi
+    if [ "$agente" = "$rest" ]; then agente=""; fi
+    if [ "$status" = "En revisión" ]; then REVIEW_ISSUES="$REVIEW_ISSUES $n"; fi
+    if [ -n "$branch" ] && [ -n "$rama_id" ]; then
+      if GH_TOKEN="$PROJECT_TOKEN" run gh project item-edit --id "$item" --project-id "$pid" \
+        --field-id "$rama_id" --text "$branch"; then
+        say "#$n → Rama «${branch}»"
+      else
+        say "::warning::#$n: no pude escribir la Rama."
+      fi
+    elif [ -z "$rama_id" ]; then
+      say "::warning::#$n: el Project no tiene campo Rama."
+    fi
+    if [ -z "$agente" ]; then
+      say "::warning::#$n: Agente está vacío. Rellena <ejecutor>-<rol>-N."
+      comment_once "$pr" "Backlog: la issue #$n no tiene Agente. Rellena <ejecutor>-<rol>-N en el Project." \
+        || say "::warning::No pude avisar en la PR #$pr de que Agente está vacío."
+    fi
+    if [ "$status" = "Listo para hacer" ]; then
+      set_estado "$n" "En curso" || say "::warning::#$n: no pude pasarla a «En curso»."
+    fi
+  done
+}
+
+# Solo comprueba presencia: no inventa decisiones ni cambia estados al retomar.
+# El estado ya leído por sync_linked_issues sirve también con PR en borrador.
+warn_missing_decisions() {
+  local body="$1" draft="$2" n comments
+  for n in $(closing_numbers "$body"); do
+    if [ "$draft" != "false" ] && [[ " $REVIEW_ISSUES " != *" $n "* ]]; then
+      continue
+    fi
+    if ! comments="$(gh api --paginate "repos/$REPO/issues/$n/comments?per_page=100" --jq '.[].body')"; then
+      say "::warning::#$n: no pude leer los comentarios de decisión de la issue."
+      continue
+    fi
+    if ! grep -Fq -- '<!-- ttd-decision -->' <<<"$comments"; then
+      say "::warning::#$n: no hay comentario de decisión en la issue. Usa docs/backlog/plantillas/comentario-decision.md. Al retomar: Fase Retomada y vuelta a En curso."
+    fi
+  done
+}
+
 cmd_pr_check() {
   if [ -z "${PROJECT_NUMBER:-}" ]; then
     say "::warning::Sin PROJECT_NUMBER: check de backlog pendiente de configurar."
     return 0
   fi
-  local pr="$1" data body labels author closing files
-  data="$(gh pr view "$pr" --repo "$REPO" --json body,labels,author,closingIssuesReferences,files)"
+  local pr="$1" data body labels author closing files branch trimmed
+  data="$(gh pr view "$pr" --repo "$REPO" --json body,labels,author,closingIssuesReferences,files,headRefName,isDraft)"
   body="$(jq -r '.body // ""' <<<"$data")"
   labels="$(jq -r '.labels[].name' <<<"$data")"
   author="$(jq -r '.author.login' <<<"$data")"
+  branch="$(jq -r '.headRefName // empty' <<<"$data")"
   if grep -qx 'sin-backlog' <<<"$labels" || [[ "$author" == dependabot* ]] || [[ "$author" == "github-actions"* ]]; then
     say "PR #$pr exenta del check de backlog (sin-backlog o bot)."
     return 0
   fi
-  if [ -z "$(refs_in_body "$body")" ]; then
-    say "::error::La PR #$pr no enlaza ninguna issue. Añade «Closes #N» (la termina) o «Refs #N» (avanza), o la etiqueta sin-backlog."
+  if ! has_closes "$body"; then
+    say "::error::La PR #$pr no tiene «Closes #N». Sin eso GitHub no la muestra en Development. La etiqueta sin-backlog exime a dependencias y CI."
+    comment_once "$pr" "Backlog: falta «Closes #N» en la descripción. Tiene que ser la primera línea para que GitHub enlace la PR en Development." \
+      || say "::warning::No pude avisar en la PR #$pr de que falta «Closes #N»."
+    sync_linked_issues "$pr" "$body" "$branch" || say "::warning::No pude actualizar el Project de la PR #$pr."
     return 1
   fi
+  trimmed="$(printf '%s' "$body" | sed -e 's/^[[:space:]]*//')"
+  if ! printf '%s\n' "$trimmed" | grep -qiE "^${CLOSING_REF}"; then
+    say "::warning::PR #$pr: «Closes #N» tiene que ser la primera línea de la descripción."
+    comment_once "$pr" "Backlog: «Closes #N» tiene que ser la primera línea de la descripción." \
+      || say "::warning::No pude avisar en la PR #$pr de dónde va «Closes #N»."
+  fi
+  sync_linked_issues "$pr" "$body" "$branch" || say "::warning::No pude actualizar el Project de la PR #$pr."
+  warn_missing_decisions "$body" "$(jq -r 'if .isDraft == false then "false" else "true" end' <<<"$data")" \
+    || say "::warning::No pude comprobar los comentarios de decisión."
   files="$(jq -r '.files[].path' <<<"$data")"
   closing="$(jq -r '.closingIssuesReferences[].number' <<<"$data")"
   local needs_dec=0 n
-  if grep -qiE '^\s*- \[[xX]\] .*(decisión|decision)' <<<"$body"; then needs_dec=1; fi
+  if grep -qiE '^\s*- \[[xX]\] (Cambia una decisión|Changes? (a |an? )?decision)' <<<"$body"; then needs_dec=1; fi
   for n in $closing; do
     if gh issue view "$n" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qx 'tipo:decision'; then
       needs_dec=1
@@ -151,11 +268,8 @@ cmd_pr_merged() {
   body="$(jq -r '.body // ""' <<<"$data")"
   closing="$(jq -r '.closingIssuesReferences[].number' <<<"$data")"
   for n in $closing; do
-    local label_status=0
-    edit_labels "$n" --add-label pendiente-despliegue || label_status=$?
-    [ "$label_status" -eq 0 ] || [ "$label_status" -eq 2 ] || return "$label_status"
-    comment_once "$n" "Fusionada en #$pr (\`${sha:0:7}\`). Estado → Fusionado. Pasará a «en-produccion» cuando /api/v1/health publique un commit que la contenga."
-    set_estado "$n" "Fusionado" || true
+    comment_once "$n" "Fusionada en #$pr (\`${sha:0:7}\`). Estado → Hecho."
+    set_estado "$n" "Hecho" || true
   done
   refs="$(refs_in_body "$body")"
   for n in $refs; do
@@ -183,16 +297,18 @@ cmd_check_deploy() {
     return 0
   fi
   say "Producción: $live"
-  for n in $(gh issue list --repo "$REPO" --state all --label pendiente-despliegue --limit 200 --json number --jq '.[].number'); do
+  # Marca opcional. No cambia el Estado y no toca las issues en Pausada:
+  # Pausada solo la mueve el agente, con comentario, o Pablo.
+  for n in $(gh issue list --repo "$REPO" --state closed --limit 200 --json number,labels --jq '.[] | select(any(.labels[]; .name == "en-produccion") | not) | .number'); do
     for pr in $(gh issue view "$n" --repo "$REPO" --json closedByPullRequestsReferences --jq '.closedByPullRequestsReferences[].number'); do
       sha="$(gh pr view "$pr" --repo "$REPO" --json mergeCommit --jq '.mergeCommit.oid // empty')"
       [ -n "$sha" ] || continue
       if git merge-base --is-ancestor "$sha" "$live"; then
         local label_status=0
-        edit_labels "$n" --add-label en-produccion --remove-label pendiente-despliegue || label_status=$?
+        edit_labels "$n" --add-label en-produccion || label_status=$?
         [ "$label_status" -ne 2 ] || continue
         [ "$label_status" -eq 0 ] || return "$label_status"
-        comment_once "$n" "En producción: /api/v1/health publica \`${live:0:7}\`, que contiene #$pr. Falta la prueba en producción para pasar a «Desplegado» y poner verificado-prod."
+        comment_once "$n" "En producción: /api/v1/health publica \`${live:0:7}\`, que contiene #$pr. La etiqueta en-produccion es opcional y no cambia el Estado."
         break
       fi
     done
