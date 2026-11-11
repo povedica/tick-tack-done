@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
     "typecheck:ci": "tsc --noEmit",
-    "test:ci": "vitest run --coverage"
+    "test:ci": "vitest run --coverage --reporter=dot"
   },
   "dependencies": {
     "rrule": "^2.8.1",

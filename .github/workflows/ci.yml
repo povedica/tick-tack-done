@@ -95,6 +95,7 @@ jobs:
       - id: checks
         name: Run independent checks concurrently on one runner
         env:
+          RUN_UNIT: 'false'
           RUN_API: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
           RUN_BROWSER: ${{ github.event_name == 'push' || needs.changes.outputs.browser == 'true' }}
         run: bash scripts/ci/run-code-checks.sh
@@ -119,15 +120,14 @@ jobs:
         run: test "$PARENT" = success && test "$RESULT" = 0
 
   test-unit:
-    needs: [changes, code-checks]
-    if: always() && (github.event_name == 'push' || needs.changes.outputs.code == 'true')
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 10
     steps:
-      - env:
-          RESULT: ${{ needs.code-checks.outputs.unit }}
-          PARENT: ${{ needs.code-checks.result }}
-        run: test "$PARENT" = success && test "$RESULT" = 0
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm test:ci
 
   openapi-check:
     needs: [changes, code-checks]

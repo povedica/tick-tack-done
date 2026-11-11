@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "typecheck:ci": "tsc --noEmit",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run --reporter=dot"
   },
   "devDependencies": {
     "eslint": "9.17.0",

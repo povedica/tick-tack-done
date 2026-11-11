@@ -42,6 +42,11 @@ class CIContracts(unittest.TestCase):
         self.assertIn('browser=0',output)
         self.assertFalse(any('openapi:generate' in c['args'] or 'build' in c['args'] for c in calls))
 
+    def test_dedicated_units_are_not_duplicated_on_shared_runner(self):
+        result,_,calls=self.run_script('run-code-checks.sh',RUN_UNIT='false')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertFalse(any('test:ci' in c['args'] or any('year-index.spec.ts' in x for x in c['args']) for c in calls))
+
     def test_integration_shards_have_distinct_databases_and_redis(self):
         result,_,calls=self.run_script('run-integration.sh')
         self.assertEqual(result.returncode,0,result.stderr)

@@ -22,12 +22,12 @@ spawn() {
   pids+=("$!")
 }
 spawn quality
-spawn unit
+if [[ ${RUN_UNIT:-true} == true ]]; then spawn unit; fi
 if [[ ${RUN_API:-false} == true ]]; then spawn openapi; fi
 if [[ ${RUN_BROWSER:-false} == true ]]; then spawn browser; fi
 for pid in "${pids[@]}"; do wait "$pid" || true; done
-# Run the fixed 100 ms budget after every competing process has stopped.
-if ! pnpm --filter web exec vitest run src/features/places/year-index.spec.ts --maxWorkers=1 > "$logs/benchmark.log" 2>&1; then
+# When units share this runner, measure the fixed budget after the other work.
+if [[ ${RUN_UNIT:-true} == true ]] && ! pnpm --filter web exec vitest run src/features/places/year-index.spec.ts --maxWorkers=1 > "$logs/benchmark.log" 2>&1; then
   echo 1 > "$logs/unit.status"
 fi
 for name in quality unit openapi browser; do
@@ -41,5 +41,5 @@ for name in quality unit openapi browser; do
   fi
   echo "$name=$result" >> "$GITHUB_OUTPUT"
 done
-cat "$logs/benchmark.log"
+if [[ -f "$logs/benchmark.log" ]]; then cat "$logs/benchmark.log"; fi
 rm -rf "$logs"
