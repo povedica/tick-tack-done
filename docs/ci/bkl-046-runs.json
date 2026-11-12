@@ -1,14 +1,14 @@
 {
-  "measured_at": "2026-11-11T23:57:25.832460+00:00",
+  "measured_at": "2026-11-12T00:00:56.594619+00:00",
   "since_sha": "9737335422d0fc6f6c035f03548fa10290b5f772",
   "definition_sha256": "1f87b874b7cf92cfa2489e84a1a1f18cd2735196703a04f9c1060328a15317cd",
   "summary": {
-    "n": 7,
-    "median_seconds": 173.0,
+    "n": 8,
+    "median_seconds": 177.0,
     "p90_seconds": 194.0,
-    "median_runner_min": 7.333333333333333,
+    "median_runner_min": 7.341666666666667,
     "results": {
-      "success": 7
+      "success": 8
     }
   },
   "runs": [
@@ -368,6 +368,58 @@
         },
         "quality": {
           "seconds": 4.0,
+          "conclusion": "success"
+        },
+        "ci-ok": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        }
+      }
+    },
+    {
+      "id": 43123711779,
+      "sha": "1b1d72b289abb7a3df02bd7a1d987268514afbed",
+      "created_at": "2026-11-11T23:57:32Z",
+      "conclusion": "success",
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43123711779",
+      "seconds": 183.0,
+      "queue_seconds": 2.0,
+      "runner_min": 7.983333333333333,
+      "jobs": {
+        "changes": {
+          "seconds": 6.0,
+          "conclusion": "success"
+        },
+        "public-tree-guard": {
+          "seconds": 14.0,
+          "conclusion": "success"
+        },
+        "test-integration": {
+          "seconds": 168.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 22.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 153.0,
+          "conclusion": "success"
+        },
+        "test-unit": {
+          "seconds": 101.0,
+          "conclusion": "success"
+        },
+        "openapi-check": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "r80-browser-contracts": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 6.0,
           "conclusion": "success"
         },
         "ci-ok": {
