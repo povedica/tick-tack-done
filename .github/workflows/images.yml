@@ -178,6 +178,18 @@ jobs:
             type=raw,value=${{ needs.changes.outputs.web_sha }}-${{ matrix.suffix }}
             type=raw,value=main-${{ matrix.suffix }},enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=tag,suffix=-${{ matrix.suffix }}
+      - name: Require the variant reCAPTCHA site key before publishing
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          SITE_KEY: ${{ vars[matrix.suffix == 'prod' && 'VITE_RECAPTCHA_PRODUCTION_SITE_KEY' || 'VITE_RECAPTCHA_SITE_KEY'] }}
+          SUFFIX: ${{ matrix.suffix }}
+        run: |
+          variable=VITE_RECAPTCHA_SITE_KEY
+          [[ "$SUFFIX" != prod ]] || variable=VITE_RECAPTCHA_PRODUCTION_SITE_KEY
+          if [[ -z "$SITE_KEY" ]]; then
+            echo "::error::Missing $variable: configure it in Environment staging or as a repository variable before publishing the $SUFFIX web image."
+            exit 1
+          fi
       - uses: docker/build-push-action@v7
         if: steps.existing.outputs.exists != 'true'
         with:
