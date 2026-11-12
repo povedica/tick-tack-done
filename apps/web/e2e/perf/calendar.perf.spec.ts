@@ -21,7 +21,17 @@ const VISIBLE_MS = profile === 'x100' ? 20 * 60_000 : 60_000;
 
 test.describe.configure({ mode: 'serial' });
 
-test.beforeEach(async ({ context, baseURL }) => {
+test.beforeEach(async ({ context, page, baseURL }) => {
+  const email = process.env.PERF_EMAIL;
+  const password = process.env.PERF_PASSWORD;
+  if (email !== undefined && email.length > 0 && password !== undefined && password.length > 0) {
+    await page.goto('/login');
+    await page.getByLabel('Correo').fill(email);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByRole('button', { name: 'Entrar' }).click();
+    await page.waitForURL(/\/today/);
+    return;
+  }
   await context.addCookies([
     {
       name: '__Host-rfx_session',
@@ -56,6 +66,13 @@ test('year, month and week: cold load, interaction and TBT', async ({ context })
     },
   };
   writeFileSync(resultPath, `${JSON.stringify(body, null, 2)}\n`);
+  if (profile !== 'x100') {
+    // §1 budgets with the §5.2 CI margin (30%, and the caps written there).
+    expect(body.views.year.coldMs).toBeLessThanOrEqual(1_300);
+    expect(body.views.year.maxLongTaskMs).toBeLessThanOrEqual(200);
+    expect(body.views.year.tbtMs).toBeLessThanOrEqual(260);
+    expect(body.views.year.interactionMs).toBeLessThanOrEqual(300);
+  }
 });
 
 async function repeat(
@@ -108,7 +125,7 @@ async function measureOpenMonth(page: Page): Promise<Sample> {
 
 async function measureMonth(page: Page): Promise<Sample> {
   const cold = await load(page, '/calendar/month?date=2026-01-05', async () => {
-    await expect(page.getByRole('button', { name: /enero de 2026/ })).toBeVisible({
+    await expect(page.getByRole('button', { name: /^enero de 2026/ })).toBeVisible({
       timeout: VISIBLE_MS,
     });
     await expect(page.getByRole('button', { name: MONTH_MARK })).toBeVisible({
@@ -120,7 +137,7 @@ async function measureMonth(page: Page): Promise<Sample> {
     () => swipe(page, '.cal-month', 'up'),
     /date=2026-02-01/,
     async () => {
-      await expect(page.getByRole('button', { name: /febrero de 2026/ })).toBeVisible({
+      await expect(page.getByRole('button', { name: /^febrero de 2026/ })).toBeVisible({
         timeout: VISIBLE_MS,
       });
       await expect(page.getByRole('button', { name: MONTH_MARK })).toHaveCount(0);

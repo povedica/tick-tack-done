@@ -34,7 +34,7 @@ const CALENDAR_EVENTS = new Set<string>([
 /**
  * True when this event can change what summary or range would return.
  * Reminders, comments and a Google disconnect that keeps events do not.
- * The local-day backfill does not bump: activation owns that cut.
+ * Filling null local days bumps from the summary read, not from the backfill itself.
  */
 export function calendarVersionEvent(type: string, data: Prisma.InputJsonValue): boolean {
   if (TASK_EVENTS.has(type) || CALENDAR_EVENTS.has(type)) {

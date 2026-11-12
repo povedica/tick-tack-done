@@ -186,6 +186,26 @@ export function monthQueryRange(cells: readonly Date[]): {
   };
 }
 
+/** Inclusive civil window for GET /calendar/summary. A year is 1 Jan–31 Dec. */
+export function densityWindow(
+  view: 'year' | 'quarter',
+  cursor: Date,
+): { readonly from: string; readonly to: string } {
+  if (view === 'year') {
+    const year = cursor.getFullYear();
+    return { from: `${String(year)}-01-01`, to: `${String(year)}-12-31` };
+  }
+  const months = quarterMonths(cursor);
+  const start = months[0];
+  const last = months[months.length - 1];
+  if (start === undefined || last === undefined) {
+    const day = localDateParam(cursor);
+    return { from: day, to: day };
+  }
+  const end = new Date(last.getFullYear(), last.getMonth() + 1, 0);
+  return { from: localDateParam(start), to: localDateParam(end) };
+}
+
 export function yearQueryRange(now: Date): {
   readonly from: string;
   readonly to: string;

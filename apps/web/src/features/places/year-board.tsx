@@ -1,5 +1,5 @@
 import { dateTimeFormat } from '../../lib/dates/formatters';
-import { memo, useMemo, Fragment } from 'react';
+import { memo, useEffect, useMemo, useState, Fragment } from 'react';
 import { Link } from 'react-router';
 import type { Task } from '@reflexionia/sdk';
 import { useAppLocale } from '../../i18n/locale';
@@ -11,6 +11,7 @@ import type { ExternalEventView } from '../calendar/ExternalEvent';
 import type { SlotAnchor } from '../capture/calendar-slot';
 import { isoWeek, localDateParam, monthCells } from './month';
 import { buildDayIndex, type DaySummary } from './year-index';
+import { firstPaintMonths } from './year-paint';
 
 const FULL_YEAR = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
 const EMPTY_DAY: DaySummary = { count: 0, colors: [] };
@@ -21,26 +22,59 @@ export function YearBoard({
   months,
   events = [],
   tasks,
+  days,
   weekStart,
   colors,
   onOpen,
   onCreateDay,
+  onOpenDay,
+  onPrefetchDay,
+  focusMonth = 0,
 }: {
   readonly onCreateDay?: ((day: string, anchor: SlotAnchor) => void) | undefined;
+  readonly onOpenDay?: (day: string, element: HTMLElement) => void;
+  readonly onPrefetchDay?: (day: string) => void;
   readonly year: number;
   readonly onMove?: (delta: number) => void;
   readonly months?: readonly number[];
   readonly events?: readonly ExternalEventView[];
   readonly tasks: readonly Task[];
+  /** Server summary. When set, the board does not walk tasks and events. */
+  readonly days?: ReadonlyMap<string, DaySummary>;
   readonly weekStart: 'monday' | 'sunday';
   readonly colors: ReadonlyMap<string, string>;
   readonly onOpen: (month: number) => void;
+  /** Month (0–11) kept on the first paint, with its neighbours. */
+  readonly focusMonth?: number;
 }) {
   const locale = useAppLocale();
   const messages = useMessages();
   const todayKey = useCalendarToday();
   const verticalNavigation = useVerticalCalendarNavigation(onMove);
   const shown = months ?? FULL_YEAR;
+  const shownKey = shown.join(',');
+  const paintToken = `${String(year)}:${shownKey}:${String(focusMonth)}`;
+  const immediate = firstPaintMonths(shown, focusMonth);
+  const [revealedToken, setRevealedToken] = useState<string | null>(null);
+  useEffect(() => {
+    if (immediate.length === shown.length) {
+      return;
+    }
+    const reveal = (): void => {
+      setRevealedToken(paintToken);
+    };
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(reveal, { timeout: 400 });
+      return () => {
+        cancelIdleCallback(id);
+      };
+    }
+    const timer = setTimeout(reveal, 1);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [immediate.length, paintToken, shown.length]);
+  const painted = revealedToken === paintToken ? shown : immediate;
   const showWeekNumbers = shown.length === 3;
   const monthName = useMemo(() => dateTimeFormat(locale, { month: 'long' }), [locale]);
   const whenFormat = useMemo(
@@ -54,8 +88,8 @@ export function YearBoard({
       .map((day) => weekday.format(day));
   }, [locale, year, weekStart]);
   const dayIndex = useMemo(
-    () => buildDayIndex(tasks, events, colors, { fallbackZone: 'Europe/Madrid' }),
-    [tasks, events, colors],
+    () => days ?? buildDayIndex(tasks, events, colors, { fallbackZone: 'Europe/Madrid' }),
+    [days, tasks, events, colors],
   );
   return (
     <div
@@ -73,7 +107,7 @@ export function YearBoard({
       }}
       {...verticalNavigation}
     >
-      {shown.map((month) => (
+      {painted.map((month) => (
         <MonthCard
           key={month}
           year={year}
@@ -89,6 +123,8 @@ export function YearBoard({
           itemsLabel={messages.calendarItems}
           onOpen={onOpen}
           {...(onCreateDay === undefined ? {} : { onCreateDay })}
+          {...(onOpenDay === undefined ? {} : { onOpenDay })}
+          {...(onPrefetchDay === undefined ? {} : { onPrefetchDay })}
         />
       ))}
     </div>
@@ -109,6 +145,8 @@ const MonthCard = memo(function MonthCard({
   itemsLabel,
   onOpen,
   onCreateDay,
+  onOpenDay,
+  onPrefetchDay,
 }: {
   readonly year: number;
   readonly month: number;
@@ -123,6 +161,8 @@ const MonthCard = memo(function MonthCard({
   readonly itemsLabel: string;
   readonly onOpen: (month: number) => void;
   readonly onCreateDay?: (day: string, anchor: SlotAnchor) => void;
+  readonly onOpenDay?: (day: string, element: HTMLElement) => void;
+  readonly onPrefetchDay?: (day: string) => void;
 }) {
   const cells = monthCells(new Date(year, month, 1), weekStart);
   return (
@@ -161,12 +201,21 @@ const MonthCard = memo(function MonthCard({
               {inside ? (
                 <Link
                   className={dayClass(true, today)}
+                  onPointerDown={() => {
+                    onPrefetchDay?.(key);
+                  }}
+                  onFocus={() => {
+                    onPrefetchDay?.(key);
+                  }}
                   onClick={(event) => {
-                    if (
-                      onCreateDay === undefined ||
-                      (event.target instanceof Element && event.target.closest('.year-num'))
-                    )
+                    const onNumber =
+                      event.target instanceof Element && event.target.closest('.year-num') !== null;
+                    if (onOpenDay !== undefined && onNumber) {
+                      event.preventDefault();
+                      onOpenDay(key, event.currentTarget);
                       return;
+                    }
+                    if (onCreateDay === undefined || onNumber) return;
                     event.preventDefault();
                     onCreateDay(key, {
                       element: event.currentTarget,

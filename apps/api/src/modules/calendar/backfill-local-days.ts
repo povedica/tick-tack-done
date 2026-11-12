@@ -26,7 +26,7 @@ interface EventDayRow {
 /**
  * Fills local days on tasks and all-day events that already exist.
  * Timed events stay untouched: E-perfil rewrites them only when the profile zone changes.
- * The public calendar read path does not use these columns.
+ * Summary and range read these columns and call this once when a dated row is still null.
  */
 export async function backfillLocalDays(
   prisma: PrismaClient,

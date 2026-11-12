@@ -41,6 +41,7 @@ export function DayDetails({
   defaultProjectId,
   timeZone,
   onOpenEvent,
+  taskColors,
 }: {
   readonly dayKey: string;
   readonly anchor: RefObject<HTMLElement | null>;
@@ -51,6 +52,7 @@ export function DayDetails({
   readonly defaultProjectId?: string | undefined;
   readonly timeZone: string;
   readonly onOpenEvent: (event: ExternalEventView) => void;
+  readonly taskColors?: ReadonlyMap<string, string>;
 }) {
   const locale = useAppLocale(),
     m = useMessages(),
@@ -242,7 +244,10 @@ export function DayDetails({
                         {group.timed ? <time dateTime={item.at}>{clock(item.at)}</time> : null}
                         <div
                           className="calendar-day-task"
-                          style={{ borderColor: project?.color ?? 'var(--accent)' }}
+                          style={{
+                            borderColor:
+                              taskColors?.get(task.id) ?? project?.color ?? 'var(--accent)',
+                          }}
                         >
                           <Link
                             className="agenda-card calendar-day-title"

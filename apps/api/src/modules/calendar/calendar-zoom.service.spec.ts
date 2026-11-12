@@ -19,6 +19,7 @@ const user: AuthUser = {
 describe('calendar zoom ETag', () => {
   it('returns 304 from the version row and does not run the density query', async () => {
     const calls: string[] = [];
+    let probes = 0;
     const prisma = {
       $queryRaw: (query: Prisma.Sql) => {
         const text = query.strings.join('');
@@ -28,6 +29,13 @@ describe('calendar zoom ETag', () => {
         }
         return Promise.resolve([]);
       },
+      task: {
+        findFirst: () => {
+          probes += 1;
+          return Promise.resolve(null);
+        },
+      },
+      externalEvent: { findFirst: () => Promise.resolve(null) },
     };
     const service = new CalendarZoomService(prisma as unknown as PrismaService);
     const raw = { from: '2026-01-01', to: '2026-01-31' };
@@ -41,6 +49,7 @@ describe('calendar zoom ETag', () => {
     const extra = calls.slice(before).join('\n');
     expect(extra).toContain('calendar_versions');
     expect(extra).not.toContain('task_days');
+    expect(probes).toBe(1);
   });
 
   it('keeps a year of capped marks within 6 KB gzip', () => {

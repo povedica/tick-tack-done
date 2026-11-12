@@ -10,6 +10,12 @@ import { DayWeekStrip } from '../calendar/DayWeekStrip';
 import { CalendarSources } from '../calendar/CalendarSources';
 import { sourceSet } from '../calendar/source-selection';
 import { calendarTaskQuery, uniqueById } from '../calendar/calendar-task-query';
+import {
+  dayRangeQuery,
+  densityScopeFor,
+  fetchCalendarSummary,
+  summaryPath,
+} from '../calendar/calendar-density';
 import { useCalendarSources } from '../calendar/use-calendar-sources';
 import { useCalendarToday } from '../../components/period/useCalendarToday';
 import { QuickAddPopover } from '../capture/components/QuickAddPopover';
@@ -43,6 +49,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { YearBoard } from './year-board';
+import { dayIndexFromSummary } from './summary-days';
 import { rememberCalendarView } from '../../shell/BottomBar';
 import { api } from '../../api';
 import { Button, ErrorState, SkeletonRows } from '../../components/ui';
@@ -74,6 +81,7 @@ import {
   tasksOnCell,
   viewDays,
   yearQueryRange,
+  densityWindow,
 } from './month';
 
 const CAL_VIEWS = [
@@ -230,8 +238,27 @@ export function CalendarPage() {
       : allCells;
   const cells = filteredCells;
   const range = current === 'year' ? yearQueryRange(cursor) : monthQueryRange(cells);
+  const savedFilter = filterId.length > 0 || selectedFilters.length > 0;
+  const densityFromSummary = (current === 'year' || current === 'quarter') && !savedFilter;
+  const listParam = sourceParams.get('lists');
+  const tagParam = sourceParams.get('tags');
+  const calParam = sourceParams.get('cals');
+  const summaryWindow = densityWindow(current === 'quarter' ? 'quarter' : 'year', cursor);
+  const densityRequest = useMemo(
+    () =>
+      densityScopeFor({
+        from: summaryWindow.from,
+        to: summaryWindow.to,
+        lists: listParam,
+        tags: tagParam,
+        cals: calParam,
+        projectId: contextProject,
+        tagId: tagId.length > 0 ? tagId : undefined,
+      }),
+    [summaryWindow.from, summaryWindow.to, listParam, tagParam, calParam, contextProject, tagId],
+  );
   const rangedTasks = useQuery<Task[]>({
-    enabled: current !== 'agenda',
+    enabled: current !== 'agenda' && !densityFromSummary,
     queryKey: ['calendar-tasks', 'auto', 'any', range.from, range.to],
     queryFn: () =>
       collectTasks((query) => api.listTasks(query), calendarTaskQuery(range.from, range.to)),
@@ -241,10 +268,19 @@ export function CalendarPage() {
       ? { ...agendaQuery, data: agendaQuery.data?.pages.flatMap((page) => page.tasks) }
       : rangedTasks;
   const rangedEvents = useQuery<Awaited<ReturnType<typeof api.calendarEvents>>>({
-    enabled: current !== 'agenda',
+    enabled: current !== 'agenda' && !densityFromSummary,
     queryKey: ['calendar-events', 'auto', range.dueAfter, range.dueBefore],
     queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore, 'auto', 'external'),
   });
+  const summary = useQuery({
+    enabled: densityFromSummary && !densityRequest.empty,
+    queryKey: ['calendar-summary', summaryPath(densityRequest)],
+    queryFn: () => fetchCalendarSummary(densityRequest),
+  });
+  const summaryDays = useMemo(
+    () => dayIndexFromSummary(densityRequest.empty ? {} : (summary.data?.days ?? {})),
+    [densityRequest.empty, summary.data],
+  );
   const externalQuery =
     current === 'agenda'
       ? {
@@ -308,6 +344,17 @@ export function CalendarPage() {
   const [openEvent, setOpenEvent] = useState<ExternalEventView | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const pickedAnchor = useRef<HTMLElement | null>(null);
+  const openDay = useQuery({
+    ...dayRangeQuery(picked ?? densityRequest.from, densityRequest),
+    enabled: densityFromSummary && picked !== null && !densityRequest.empty,
+  });
+  const prefetchDay = useCallback(
+    (day: string) => {
+      if (!densityFromSummary || densityRequest.empty) return;
+      void composerClient.query(dayRangeQuery(day, densityRequest)).catch(() => undefined);
+    },
+    [composerClient, densityFromSummary, densityRequest],
+  );
   const calSources = sourceSet(sourceParams.get('cals'));
   const listSources = sourceSet(sourceParams.get('lists'));
   const tagSources = sourceSet(sourceParams.get('tags'));
@@ -349,6 +396,12 @@ export function CalendarPage() {
     Number(workweek && (current === 'week' || current === 'multi-day')) +
     ['lists', 'tags', 'cals', 'filters'].filter((key) => sourceParams.has(key)).length +
     subscriptionItems(subscriptions.data).filter((subscription) => !subscription.visible).length;
+  const densityPending = densityFromSummary
+    ? !densityRequest.empty && summary.isPending
+    : tasks.isPending || externalQuery.isPending;
+  const densityError = densityFromSummary
+    ? summary.isError
+    : tasks.isError || externalQuery.isError;
   const title =
     current === 'day' && mobile
       ? dateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(cursor)
@@ -513,13 +566,14 @@ export function CalendarPage() {
           }}
         />
       ) : null}
-      {tasks.isPending || externalQuery.isPending ? <SkeletonRows /> : null}
-      {tasks.isError || externalQuery.isError ? (
+      {densityPending ? <SkeletonRows /> : null}
+      {densityError ? (
         <ErrorState
           title={fill(messages.loadFailed, messages.calendarTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
             if (current === 'agenda') runAction(agendaQuery.refetch());
+            else if (densityFromSummary) runAction(summary.refetch());
             else {
               runAction(rangedTasks.refetch());
               runAction(rangedEvents.refetch());
@@ -537,15 +591,16 @@ export function CalendarPage() {
           }}
         />
       ) : null}
-      {!tasks.isPending && !externalQuery.isPending && !tasks.isError && !externalQuery.isError ? (
+      {!densityPending && !densityError ? (
         <>
           {current === 'quarter' ? (
             <YearBoard
               onCreateDay={createOnDay}
               year={cursor.getFullYear()}
+              focusMonth={cursor.getMonth()}
               months={quarterMonths(cursor).map((month) => month.getMonth())}
-              tasks={dated}
-              events={external}
+              tasks={densityFromSummary ? [] : dated}
+              events={densityFromSummary ? [] : external}
               weekStart="monday"
               colors={colors}
               onOpen={(month) => {
@@ -558,15 +613,26 @@ export function CalendarPage() {
                   ),
                 );
               }}
+              {...(densityFromSummary
+                ? {
+                    days: summaryDays,
+                    onOpenDay: (day: string, element: HTMLElement) => {
+                      pickedAnchor.current = element;
+                      setPicked(day);
+                    },
+                    onPrefetchDay: prefetchDay,
+                  }
+                : {})}
             />
           ) : null}
           {current === 'year' ? (
             <YearBoard
               onCreateDay={createOnDay}
               onMove={move}
+              focusMonth={cursor.getMonth()}
               year={cursor.getFullYear()}
-              events={external}
-              tasks={dated}
+              events={densityFromSummary ? [] : external}
+              tasks={densityFromSummary ? [] : dated}
               weekStart={weekStart}
               colors={colors}
               onOpen={(month) => {
@@ -579,6 +645,16 @@ export function CalendarPage() {
                   ),
                 );
               }}
+              {...(densityFromSummary
+                ? {
+                    days: summaryDays,
+                    onOpenDay: (day: string, element: HTMLElement) => {
+                      pickedAnchor.current = element;
+                      setPicked(day);
+                    },
+                    onPrefetchDay: prefetchDay,
+                  }
+                : {})}
             />
           ) : null}
           {current === 'agenda' ? (
@@ -750,8 +826,19 @@ export function CalendarPage() {
         <DayDetails
           dayKey={picked}
           anchor={pickedAnchor}
-          tasks={tasksOnCell(dated, dayFromParam(picked) ?? cursor)}
-          events={eventsOnDay(external, dayFromParam(picked) ?? cursor)}
+          tasks={
+            densityFromSummary
+              ? (openDay.data?.tasks ?? [])
+              : tasksOnCell(dated, dayFromParam(picked) ?? cursor)
+          }
+          events={
+            densityFromSummary
+              ? (openDay.data?.events ?? [])
+              : eventsOnDay(external, dayFromParam(picked) ?? cursor)
+          }
+          {...(densityFromSummary && openDay.data !== undefined
+            ? { taskColors: openDay.data.taskColors }
+            : {})}
           projects={projects.data?.items ?? []}
           defaultProjectId={contextProject}
           timeZone={timeZone}

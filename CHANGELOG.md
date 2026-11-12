@@ -1,5 +1,21 @@
 # Historial de cambios
 
+## Vista anual y trimestral desde el resumen (R1)
+
+- El año y el trimestre pintan con `GET /api/v1/calendar/summary?granularity=day`.
+  Un filtro guardado o una selección de filtros sigue con el índice local.
+- Tocar el número de un día abre el detalle con `GET /api/v1/calendar/range` de
+  ese día. La celda anticipa la petición en pointerdown y al recibir el foco.
+- La segunda carga del resumen manda `If-None-Match` y, si no cambió nada,
+  se queda con el 304.
+- El año pinta primero el mes visible y los dos de al lado. El resto entra
+  cuando el navegador está libre. Las tarjetas siguen con `content-visibility`.
+  No hay endpoint nuevo: el resumen del año sigue siendo una sola petición.
+- Las cifras del 12 de noviembre están en
+  `docs/perf/2026-11-12-vista-anual.md`. El TBT del seed S no entra de forma
+  estable en 260 ms y Lighthouse móvil queda por debajo de R3. k6 en local sí
+  entra en los p95 de la §6.4.
+
 ## Summary y range del calendario (F6, sin activar en la web)
 
 - `GET /api/v1/calendar/summary` y `GET /api/v1/calendar/range` leen `tasks` y

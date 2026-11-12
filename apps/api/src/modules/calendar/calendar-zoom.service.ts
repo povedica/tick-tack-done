@@ -14,9 +14,10 @@ import { matchesEtag } from '../../http/cursor.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { loadWorkRow, resolvedWorkMode, type WorkContextMode } from '../../work/work-context.js';
 import { workHiddenNow } from '@reflexionia/domain';
-import { readCalendarVersion } from './calendar-version.js';
+import { readCalendarVersion, bumpCalendarVersion } from './calendar-version.js';
 import { parseRangeFilters, parseSummaryFilters, type ZoomInclude } from './calendar-zoom.parse.js';
 import { mixedEventColors, rangeQuery, summaryQuery, type ZoomRead } from './calendar-zoom.sql.js';
+import { backfillLocalDays } from './backfill-local-days.js';
 
 export interface ZoomResult<T> {
   readonly etag: string;
@@ -94,6 +95,9 @@ interface WorkAudience {
 
 @Injectable()
 export class CalendarZoomService {
+  /** Owners already proven clean at this calendar version. The probe is not repeated. */
+  private readonly localDaysReady = new Map<string, bigint>();
+
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async summary(
@@ -111,9 +115,9 @@ export class CalendarZoomService {
     ifNoneMatch?: string,
   ): Promise<ZoomResult<SummaryBody>> {
     const parsed = parseSummaryFilters(raw);
+    const version = await this.readyVersion(user.id);
     const work = await this.workAudience(user.id, parsed.context);
     const lists = authorizedLists(user.listIds, parsed.lists);
-    const version = await readCalendarVersion(this.prisma, user.id);
     const scope = this.scope(user, parsed, work, lists, 'summary', parsed.granularity, '');
     const etag = representationEtag(version, scope);
     if (matchesEtag(ifNoneMatch, etag)) {
@@ -153,9 +157,9 @@ export class CalendarZoomService {
     ifNoneMatch?: string,
   ): Promise<ZoomResult<RangeBody>> {
     const parsed = parseRangeFilters(raw);
+    const version = await this.readyVersion(user.id);
     const work = await this.workAudience(user.id, parsed.context);
     const lists = authorizedLists(user.listIds, parsed.lists);
-    const version = await readCalendarVersion(this.prisma, user.id);
     const cursorKey = parsed.cursor === null ? '' : encodeCalendarCursor(parsed.cursor);
     const scope = this.scope(user, parsed, work, lists, 'range', parsed.fields, cursorKey);
     const etag = representationEtag(version, scope);
@@ -187,6 +191,41 @@ export class CalendarZoomService {
         next_cursor: next,
       },
     };
+  }
+
+  private async readyVersion(ownerId: string): Promise<bigint> {
+    const version = await readCalendarVersion(this.prisma, ownerId);
+    if (this.localDaysReady.get(ownerId) === version) {
+      return version;
+    }
+    return this.ensureLocalDays(ownerId, version);
+  }
+
+  private async ensureLocalDays(ownerId: string, version: bigint): Promise<bigint> {
+    const datedTask = await this.prisma.task.findFirst({
+      where: {
+        ownerId,
+        deletedAt: null,
+        localStartDay: null,
+        OR: [{ startDate: { not: null } }, { dueDate: { not: null } }],
+      },
+      select: { id: true },
+    });
+    const allDay =
+      datedTask ??
+      (await this.prisma.externalEvent.findFirst({
+        where: { ownerId, deletedAt: null, isAllDay: true, localStartDay: null },
+        select: { id: true },
+      }));
+    if (allDay === null) {
+      this.localDaysReady.set(ownerId, version);
+      return version;
+    }
+    await backfillLocalDays(this.prisma, ownerId);
+    await this.prisma.$transaction((tx) => bumpCalendarVersion(tx, ownerId));
+    const next = await readCalendarVersion(this.prisma, ownerId);
+    this.localDaysReady.set(ownerId, next);
+    return next;
   }
 
   private async fillMixedEventColors(read: ZoomRead, rows: SummaryRow[]): Promise<void> {
