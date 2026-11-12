@@ -1,14 +1,14 @@
 {
-  "measured_at": "2026-11-12T00:04:06.797753+00:00",
+  "measured_at": "2026-11-12T00:07:38.158794+00:00",
   "since_sha": "9737335422d0fc6f6c035f03548fa10290b5f772",
   "definition_sha256": "1f87b874b7cf92cfa2489e84a1a1f18cd2735196703a04f9c1060328a15317cd",
   "summary": {
-    "n": 9,
-    "median_seconds": 173.0,
-    "p90_seconds": 194.0,
-    "median_runner_min": 7.35,
+    "n": 10,
+    "median_seconds": 177.0,
+    "p90_seconds": 190.0,
+    "median_runner_min": 7.458333333333333,
     "results": {
-      "success": 9
+      "success": 10
     }
   },
   "runs": [
@@ -476,6 +476,58 @@
         },
         "ci-ok": {
           "seconds": 3.0,
+          "conclusion": "success"
+        }
+      }
+    },
+    {
+      "id": 43124540632,
+      "sha": "17c99cbe8d2a6425ee8168ed6925edcc4676a2ba",
+      "created_at": "2026-11-12T00:04:13Z",
+      "conclusion": "success",
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43124540632",
+      "seconds": 190.0,
+      "queue_seconds": 2.0,
+      "runner_min": 8.283333333333333,
+      "jobs": {
+        "public-tree-guard": {
+          "seconds": 17.0,
+          "conclusion": "success"
+        },
+        "changes": {
+          "seconds": 6.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 148.0,
+          "conclusion": "success"
+        },
+        "test-integration": {
+          "seconds": 176.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 18.0,
+          "conclusion": "success"
+        },
+        "test-unit": {
+          "seconds": 118.0,
+          "conclusion": "success"
+        },
+        "r80-browser-contracts": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "openapi-check": {
+          "seconds": 6.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "ci-ok": {
+          "seconds": 2.0,
           "conclusion": "success"
         }
       }
