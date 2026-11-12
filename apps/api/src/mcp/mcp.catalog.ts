@@ -1239,13 +1239,28 @@ const CATALOG: readonly McpTool[] = [
       {
         title: name,
         target_date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
-        type: { type: 'string' },
-        emoji: { type: 'string' },
-        color: { type: 'string' },
-        repeat: { type: 'string' },
-        day_mode: { type: 'string' },
-        reminders: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 365 } },
-        notes: { type: 'string' },
+        type: { type: 'string', enum: ['countdown', 'anniversary', 'birthday', 'holiday'] },
+        emoji: { type: ['string', 'null'] },
+        color: { type: ['string', 'null'] },
+        repeat: { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'] },
+        day_mode: { type: 'string', enum: ['standard', 'plus_one'] },
+        reminders: {
+          type: 'array',
+          maxItems: 8,
+          items: {
+            oneOf: [
+              { type: 'integer', minimum: 0, maximum: 365 },
+              objectSchema(
+                {
+                  offset_days: { type: 'integer', minimum: 0, maximum: 365 },
+                  constant: { type: 'boolean' },
+                },
+                ['offset_days'],
+              ),
+            ],
+          },
+        },
+        notes: { type: ['string', 'null'] },
         show_in_sidebar: { type: 'boolean' },
         show_in_smart_list: { type: 'boolean' },
       },
@@ -1260,9 +1275,32 @@ const CATALOG: readonly McpTool[] = [
       {
         id,
         title: name,
-        target_date: { type: 'string' },
+        target_date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+        type: { type: 'string', enum: ['countdown', 'anniversary', 'birthday', 'holiday'] },
+        emoji: { type: ['string', 'null'] },
+        color: { type: ['string', 'null'] },
+        repeat: { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'] },
+        day_mode: { type: 'string', enum: ['standard', 'plus_one'] },
+        reminders: {
+          type: 'array',
+          maxItems: 8,
+          items: {
+            oneOf: [
+              { type: 'integer', minimum: 0, maximum: 365 },
+              objectSchema(
+                {
+                  offset_days: { type: 'integer', minimum: 0, maximum: 365 },
+                  constant: { type: 'boolean' },
+                },
+                ['offset_days'],
+              ),
+            ],
+          },
+        },
+        notes: { type: ['string', 'null'] },
+        show_in_sidebar: { type: 'boolean' },
+        show_in_smart_list: { type: 'boolean' },
         pinned: { type: 'boolean' },
-        archived: { type: 'boolean' },
       },
       ['id'],
     ),
@@ -1282,6 +1320,12 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'unarchive_countdown',
     description: 'Unarchive a countdown.',
+    scopes: ['countdowns:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'restore_countdown',
+    description: 'Restore a soft-deleted countdown. Returned days use the user timezone.',
     scopes: ['countdowns:write'],
     inputSchema: objectSchema({ id }, ['id']),
   },

@@ -1,9 +1,10 @@
-import { MoreHorizontal, Pin } from 'lucide-react';
+import { Archive, ArchiveRestore, MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import type { Countdown } from './api';
-import { dateLabel, countdownNumber } from './presentation';
+import { countdownNumber } from './presentation';
 import { useRef } from 'react';
 import { Popover } from '../../components/Popover';
 import { useMessages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 
 export function CountdownCard({
   countdown,
@@ -27,14 +28,30 @@ export function CountdownCard({
   readonly onPin: () => void;
 }) {
   const messages = useMessages();
+  const locale = useAppLocale();
   const anchor = useRef<HTMLButtonElement>(null);
+  const date = new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${countdown.effectiveDate.slice(0, 10)}T12:00:00Z`));
+  const caption =
+    countdown.kind === 'today'
+      ? messages.countdownIsToday
+      : (countdown.kind === 'until' ? messages.countdownUntil : messages.countdownSince).replace(
+          '{date}',
+          date,
+        );
   return (
     <article
-      className="countdown-card"
+      className={`countdown-card${countdown.pinned ? ' is-pinned' : ''}`}
+      data-kind={countdown.kind}
       data-color={countdown.color ?? 'none'}
       onContextMenu={(event) => {
         event.preventDefault();
-        onEdit();
+        if (!menuOpen) onToggleMenu();
       }}
     >
       <header>
@@ -42,61 +59,73 @@ export function CountdownCard({
           {countdown.emoji ?? '⏳'}
         </span>
         <span className="countdown-title">{countdown.title}</span>
-        <div className="countdown-actions">
+      </header>
+      <div className="countdown-count">
+        <strong className="countdown-number">{countdownNumber(countdown, locale)}</strong>
+        {countdown.kind !== 'today' ? (
+          <span className="countdown-unit">
+            {countdown.days === 1 ? messages.countdownDay : messages.countdownDays}
+          </span>
+        ) : null}
+      </div>
+      <p title={caption}>{caption}</p>
+      <div className="countdown-actions">
+        <button
+          type="button"
+          ref={anchor}
+          aria-label={messages.moreActions}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={onToggleMenu}
+        >
+          <MoreHorizontal size={18} />
+        </button>
+      </div>
+      <Popover
+        open={menuOpen}
+        onClose={onCloseMenu}
+        label={messages.moreActions}
+        anchor={anchor}
+        className="popover popover-menu"
+      >
+        <div className="menu-group">
           {!archived ? (
-            <button
-              type="button"
-              aria-label={countdown.pinned ? 'Desfijar' : 'Fijar'}
-              onClick={onPin}
-            >
-              <Pin size={15} fill={countdown.pinned ? 'currentColor' : 'none'} />
+            <button type="button" className="popover-row" role="menuitem" onClick={onEdit}>
+              <Pencil size={16} aria-hidden="true" />
+              <span>{messages.countdownEdit}</span>
             </button>
           ) : null}
-          <>
-            <button
-              type="button"
-              ref={anchor}
-              aria-label={messages.moreActions}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={onToggleMenu}
-            >
-              <MoreHorizontal size={18} />
+          {!archived ? (
+            <button type="button" className="popover-row" role="menuitem" onClick={onPin}>
+              {countdown.pinned ? (
+                <PinOff size={16} aria-hidden="true" />
+              ) : (
+                <Pin size={16} aria-hidden="true" />
+              )}
+              <span>{countdown.pinned ? messages.countdownUnpin : messages.countdownPin}</span>
             </button>
-            <Popover
-              open={menuOpen}
-              onClose={onCloseMenu}
-              label={messages.moreActions}
-              anchor={anchor}
-              className="popover countdown-menu"
-            >
-              {!archived ? (
-                <button type="button" role="menuitem" onClick={onEdit}>
-                  Editar
-                </button>
-              ) : null}
-              {!archived ? (
-                <button type="button" role="menuitem" onClick={onPin}>
-                  {countdown.pinned ? 'Desfijar' : 'Fijar'}
-                </button>
-              ) : null}
-              <button type="button" role="menuitem" onClick={onArchive}>
-                {archived ? 'Desarchivar' : 'Archivar'}
-              </button>
-              <button type="button" role="menuitem" className="is-danger" onClick={onDelete}>
-                Eliminar
-              </button>
-            </Popover>
-          </>
+          ) : null}
+          <button type="button" className="popover-row" role="menuitem" onClick={onArchive}>
+            {archived ? (
+              <ArchiveRestore size={16} aria-hidden="true" />
+            ) : (
+              <Archive size={16} aria-hidden="true" />
+            )}
+            <span>{archived ? messages.countdownUnarchive : messages.archive}</span>
+          </button>
         </div>
-      </header>
-      <strong className="countdown-number">{countdownNumber(countdown)}</strong>
-      <p>
-        {countdown.kind === 'today'
-          ? ''
-          : `${countdown.days === 1 ? 'día' : 'días'} · ${countdown.kind === 'until' ? 'hasta' : 'desde'} `}
-        {dateLabel(countdown.effectiveDate)}
-      </p>
+        <div className="menu-group">
+          <button
+            type="button"
+            className="popover-row is-danger"
+            role="menuitem"
+            onClick={onDelete}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            <span>{messages.purge}</span>
+          </button>
+        </div>
+      </Popover>
     </article>
   );
 }

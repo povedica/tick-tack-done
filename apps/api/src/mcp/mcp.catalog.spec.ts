@@ -2,6 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { MCP_TOOLS, visibleTools } from './mcp.catalog.js';
 
 describe('MCP tool catalog', () => {
+  it('RF-2442: countdown tools are scoped and update exposes only mapped fields', () => {
+    expect(visibleTools(['countdowns:read']).map((tool) => tool.name)).toContain('list_countdowns');
+    expect(visibleTools(['countdowns:read']).map((tool) => tool.name)).not.toContain(
+      'restore_countdown',
+    );
+    expect(visibleTools(['countdowns:write']).map((tool) => tool.name)).toContain(
+      'restore_countdown',
+    );
+    const update = MCP_TOOLS.find((tool) => tool.name === 'update_countdown');
+    if (update === undefined) throw new Error('update_countdown missing');
+    expect(Object.keys(update.inputSchema.properties as object).sort()).toEqual(
+      [
+        'id',
+        'title',
+        'target_date',
+        'type',
+        'emoji',
+        'color',
+        'repeat',
+        'day_mode',
+        'reminders',
+        'notes',
+        'show_in_sidebar',
+        'show_in_smart_list',
+        'pinned',
+      ].sort(),
+    );
+  });
+
   it('RF-2001: capture defaults require profile scopes', () => {
     const tasks = visibleTools(['tasks:write']).map((tool) => tool.name);
     expect(tasks).not.toContain('get_capture_settings');

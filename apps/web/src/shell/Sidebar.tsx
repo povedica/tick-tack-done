@@ -1044,7 +1044,7 @@ export function Sidebar({
                     .map((item) => (
                       <li key={item.id}>
                         <SideLink to="/countdowns" onNavigate={onNavigate}>
-                          <Hourglass size={20} aria-hidden="true" />
+                          <span aria-hidden="true">{item.emoji ?? <Hourglass size={20} />}</span>
                           <span className="nav-label">{item.title}</span>
                         </SideLink>
                       </li>
