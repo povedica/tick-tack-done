@@ -7,7 +7,11 @@ import type { AddTaskLinkDto } from './task-links.dto.js';
 import { reconcileTaskLinks, taskLinkJson } from './task-links.js';
 import { DriveAttachmentsService } from '../../drive/attachments.service.js';
 import { ListAccessService } from '../collaboration/list-access.js';
-import { assignedByWhere, loadAssignmentMap, taskIdsLastAssignedBy } from '../../reading/assignment.js';
+import {
+  assignedByWhere,
+  loadAssignmentMap,
+  taskIdsLastAssignedBy,
+} from '../../reading/assignment.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
 import { annotateWork, workFilterFor } from '../../work/work-context.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -563,10 +567,7 @@ export class TasksService {
         select: { createdAt: true },
       }),
     ]);
-    if (
-      seen !== null &&
-      (assigned === null || seen.createdAt > assigned.createdAt)
-    ) {
+    if (seen !== null && (assigned === null || seen.createdAt > assigned.createdAt)) {
       return;
     }
     await this.prisma.activityLog.create({

@@ -188,7 +188,8 @@ export class TasksController {
   @ApiQuery({
     name: 'assigned_by',
     required: false,
-    description: 'me or a user uuid. Latest assignment is theirs and the current assignee is someone else.',
+    description:
+      'me or a user uuid. Latest assignment is theirs and the current assignee is someone else.',
   })
   async list(
     @CurrentUser() user: AuthUser,
@@ -284,7 +285,8 @@ export class TasksController {
   @Post(':id/seen')
   @Scopes('tasks:read')
   @ApiOperation({
-    summary: 'Mark a task as seen by its assignee. No effect for anyone else. Hidden from task history.',
+    summary:
+      'Mark a task as seen by its assignee. No effect for anyone else. Hidden from task history.',
   })
   async seen(
     @CurrentUser() user: AuthUser,

@@ -629,7 +629,8 @@ export class AssignmentDto {
   assigned_at!: string;
 
   @ApiProperty({
-    description: 'True only for the assignee, until they open the task after the latest assignment.',
+    description:
+      'True only for the assignee, until they open the task after the latest assignment.',
   })
   unread!: boolean;
 }

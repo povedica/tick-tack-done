@@ -93,9 +93,7 @@ export function keptAssignedBy(
       latest.set(row.entityId, { actorId: row.actorId, createdAt: row.createdAt });
     }
   }
-  return [...latest.entries()]
-    .filter(([, value]) => value.actorId === actorId)
-    .map(([id]) => id);
+  return [...latest.entries()].filter(([, value]) => value.actorId === actorId).map(([id]) => id);
 }
 
 export async function taskIdsLastAssignedBy(db: Db, actorId: string): Promise<string[]> {
@@ -224,7 +222,10 @@ function personToken(
 }
 
 /** Tasks this actor assigned that are still someone else's. */
-export function assignedByWhere(actorId: string, taskIds: readonly string[]): Prisma.TaskWhereInput {
+export function assignedByWhere(
+  actorId: string,
+  taskIds: readonly string[],
+): Prisma.TaskWhereInput {
   if (taskIds.length === 0) {
     return { id: '00000000-0000-0000-0000-000000000000' };
   }

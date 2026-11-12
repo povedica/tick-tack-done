@@ -5162,6 +5162,20 @@
             }
           },
           {
+            "name": "assigned_by",
+            "required": false,
+            "in": "query",
+            "description": "me or a user uuid. Latest assignment is theirs and the current assignee is someone else.",
+            "schema": {}
+          },
+          {
+            "name": "assignee",
+            "required": false,
+            "in": "query",
+            "description": "me, none, or a user uuid.",
+            "schema": {}
+          },
+          {
             "name": "context",
             "required": false,
             "in": "query",
@@ -5393,6 +5407,43 @@
           }
         },
         "summary": "Move a task and its subtasks to the trash",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/seen": {
+      "post": {
+        "operationId": "TasksController_seen",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Mark a task as seen by its assignee. No effect for anyone else. Hidden from task history.",
         "tags": [
           "tasks"
         ],
@@ -15963,6 +16014,7 @@
               "date",
               "tag",
               "priority",
+              "assignee",
               "due",
               "list"
             ]
@@ -18895,6 +18947,46 @@
           "status"
         ]
       },
+      "AssignmentActorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "avatar_url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "avatar_url"
+        ]
+      },
+      "AssignmentDto": {
+        "type": "object",
+        "properties": {
+          "assigned_by": {
+            "$ref": "#/components/schemas/AssignmentActorDto"
+          },
+          "assigned_at": {
+            "type": "string"
+          },
+          "unread": {
+            "type": "boolean",
+            "description": "True only for the assignee, until they open the task after the latest assignment."
+          }
+        },
+        "required": [
+          "assigned_by",
+          "assigned_at",
+          "unread"
+        ]
+      },
       "ViewTaskDto": {
         "type": "object",
         "properties": {
@@ -18986,6 +19078,15 @@
             "type": "string",
             "nullable": true
           },
+          "assignment": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignmentDto"
+              }
+            ]
+          },
           "created_at": {
             "type": "string"
           },
@@ -19050,6 +19151,10 @@
           "label": {
             "type": "string"
           },
+          "overdue_count": {
+            "type": "number",
+            "description": "Present when group_by=assignee. Active tasks in the group whose deadline has passed."
+          },
           "tasks": {
             "type": "array",
             "items": {
@@ -19076,7 +19181,8 @@
               "section",
               "date",
               "tag",
-              "priority"
+              "priority",
+              "assignee"
             ]
           },
           "sort": {
@@ -19242,6 +19348,7 @@
               "all",
               "inbox",
               "assigned_to_me",
+              "assigned_by_me",
               "completed",
               "trash",
               "no_date",
@@ -19687,6 +19794,16 @@
             "type": "string",
             "nullable": true
           },
+          "assignment": {
+            "nullable": true,
+            "description": "Null when the task has no assignee. Omitted by endpoints that do not load it.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignmentDto"
+              }
+            ]
+          },
           "created_by": {
             "type": "string"
           },
@@ -19926,6 +20043,16 @@
           "assignee_id": {
             "type": "string",
             "nullable": true
+          },
+          "assignment": {
+            "nullable": true,
+            "description": "Null when the task has no assignee. Omitted by endpoints that do not load it.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignmentDto"
+              }
+            ]
           },
           "created_by": {
             "type": "string"
@@ -20293,6 +20420,16 @@
           "assignee_id": {
             "type": "string",
             "nullable": true
+          },
+          "assignment": {
+            "nullable": true,
+            "description": "Null when the task has no assignee. Omitted by endpoints that do not load it.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignmentDto"
+              }
+            ]
           },
           "created_by": {
             "type": "string"

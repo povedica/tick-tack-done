@@ -12,9 +12,7 @@ describe('assignment', () => {
     ];
     expect(latestAssignment(events)?.actorId).toBe('lucas');
     const actors = new Map([['lucas', { name: 'Lucas', avatarUrl: null }]]);
-    expect(
-      assignmentOf({ assigneeId: 'ana', viewerId: 'ana', events, actors }),
-    ).toMatchObject({
+    expect(assignmentOf({ assigneeId: 'ana', viewerId: 'ana', events, actors })).toMatchObject({
       assigned_by: { id: 'lucas', name: 'Lucas', avatar_url: null },
       assigned_at: '2026-11-10T12:00:00.000Z',
       unread: true,

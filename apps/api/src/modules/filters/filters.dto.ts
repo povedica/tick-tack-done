@@ -274,7 +274,8 @@ export class ViewGroupDto {
 
   @ApiProperty({
     required: false,
-    description: 'Present when group_by=assignee. Active tasks in the group whose deadline has passed.',
+    description:
+      'Present when group_by=assignee. Active tasks in the group whose deadline has passed.',
   })
   overdue_count?: number;
 

@@ -32,14 +32,7 @@ export interface TaskViewOptions {
   readonly timeZone: string;
 }
 
-const GROUP_BY: readonly TaskGroupBy[] = [
-  'none',
-  'section',
-  'date',
-  'tag',
-  'priority',
-  'assignee',
-];
+const GROUP_BY: readonly TaskGroupBy[] = ['none', 'section', 'date', 'tag', 'priority', 'assignee'];
 const SORTS: readonly TaskSort[] = ['manual', 'date', 'priority', 'title', 'created'];
 const PRIORITY_ORDER: readonly Priority[] = ['high', 'medium', 'low', 'none'];
 

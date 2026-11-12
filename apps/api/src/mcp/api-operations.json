@@ -512,7 +512,7 @@
               "view": { "type": "string", "enum": ["list", "kanban", "timeline", "matrix"] },
               "group": {
                 "type": "string",
-                "enum": ["none", "section", "date", "tag", "priority", "due", "list"]
+                "enum": ["none", "section", "date", "tag", "priority", "assignee", "due", "list"]
               },
               "sort": {
                 "type": "string",
@@ -2603,6 +2603,7 @@
                         "all",
                         "inbox",
                         "assigned_to_me",
+                        "assigned_by_me",
                         "completed",
                         "trash",
                         "no_date",
@@ -2909,6 +2910,20 @@
         "schema": { "type": "string" }
       },
       {
+        "name": "assigned_by",
+        "required": false,
+        "in": "query",
+        "description": "me or a user uuid. Latest assignment is theirs and the current assignee is someone else.",
+        "schema": {}
+      },
+      {
+        "name": "assignee",
+        "required": false,
+        "in": "query",
+        "description": "me, none, or a user uuid.",
+        "schema": {}
+      },
+      {
         "name": "context",
         "required": false,
         "in": "query",
@@ -3081,6 +3096,21 @@
     "method": "DELETE",
     "path": "/api/v1/tasks/{id}",
     "summary": "Move a task and its subtasks to the trash",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/seen",
+    "summary": "Mark a task as seen by its assignee. No effect for anyone else. Hidden from task history.",
     "parameters": [
       {
         "name": "X-Dev-User-Email",
