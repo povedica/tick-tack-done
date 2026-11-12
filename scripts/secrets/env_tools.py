@@ -50,6 +50,8 @@ def compose_values(candidate, directory):
     if result.returncode:
         return None
     values = json.loads(result.stdout)["services"]["probe"].get("environment", {})
+    if not all(isinstance(value, str) for value in values.values()):
+        return None
     # Compose escapes dollars in its reusable config output.
     return {name: value.replace("$$", "$") for name, value in values.items()}
 

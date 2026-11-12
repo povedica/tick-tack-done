@@ -41,7 +41,7 @@ class SecretsTest(unittest.TestCase):
                 calls.append(args)
                 if args[-1] == '--format=dotenv':
                     # Deliberately incompatible quoting: renderer must detect and repair it.
-                    return 'APP_SECRET=fictional$DOLLAR\nTICKY_JWT_PRIVATE_KEY_PEM=lost-newlines\n'
+                    return 'APP_SECRET\nTICKY_JWT_PRIVATE_KEY_PEM=lost-newlines\n'
                 return json.dumps([{'name': k, 'value': v} for k, v in {**values, 'GIT_COMMIT': 'ignored'}.items()])
             output = io.StringIO()
             with patch.object(tools, 'op', fake), patch.object(sys, 'argv', ['tool', 'render', 'fixture-id', str(target)]), contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
