@@ -545,3 +545,23 @@
   --asset-disabled-opacity: 0.55;
   --asset-preview-z: 20;
 }
+
+:root {
+  --countdown-saturated-pink: #be185d;
+  --countdown-saturated-blue: #1d4ed8;
+  --countdown-saturated-orange: #c2410c;
+  --countdown-saturated-teal: #0f766e;
+  --countdown-saturated-purple: #6d28d9;
+  --countdown-readable-pink: #be185d;
+  --countdown-readable-blue: #1d4ed8;
+  --countdown-readable-orange: #c2410c;
+  --countdown-readable-teal: #0f766e;
+  --countdown-readable-purple: #6d28d9;
+}
+[data-theme='dark'] {
+  --countdown-readable-pink: #f9a8d4;
+  --countdown-readable-blue: #93c5fd;
+  --countdown-readable-orange: #fdba74;
+  --countdown-readable-teal: #5eead4;
+  --countdown-readable-purple: #c4b5fd;
+}

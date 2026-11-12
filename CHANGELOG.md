@@ -9,6 +9,8 @@
 
 ## Sin publicar
 
+- Cuenta atrás: filas legibles en móvil, tarjetas cuadradas en escritorio/tablet, colores saturados y menú con el estilo de la app. Alta y edición con bandeja de emojis y calendario de fecha civil; cadenas en español e inglés. MCP permite actualizar todos los campos editables, restaurar y paginar (BKL-058, #162; RF-2401–2405, RF-2431, RF-2440–2442, RF-2451–2455).
+
 ## 0.2.0 (10 de noviembre de 2026)
 
 - La salud de Google Calendar (`ok`, `error`, `reconnect_required`) sale en

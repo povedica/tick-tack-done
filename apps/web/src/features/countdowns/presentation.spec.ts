@@ -13,3 +13,8 @@ describe('countdown presentation', () => {
     expect(countdownNumber({ kind: 'today', days: 0 })).toBe('¡Hoy!');
   });
 });
+
+it('RF-2451: localizes countdown units, dates and today in English', () => {
+  expect(countdownLabel('until', 1, '2027-01-01', 'en')).toBe('1 day left · Jan 1, 2027');
+  expect(countdownNumber({ kind: 'today', days: 0 }, 'en')).toBe('Today!');
+});

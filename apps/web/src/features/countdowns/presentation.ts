@@ -1,30 +1,49 @@
-import { humanDate } from '@reflexionia/domain';
+import { messagesFor, type Messages } from '../../i18n';
 import type { Countdown, CountdownKind, CountdownType } from './api';
 
-export const TYPE_LABEL: Record<CountdownType, string> = {
-  countdown: 'Cuenta atrás',
-  anniversary: 'Aniversario',
-  birthday: 'Cumpleaños',
-  holiday: 'Festivo',
-};
-
-export function dateLabel(value: string): string {
-  return humanDate(value.slice(0, 10));
+export function typeLabels(messages: Messages): Record<CountdownType, string> {
+  return {
+    countdown: messages.countdownTypeCountdown,
+    anniversary: messages.countdownTypeAnniversary,
+    birthday: messages.countdownTypeBirthday,
+    holiday: messages.countdownTypeHoliday,
+  };
 }
 
-export function countdownLabel(kind: CountdownKind, days: number, effectiveDate: string): string {
-  if (kind === 'today') return '¡Es hoy!';
-  return `${kind === 'until' ? 'Faltan' : 'Han pasado'} ${String(days)} ${days === 1 ? 'día' : 'días'} · ${dateLabel(effectiveDate)}`;
+export function dateLabel(value: string, locale = 'es'): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${value.slice(0, 10)}T12:00:00Z`));
 }
 
-export function countdownNumber(countdown: Pick<Countdown, 'kind' | 'days'>): string {
-  return countdown.kind === 'today' ? '¡Hoy!' : String(countdown.days);
+export function countdownLabel(
+  kind: CountdownKind,
+  days: number,
+  effectiveDate: string,
+  locale = 'es',
+): string {
+  const messages = messagesFor(locale);
+  if (kind === 'today') return messages.countdownIsToday;
+  const text = kind === 'until' ? messages.countdownRemaining : messages.countdownElapsed;
+  return `${text.replace('{days}', String(days)).replace('{unit}', days === 1 ? messages.countdownDay : messages.countdownDays)} · ${dateLabel(effectiveDate, locale)}`;
+}
+
+export function countdownNumber(
+  countdown: Pick<Countdown, 'kind' | 'days'>,
+  locale = 'es',
+): string {
+  return countdown.kind === 'today'
+    ? messagesFor(locale).countdownTodayShort
+    : String(countdown.days);
 }
 
 export function groupCountdowns(
   items: readonly Countdown[],
 ): readonly (readonly [CountdownType, readonly Countdown[]])[] {
-  return (Object.keys(TYPE_LABEL) as CountdownType[])
+  return (Object.keys(typeLabels(messagesFor('es'))) as CountdownType[])
     .map((type) => [type, items.filter((item) => item.type === type)] as const)
     .filter(([, entries]) => entries.length > 0);
 }
