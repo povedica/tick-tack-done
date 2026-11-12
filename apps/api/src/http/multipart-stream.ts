@@ -18,7 +18,11 @@ export async function* multipartFileParts(file: Readable): AsyncGenerator<Uint8A
 /** Backpressure reaches the request; there is no disk storage or whole-file buffer. */
 export function multipartStream<T>(
   req: Request,
-  onFile: (file: Readable, info: UploadedFileInfo, fields: ReadonlyMap<string, string>) => Promise<T>,
+  onFile: (
+    file: Readable,
+    info: UploadedFileInfo,
+    fields: ReadonlyMap<string, string>,
+  ) => Promise<T>,
   maxFiles = 1,
 ): Promise<{ fields: ReadonlyMap<string, string>; files: T[] }> {
   return new Promise((resolve, reject) => {
