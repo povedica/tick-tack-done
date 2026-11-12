@@ -18,10 +18,40 @@ if [[ ! -d $state_dir ]]; then mkdir -m 700 "$state_dir"; fi
 state="$state_dir/last-good.env"
 lock="$state.lock"
 mkdir "$lock" 2>/dev/null || { echo 'Another deployment holds the lock' >&2; exit 1; }
-# shellcheck disable=SC2329 # EXIT trap.
-cleanup() { rmdir "$lock"; }
-trap cleanup EXIT
 umask 077
+runtime_changed=false
+runtime_backup=''
+runtime_existed=false
+deployment_success=false
+restore_runtime_env() {
+  if [[ -n $runtime_backup ]]; then
+    if $runtime_existed; then
+      cp "$runtime_backup" "$RUNTIME_ENV_FILE.restore"
+      chmod 600 "$RUNTIME_ENV_FILE.restore"
+      mv "$RUNTIME_ENV_FILE.restore" "$RUNTIME_ENV_FILE"
+    else
+      rm -f "$RUNTIME_ENV_FILE"
+    fi
+  fi
+}
+# shellcheck disable=SC2329 # EXIT trap.
+cleanup() {
+  if ! $deployment_success; then restore_runtime_env; fi
+  [[ -z $runtime_backup ]] || rm -f "$runtime_backup"
+  rmdir "$lock"
+}
+trap cleanup EXIT
+if [[ -n ${INCOMING_ENV_FILE:-} ]]; then
+  [[ $INCOMING_ENV_FILE != "$RUNTIME_ENV_FILE" && -f $INCOMING_ENV_FILE ]] || exit 64
+  runtime_backup=$(mktemp "$state_dir/runtime-previous.XXXXXX")
+  if [[ -f $RUNTIME_ENV_FILE ]]; then
+    cp "$RUNTIME_ENV_FILE" "$runtime_backup"
+    runtime_existed=true
+  fi
+  if ! cmp -s "$INCOMING_ENV_FILE" "$RUNTIME_ENV_FILE"; then runtime_changed=true; fi
+  chmod 600 "$INCOMING_ENV_FILE"
+  mv "$INCOMING_ENV_FILE" "$RUNTIME_ENV_FILE"
+fi
 build=false
 if [[ ${1:-} == --build ]]; then build=true; fi
 compose_args=(-p "$project" -f "$file" --env-file "$RUNTIME_ENV_FILE")
@@ -65,8 +95,8 @@ fi
 running_api=$(current_image "$api")
 running_web=$(current_image "$web")
 changed=()
-[[ $API_IMAGE == "$running_api" ]] || changed+=("$api")
-[[ $WEB_IMAGE == "$running_web" ]] || changed+=("$web")
+if $runtime_changed || [[ $API_IMAGE != "$running_api" ]]; then changed+=("$api"); fi
+if $runtime_changed || [[ $WEB_IMAGE != "$running_web" ]]; then changed+=("$web"); fi
 if ! $build && [[ ${#changed[@]} -gt 0 ]]; then compose pull "${changed[@]}"; fi
 image_commit() {
   docker image inspect "$1" --format '{{json .Config.Env}}' | jq -r '.[] | select(startswith("GIT_COMMIT=")) | sub("^GIT_COMMIT="; "")'
@@ -96,6 +126,7 @@ if ! declare -F restore_proxy >/dev/null; then restore_proxy() { :; }; fi
 if ! declare -F after_success >/dev/null; then after_success() { :; }; fi
 rollback() {
   echo 'Restoring last-good images' >&2
+  restore_runtime_env
   local proxy_status=0
   restore_proxy || proxy_status=$?
   API_IMAGE=$old_api; WEB_IMAGE=$old_web; export API_IMAGE WEB_IMAGE
@@ -115,4 +146,5 @@ if ! replace_changed || ! after_replace || ! health "$expected" 90; then
 fi
 write_state
 after_success
+deployment_success=true
 echo 'Deployment healthy; last-good saved'

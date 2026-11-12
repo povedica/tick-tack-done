@@ -33,6 +33,7 @@ migrate_before_replace() {
   next=$(migration_fingerprint "$API_IMAGE")
   if [[ $previous == "$next" ]]; then echo 'No new migrations'; return 0; fi
   backup_before_migrate
+  # Entrypoint is already node: the first argument is the Prisma JS file.
   # This fails before up; the running API is untouched if backup/migrate fails.
   compose run --rm --no-deps --entrypoint node "$api" \
     node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma

@@ -61,12 +61,13 @@ class DeployTest(unittest.TestCase):
             (directory/'last-good.env').write_text('API_IMAGE=api:old\nWEB_IMAGE=web:old\n')
         last=root/('.ttd-deploy-'+extra.get('DEPLOY_ENVIRONMENT','staging'))/'last-good.env'
         log=root/'log';log.touch()
+        incoming=root/'incoming.env';incoming.write_text(extra.pop('RUNTIME_CONTENT', 'PUBLIC_URL=https://staging-todo.reflexionia.com\nPOSTGRES_DB=ttd_staging\n'))
         runtime=root/'staging.env';runtime.write_text('PUBLIC_URL=https://staging-todo.reflexionia.com\nPOSTGRES_DB=ttd_staging\n')
         # Keep production timeouts fixed; shorten only this disposable test copy.
         script=(ROOT/'deploy/lib/deploy.sh').read_text().replace('health "$expected" 90','health "$expected" 1').replace('"$(image_commit "$old_api")" 45','"$(image_commit "$old_api")" 1')
         script=script.replace('root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"','root='+str(ROOT))
         test_script=root/'deploy.sh';test_script.write_text(script)
-        env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'MOCK_LOG':str(log),'MOCK_STATE':str(state),'MOCK_BACKUPS':str(root/'backups'),'RUNTIME_ENV_FILE':str(runtime),'PUBLIC_HEALTH_URL':'https://example.test/api/v1/health','DEPLOY_ENVIRONMENT':'staging','API_IMAGE':api,'WEB_IMAGE':web,**extra}
+        env={**os.environ,'PATH':str(binary)+os.pathsep+os.environ['PATH'],'MOCK_LOG':str(log),'MOCK_STATE':str(state),'MOCK_BACKUPS':str(root/'backups'),'RUNTIME_ENV_FILE':str(runtime),'INCOMING_ENV_FILE':str(incoming),'PUBLIC_HEALTH_URL':'https://example.test/api/v1/health','DEPLOY_ENVIRONMENT':'staging','API_IMAGE':api,'WEB_IMAGE':web,**extra}
         result=subprocess.run(['bash',str(test_script)],env=env,capture_output=True,text=True)
         calls=[json.loads(line) for line in log.read_text().splitlines()]
         return result,calls,last.read_text(),json.loads(state.read_text())
@@ -108,6 +109,9 @@ class DeployTest(unittest.TestCase):
         up=next(i for i,c in enumerate(calls) if 'up' in c)
         self.assertLess(backup,migrate)
         self.assertLess(migrate,up)
+        command = calls[migrate]
+        tail = command[command.index('run'):]
+        self.assertEqual(tail, ['run','--rm','--no-deps','--entrypoint','node','staging-api','node_modules/prisma/build/index.js','migrate','deploy','--schema','prisma/schema.prisma'])
 
     def test_failed_migration_keeps_running_api(self):
         result,calls,state,running=self.run_deploy(api='api:new',NEW_MIGRATION='1',FAIL_MIGRATE='1')
@@ -127,6 +131,30 @@ class DeployTest(unittest.TestCase):
         self.assertIn('API_IMAGE=api:new',state)
         staging=self.last_temp_root/'.ttd-deploy-staging'/'last-good.env'
         self.assertIn('API_IMAGE=api:old',staging.read_text())
+
+    def test_failed_health_restores_previous_runtime_before_rollback(self):
+        result,_,_,_=self.run_deploy(api='api:new',FAIL_HEALTH='1',RUNTIME_CONTENT='NEW_CONFIG=fictional\n')
+        self.assertNotEqual(result.returncode,0)
+        self.assertEqual((self.last_temp_root/'staging.env').read_text(), 'PUBLIC_URL=https://staging-todo.reflexionia.com\nPOSTGRES_DB=ttd_staging\n')
+        self.assertFalse(list(self.last_temp_root.glob('.ttd-deploy-staging/runtime-previous.*')))
+
+    def test_success_commits_incoming_runtime(self):
+        result,_,_,_=self.run_deploy(api='api:new',RUNTIME_CONTENT='NEW_CONFIG=fictional\n')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual((self.last_temp_root/'staging.env').read_text(),'NEW_CONFIG=fictional\n')
+
+    def test_failed_migration_restores_previous_runtime(self):
+        result,_,_,_=self.run_deploy(api='api:new',NEW_MIGRATION='1',FAIL_MIGRATE='1')
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('POSTGRES_DB=ttd_staging', (self.last_temp_root/'staging.env').read_text())
+
+    def test_changed_env_recreates_both_apps_without_database_or_redis(self):
+        result,calls,_,_=self.run_deploy(RUNTIME_CONTENT='NEW_CONFIG=fictional\n')
+        self.assertEqual(result.returncode,0,result.stderr)
+        up=next(c for c in calls if 'up' in c)
+        self.assertEqual(up[-2:],['staging-api','staging-web'])
+        self.assertNotIn('postgres',up)
+        self.assertNotIn('redis',up)
 
 class ProxyTest(unittest.TestCase):
     def proxy(self, same=False, restore=False):

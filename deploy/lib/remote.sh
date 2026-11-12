@@ -32,17 +32,18 @@ cp scripts/backup-to-drive.mjs deploy/lib/backup-to-drive.mjs
 scp "${ssh_args[@]}" -r deploy/. "$destination:$release/deploy/"
 scp "${ssh_args[@]}" scripts/backup.sh "$destination:$release/scripts/backup.sh"
 scp "${ssh_args[@]}" "$RUNNER_TEMP/runtime.env" "$destination:$private"
-ssh "${ssh_args[@]}" "$destination" "chmod 600 '$private'; mv '$private' '$RUNTIME_ENV_FILE'"
+ssh "${ssh_args[@]}" "$destination" "chmod 600 '$private'"
 api_image=''; web_image=''
 if [[ $TARGET != last-good ]]; then
   plan="$RUNNER_TEMP/plan/plan.json"
-  if [[ $(jq -r .api "$plan") == true ]]; then api_image="ghcr.io/povedica/tick-tack-done-api:$TARGET"; fi
+  if [[ $(jq -r .api "$plan") == true ]]; then api_sha=$(jq -r .api_sha "$plan"); [[ $api_sha =~ ^[a-f0-9]{40}$ ]] || exit 64; api_image="ghcr.io/povedica/tick-tack-done-api:$api_sha"; fi
   if [[ $(jq -r .web "$plan") == true ]]; then
     suffix=staging; [[ $ENVIRONMENT != production ]] || suffix=prod
-    web_image="ghcr.io/povedica/tick-tack-done-web:$TARGET-$suffix"
+    web_sha=$(jq -r .web_sha "$plan"); [[ $web_sha =~ ^[a-f0-9]{40}$ ]] || exit 64
+    web_image="ghcr.io/povedica/tick-tack-done-web:$web_sha-$suffix"
   fi
 fi
-command=(env "RUNTIME_ENV_FILE=$RUNTIME_ENV_FILE" "PUBLIC_HEALTH_URL=$PUBLIC_HEALTH_URL" "API_IMAGE=$api_image" "WEB_IMAGE=$web_image" "EDGE_NETWORK=${EDGE_NETWORK:-}" "CADDY_SITES_DIR=${CADDY_SITES_DIR:-}" "EDGE_CADDY_CONTAINER=${EDGE_CADDY_CONTAINER:-}" bash "$release/deploy/$ENVIRONMENT/deploy.sh")
+command=(env "RUNTIME_ENV_FILE=$RUNTIME_ENV_FILE" "INCOMING_ENV_FILE=$private" "PUBLIC_HEALTH_URL=$PUBLIC_HEALTH_URL" "API_IMAGE=$api_image" "WEB_IMAGE=$web_image" "EDGE_NETWORK=${EDGE_NETWORK:-}" "CADDY_SITES_DIR=${CADDY_SITES_DIR:-}" "EDGE_CADDY_CONTAINER=${EDGE_CADDY_CONTAINER:-}" bash "$release/deploy/$ENVIRONMENT/deploy.sh")
 printf -v remote_command '%q ' "${command[@]}"
 ssh "${ssh_args[@]}" "$destination" "$remote_command"
 # Update the runbook/cron entrypoint only after the health check succeeded.
