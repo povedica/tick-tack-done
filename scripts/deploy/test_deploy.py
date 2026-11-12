@@ -144,7 +144,7 @@ class DeployTest(unittest.TestCase):
         self.assertEqual((self.last_temp_root/'staging.env').read_text(),'NEW_CONFIG=fictional\n')
 
     def test_failed_migration_restores_previous_runtime(self):
-        result,_,_,_=self.run_deploy(api='api:new',NEW_MIGRATION='1',FAIL_MIGRATE='1')
+        result,_,_,_=self.run_deploy(api='api:new',NEW_MIGRATION='1',FAIL_MIGRATE='1',RUNTIME_CONTENT='NEW_CONFIG=fictional\n')
         self.assertNotEqual(result.returncode,0)
         self.assertIn('POSTGRES_DB=ttd_staging', (self.last_temp_root/'staging.env').read_text())
 
