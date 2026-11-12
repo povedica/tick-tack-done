@@ -1,11 +1,19 @@
 name: Deploy
 on:
+  push:
+    branches: [production]
   workflow_run:
     workflows: [Images]
     branches: [main]
     types: [completed]
   workflow_dispatch:
     inputs:
+      environment:
+        description: Environment to redeploy (select the matching branch)
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
       sha:
         description: Full SHA from a successful Images run, or last-good
         required: true
@@ -14,18 +22,21 @@ on:
 permissions:
   contents: read
   actions: read
-  packages: write
+  packages: read
+  deployments: write
 jobs:
   preflight:
     permissions:
       contents: read
       actions: read
       packages: read
-    if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      deployments: read
+    if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository) || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
       sha: ${{ steps.target.outputs.sha }}
+      environment: ${{ steps.target.outputs.environment }}
       ready: ${{ steps.ready.outputs.ready }}
     steps:
       - name: Require a changed image plan (docs never deploy)
@@ -40,22 +51,56 @@ jobs:
             [[ "$count" -gt 0 ]] || exit 0
           fi
           echo 'ready=true' >> "$GITHUB_OUTPUT"
-      - name: Check manual environments and production reviewer without creating them
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: target
+        name: Validate branch, target and staging evidence before any server access
         if: steps.ready.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          TARGET: ${{ github.event.workflow_run.head_sha || (github.event_name == 'push' && github.sha) || inputs.sha }}
+          ENVIRONMENT: ${{ github.event_name == 'workflow_run' && 'staging' || (github.event_name == 'push' && 'production') || inputs.environment }}
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/environments/staging" --silent
-          gh api "repos/$GITHUB_REPOSITORY/environments/production" | jq -e '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[] | select(.reviewer.login == "povedica")] | length > 0' >/dev/null
-      - id: target
-        env:
-          TARGET: ${{ github.event.workflow_run.head_sha || inputs.sha }}
-        run: |
-          [[ "$TARGET" == last-good || "$TARGET" =~ ^[a-fA-F0-9]{40}$ ]] || exit 64
+          fail() { echo "::error::$*"; exit 1; }
+          if [[ "$EVENT" == workflow_dispatch ]]; then
+            branch=main; [[ "$ENVIRONMENT" != production ]] || branch=production
+            [[ "$GITHUB_REF" == "refs/heads/$branch" ]] || fail "Dispatch for $ENVIRONMENT must run from $branch"
+          fi
+          if [[ "$ENVIRONMENT" == production ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/environments/production" > "$RUNNER_TEMP/production.json"
+            jq -e '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[] | select(.reviewer.login == "povedica")] | length > 0' "$RUNNER_TEMP/production.json" >/dev/null || fail 'Production requires reviewer povedica'
+            jq -e '.deployment_branch_policy.custom_branch_policies == true' "$RUNNER_TEMP/production.json" >/dev/null || fail 'Production requires custom deployment branches'
+            gh api --paginate "repos/$GITHUB_REPOSITORY/environments/production/deployment-branch-policies" --jq '.branch_policies[]' | jq -se 'length == 1 and .[0].name == "production" and .[0].type == "branch"' >/dev/null || fail 'Production Deployment branches must allow only the production branch'
+          else
+            gh api "repos/$GITHUB_REPOSITORY/environments/staging" --silent
+          fi
+          successful_deployment() {
+            local environment="$1" sha="$2" id
+            while read -r id; do
+              if gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses?per_page=100" --jq '.[0].state' | grep -Eq '^(success|inactive)$'; then
+                gh api "repos/$GITHUB_REPOSITORY/deployments/$id" --jq .sha
+                return 0
+              fi
+            done < <(gh api --paginate "repos/$GITHUB_REPOSITORY/deployments?environment=$environment&sha=$sha&task=ttd-deploy&per_page=100" --jq '.[].id')
+            return 1
+          }
+          if [[ "$TARGET" == last-good ]]; then
+            TARGET=$(successful_deployment "$ENVIRONMENT" '') || fail "No successful deployment for last-good in $ENVIRONMENT"
+          fi
+          [[ "$TARGET" =~ ^[a-fA-F0-9]{40}$ ]] || fail 'Target must be a full SHA or last-good'
+          TARGET=${TARGET,,}
+          git merge-base --is-ancestor "$TARGET" origin/main || fail 'Target is not reachable from main'
+          if [[ "$ENVIRONMENT" == production ]]; then
+            git merge-base --is-ancestor "$TARGET" origin/production || fail 'Production target is not reachable from production'
+            successful_deployment staging "$TARGET" >/dev/null || fail 'Target has no successful staging deployment'
+          fi
           echo "sha=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
   deploy-staging:
     needs: preflight
-    if: needs.preflight.outputs.ready == 'true'
+    if: needs.preflight.outputs.ready == 'true' && needs.preflight.outputs.environment == 'staging'
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: staging
@@ -64,7 +109,8 @@ jobs:
     secrets: inherit
 
   deploy-production:
-    needs: [preflight, deploy-staging]
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true' && needs.preflight.outputs.environment == 'production'
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: production

@@ -148,6 +148,8 @@ jobs:
         include:
           - environment: staging
             suffix: staging
+          - environment: staging
+            suffix: prod
     environment: ${{ matrix.environment }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -186,7 +188,7 @@ jobs:
           build-args: |
             GIT_COMMIT=${{ needs.changes.outputs.web_sha }}
             BUILD_TIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
-            VITE_RECAPTCHA_SITE_KEY=${{ vars.VITE_RECAPTCHA_SITE_KEY }}
+            VITE_RECAPTCHA_SITE_KEY=${{ vars[matrix.suffix == 'prod' && 'VITE_RECAPTCHA_PRODUCTION_SITE_KEY' || 'VITE_RECAPTCHA_SITE_KEY'] }}
           cache-from: type=gha,scope=web-${{ matrix.suffix }}
           cache-to: type=gha,mode=max,scope=web-${{ matrix.suffix }}
       - name: Smoke published web
