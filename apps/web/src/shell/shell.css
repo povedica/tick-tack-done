@@ -987,9 +987,17 @@
 
 .calendar-mini-nav {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
+}
+
+.calendar-mini-nav > strong {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .calendar-mini-nav button {

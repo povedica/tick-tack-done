@@ -5,3 +5,10 @@ export function formatPeriodDate(date: Date, locale: string): string {
     year: 'numeric',
   }).format(date);
 }
+
+export function formatMonthYear(date: Date, locale: string, length: 'short' | 'long'): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: length,
+    year: 'numeric',
+  }).format(date);
+}

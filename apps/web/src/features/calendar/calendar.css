@@ -15,6 +15,26 @@
   min-height: 36px;
   padding: 0 10px;
 }
+.calendar-toolbar > .calendar-nav > .ui-button,
+.calendar-toolbar > .calendar-add.ui-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+.calendar-toolbar > .calendar-nav > .ui-button:not([aria-label]) {
+  width: auto;
+  padding: 0 10px;
+  font-weight: 600;
+}
+.calendar-toolbar > .calendar-nav > .ui-button:hover,
+.calendar-toolbar > .calendar-add.ui-button:hover {
+  background: var(--surface-2);
+}
 .calendar-nav {
   display: flex;
   gap: 3px;
@@ -1180,8 +1200,8 @@
 @media (max-width: 700px) {
   .screen-page.calendar-page > .calendar-toolbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
-    grid-template-rows: var(--calendar-mobile-header-h) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    grid-template-rows: var(--calendar-mobile-header-h);
     gap: var(--sp-1);
     padding-block: 0;
     flex-shrink: 0;
@@ -1204,15 +1224,15 @@
   }
   .calendar-mobile-views {
     display: block;
-    grid-column: 4;
+    grid-column: 5;
     grid-row: 1;
   }
   .calendar-filter-menu {
-    grid-column: 3;
+    grid-column: 4;
     grid-row: 1;
   }
   .calendar-options {
-    grid-column: 4;
+    grid-column: 5;
     grid-row: 1;
   }
   .calendar-options > button {
@@ -1223,11 +1243,9 @@
     display: none;
   }
   .calendar-toolbar > .calendar-sync {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-self: start;
-    min-height: var(--tap);
-    min-width: var(--tap);
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: center;
   }
   .calendar-page.calendar-week {
     height: 100%;

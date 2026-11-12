@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fails when the tracked tree (git index) would publish private paths,
-# images outside the app icons and e2e screenshots, a local home path,
+# images outside the app icons, e2e screenshots and backlog sketches, a local home path,
 # or a gmail address other than the synthetic calendar fixture.
 # Deletions are ignored: a removal of evidence does not fail this check.
 # This file is excluded from content checks so its own patterns do not match.
@@ -63,7 +63,7 @@ forbidden_image() {
       ;;
   esac
   case "$1" in
-    apps/web/public/* | apps/web/e2e/__screenshots__/*)
+    apps/web/public/* | apps/web/e2e/__screenshots__/* | docs/backlog/bocetos/*)
       return 1
       ;;
     *)
@@ -266,9 +266,10 @@ self_test() {
   dir="$(new_repo)"
   printf '%s\n' "$ALLOWED_GMAIL" "ada@Gmail.com" "ada@GMAIL.COM" "ada@example.com" "test@example.test" >"$dir/calendar.txt"
   git -C "$dir" add calendar.txt
-  mkdir -p "$dir/apps/web/public"
+  mkdir -p "$dir/apps/web/public" "$dir/docs/backlog/bocetos/bkl-054"
   printf 'x\n' >"$dir/apps/web/public/icon.PNG"
-  git -C "$dir" add apps/web/public/icon.PNG
+  printf 'x\n' >"$dir/docs/backlog/bocetos/bkl-054/shot.png"
+  git -C "$dir" add apps/web/public/icon.PNG docs/backlog/bocetos/bkl-054/shot.png
   expect_pass "$dir" "case 4"
   rm -rf "$dir"
 

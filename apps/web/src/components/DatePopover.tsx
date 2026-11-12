@@ -4,6 +4,7 @@ import { fill, useMessages } from '../i18n';
 import { useAppLocale } from '../i18n/locale';
 import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/groups';
 import { usePreferences } from '../theme/preferences';
+import { formatMonthYear } from './period/period-date';
 import { Button } from './ui';
 import { Popover } from './Popover';
 import './inline-time.css';
@@ -314,10 +315,8 @@ export function DatePopover({
                 >
                   <ChevronLeft size={16} aria-hidden="true" />
                 </button>
-                <strong>
-                  {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
-                    cursor,
-                  )}
+                <strong aria-label={formatMonthYear(cursor, locale, 'long')}>
+                  {formatMonthYear(cursor, locale, 'short')}
                 </strong>
                 <button
                   type="button"

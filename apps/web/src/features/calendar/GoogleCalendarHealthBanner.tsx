@@ -1,6 +1,6 @@
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Link } from 'react-router';
 import { api } from '../../api';
@@ -72,17 +72,19 @@ export function CalendarSyncButton() {
     staleTime: 30_000,
   });
   const [phase, setPhase] = useState<'idle' | 'syncing' | 'error'>('idle');
+  const compact = useCompactCalendarBar();
   const when = syncWhen(latestSync(status.data), locale, messages.calendarSyncNever);
-  const title =
+  const statusTitle =
     phase === 'error'
       ? messages.calendarSyncFailedQuiet
       : messages.lastSync.replace('{when}', when);
   const label = phase === 'syncing' ? messages.calendarSyncing : messages.syncNow;
+  const title = compact ? messages.syncNow : statusTitle;
   return (
     <Button
       type="button"
       className="calendar-sync"
-      aria-label={`${label}. ${title}`}
+      aria-label={compact ? messages.syncNow : `${label}. ${statusTitle}`}
       title={title}
       loading={phase === 'syncing'}
       onClick={() => {
@@ -97,10 +99,36 @@ export function CalendarSyncButton() {
         });
       }}
     >
-      <RefreshCw size={16} aria-hidden="true" />
+      <RefreshCw
+        className={phase === 'syncing' ? 'is-spinning' : undefined}
+        size={20}
+        aria-hidden="true"
+      />
       <span>{label}</span>
     </Button>
   );
+}
+
+function useCompactCalendarBar(): boolean {
+  const query = '(max-width: 700px)';
+  const [compact, setCompact] = useState(() =>
+    typeof window.matchMedia === 'function' ? window.matchMedia(query).matches : false,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const media = window.matchMedia(query);
+    const apply = (): void => {
+      setCompact(media.matches);
+    };
+    apply();
+    media.addEventListener('change', apply);
+    return () => {
+      media.removeEventListener('change', apply);
+    };
+  }, []);
+  return compact;
 }
 
 function latestSync(value: unknown): string | null {
