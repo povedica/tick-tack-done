@@ -43,12 +43,10 @@ export function FocusPage() {
     queryFn: ({ pageParam }) => api.listFocusSessions(undefined, pageParam),
     getNextPageParam: (page) =>
       typeof page.next_cursor === 'string' ? page.next_cursor : undefined,
-    refetchInterval: 1000,
   });
   const settings = useQuery({
     queryKey: ['focus-settings'],
     queryFn: () => api.getFocusSettings(),
-    refetchInterval: 4000,
   });
   const stats = useQuery({ queryKey: ['focus-stats'], queryFn: () => api.focusStats() });
   const tasks = useQuery({ queryKey: ['focus-tasks'], queryFn: () => api.listTasks({}) });

@@ -16,32 +16,29 @@ export interface ActiveFocus {
   readonly progress: number;
 }
 
+/** How often a live session is reconciled. Idle sessions are not polled. */
+export const FOCUS_ACTIVE_REFETCH_MS = 30_000;
+
+/** Server poll for the active-session query: none until a live row exists. */
+export function focusSessionsRefetchInterval(data: unknown): number | false {
+  return firstLive(data) ? FOCUS_ACTIVE_REFETCH_MS : false;
+}
+
 export function useActiveFocus(): ActiveFocus | null {
   const sessions = useQuery({
     queryKey: ['focus-sessions'],
-    queryFn: () => api.listFocusSessions(),
-    refetchInterval: 1000,
-  });
-  const settings = useQuery({
-    queryKey: ['focus-settings'],
-    queryFn: () => api.getFocusSettings(),
-    refetchInterval: 4000,
+    queryFn: () => api.listFocusSessions('active'),
+    refetchInterval: (query) => focusSessionsRefetchInterval(query.state.data),
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
   const candidate = firstLive(sessions.data);
   const remembered = useRef<Record<string, unknown> | null>(null);
   if (candidate) remembered.current = candidate;
-  else if (
-    remembered.current &&
-    rows(sessions.data).some((row) => row.id === remembered.current?.id && row.ended_at !== null)
-  )
-    remembered.current = null;
+  else if (sessions.isSuccess) remembered.current = null;
   const live = candidate ?? remembered.current;
   const started = text(live?.started_at);
-  const planned =
-    numberOf(live?.planned_minutes) ||
-    numberOf(settings.data?.pomodoroMinutes) ||
-    numberOf(settings.data?.pomodoro_minutes) ||
-    25;
+  const planned = numberOf(live?.planned_minutes) || 25;
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (started.length === 0) {
@@ -83,7 +80,7 @@ export function FocusCloser() {
   const settings = useQuery({
     queryKey: ['focus-settings'],
     queryFn: () => api.getFocusSettings(),
-    refetchInterval: 4000,
+    enabled: false,
   });
   const queryClient = useQueryClient();
   const focus = useActiveFocus();

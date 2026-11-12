@@ -4,14 +4,16 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { FocusSettingsPage } from './FocusSettingsPage';
-const mock = vi.hoisted(() => ({
-  save: vi.fn((body: Record<string, unknown>) =>
-    Promise.resolve({
-      pomodoroMinutes: body.pomodoro_minutes,
+const mock = vi.hoisted(() => {
+  const state = { pomodoroMinutes: 25 };
+  return {
+    save: vi.fn((body: Record<string, unknown>) => {
+      state.pomodoroMinutes = Number(body.pomodoro_minutes);
+      return Promise.resolve({ pomodoroMinutes: state.pomodoroMinutes });
     }),
-  ),
-  get: vi.fn(() => Promise.resolve({ pomodoroMinutes: 25 })),
-}));
+    get: vi.fn(() => Promise.resolve({ pomodoroMinutes: state.pomodoroMinutes })),
+  };
+});
 vi.mock('../../api', () => ({
   api: { getFocusSettings: mock.get, updateFocusSettings: mock.save },
 }));
