@@ -19,8 +19,8 @@
     "@floating-ui/react": "0.27.20",
     "@reflexionia/domain": "workspace:*",
     "@reflexionia/sdk": "workspace:*",
-    "@tanstack/react-query": "^5.62.0",
-    "lucide-react": "1.59.0",
+    "@tanstack/react-query": "^5.107.1",
+    "lucide-react": "1.70.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -29,10 +29,10 @@
     "recharts": "^3.0.0",
     "workbox-precaching": "7.4.1",
     "workbox-window": "7.4.1",
-    "zustand": "^5.0.0"
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0",
+    "@playwright/test": "^1.65.0",
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.8",
     "@types/qrcode": "^1.5.5",
