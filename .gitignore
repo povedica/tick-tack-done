@@ -39,7 +39,6 @@ docker-compose.worktree.local.yml
 .env-config/
 
 # Plantilla de referencias 1Password, sin valores.
-!.env.tpl
 
 # Herramientas públicas descargadas solo para validar contratos CI.
 .ci-tools/

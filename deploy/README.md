@@ -15,18 +15,18 @@ El job de deploy verifica además una CI de push a main en verde para el SHA exa
 
 ## Preparación manual (Pablo)
 
-| Paso | Preparación, sin enviar valores al agente                                                                                                                                                                  |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M1   | Bóveda `ttd` e ítems `dev`, `staging`, `prod`; no usar Personal/Private/Shared por defecto.                                                                                                                |
-| M2   | Cuenta de servicio con `read_items` exclusivamente en `ttd`.                                                                                                                                               |
-| M3   | Secret `OP_SERVICE_ACCOUNT_TOKEN` en cada Environment.                                                                                                                                                     |
-| M3b  | Importar los archivos privados con los scripts y comprobar nombres.                                                                                                                                        |
-| M4   | Environments `staging` y `production`; production: reviewer Pablo y solo main. Variable `VITE_RECAPTCHA_SITE_KEY` en ambos.                                                                                |
-| M5   | Paquetes GHCR privados y acceso del repo; login del usuario deploy del VPS con PAT classic `read:packages`.                                                                                                |
-| M6   | `DEPLOY_SSH_KEY` como secret; variables `DEPLOY_KNOWN_HOSTS`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_APP_DIR`, `RUNTIME_ENV_FILE`, `PUBLIC_HEALTH_URL`. Verificar la huella SSH por un canal independiente. |
-| M7   | Ítem `prod` completo; variables `EDGE_NETWORK`, `CADDY_SITES_DIR`, `EDGE_CADDY_CONTAINER`. Aprobar el primer deploy después de fusionar.                                                                   |
-| M8   | Ruleset/main: PR obligatoria y check `ci-ok`; `public-tree-guard` y `pr-check` aparte son opcionales. El agente no cambia la protección.                                                                   |
-| M9   | Verificar `op run --env-file=.env.tpl -- pnpm dev` en un checkout limpio.                                                                                                                                  |
+| Paso | Preparación, sin enviar valores al agente                                                                                                                                                       |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1   | **Hecho por Pablo, 11/11/2026**: creados `ttd-dev`, `ttd-staging`, `ttd-prod` en 1Password Environments e importados los archivos desde la app. No hay bóveda.                                  |
+| M2   | Cuenta de servicio con lectura exclusivamente de `ttd-staging` y `ttd-prod`, nunca de `ttd-dev`.                                                                                                |
+| M3   | Secret `OP_SERVICE_ACCOUNT_TOKEN` y Variable `OP_ENVIRONMENT_ID` correspondiente en cada GitHub Environment. Los IDs no son secretos.                                                           |
+| M3b  | Comprobar solo nombres con `check-1password-fields.sh <ID o nombre de Environment>`, frente a `.env.example`.                                                                                   |
+| M4   | GitHub Environments `staging` y `production`; production con reviewer Pablo y solo main. Variable `VITE_RECAPTCHA_SITE_KEY` en ambos. Son distintos de los Environments de 1Password.           |
+| M5   | Paquetes GHCR privados y acceso del repo; login del usuario deploy con `read:packages`.                                                                                                         |
+| M6   | Secret `DEPLOY_SSH_KEY`; variables `DEPLOY_KNOWN_HOSTS`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_APP_DIR`, `RUNTIME_ENV_FILE`, `PUBLIC_HEALTH_URL`; comprobar huella SSH por canal independiente. |
+| M7   | Completar `ttd-prod`; variables `EDGE_NETWORK`, `CADDY_SITES_DIR`, `EDGE_CADDY_CONTAINER`. Aprobar primer deploy tras merge.                                                                    |
+| M8   | Exigir PR y `ci-ok` en main; guard/pr-check independientes opcionales. El agente no cambia protecciones.                                                                                        |
+| M9   | Verificar `op run --environment "$OP_ENVIRONMENT_ID" -- pnpm dev` en checkout limpio, usando el ID de `ttd-dev` y Touch ID, sin token de servicio local.                                        |
 
 El usuario deploy necesita Docker sin sudo, Bash, jq, curl, herramientas POSIX y permisos de escritura en
 `DEPLOY_APP_DIR`, el directorio de `RUNTIME_ENV_FILE` y, en producción, `CADDY_SITES_DIR`.
@@ -39,27 +39,21 @@ La primera transición exige un stack ya arrancado y sano: el script descubre su
 No se deben borrar las imágenes anteriores. Tras el primer éxito se escribe `last-good.env` en el subdirectorio `.ttd-deploy-<entorno>` junto al runtime env.
 La inicialización desde cero de Postgres/Redis/redes es manual; el deploy habitual nunca los recrea.
 
-## Importación privada y Mac nuevo
+## Environments y Mac nuevo
 
-Instalar 1Password CLI, activar integración con la app de escritorio e iniciar sesión. No copiar archivos entre equipos.
-Todos los campos, incluso los opcionales vacíos, viven en su ítem; los nombres están en `.env.example`.
-Los campos públicos (flags, puertos, IDs, URLs y site keys) comparten ítem para tener una sola fuente.
+Instalar CLI ≥ 2.42.0 y activar su integración en la app de escritorio. Pablo ya importó los archivos con _Import .env file_ (M1). `.env.example` es el único esquema versionado; un secreto por variable, incluidos campos opcionales vacíos y configuración pública. No copiar archivos privados entre worktrees.
 
 ```bash
-bash scripts/secrets/import-env-to-1password.sh "$PRIVATE_DEV_ENV" dev
-bash scripts/secrets/import-env-to-1password.sh "$PRIVATE_STAGING_ENV" staging
-bash scripts/secrets/import-env-to-1password.sh "$PRIVATE_PRODUCTION_ENV" prod
-bash scripts/secrets/check-1password-fields.sh
-op run --env-file=.env.tpl -- pnpm dev
+# ID público de ttd-dev, obtenido desde la app; autenticación local mediante Touch ID.
+op run --environment "$OP_ENVIRONMENT_ID" -- pnpm dev
+# Solo nombres; sin --reveal. Seleccionar el Environment que se va a comprobar.
+bash scripts/secrets/check-1password-fields.sh "$OP_ENVIRONMENT_ID"
 ```
 
-Los scripts de importación aceptan asignaciones dotenv con quoting POSIX, export y multilinea entre comillas;
-no evalúan sustituciones ni comandos. Un valor con espacios debe estar entre comillas. Los valores viajan a `op item edit`
-por stdin y su respuesta se descarta. Solo se imprimen nombres y recuentos. No usar `set -x` con archivos privados.
-El renderizador usa `op inject`, una llamada para todas las referencias, y escribe con rename atómico y modo 0600.
-No genera artefactos de Actions. El archivo remoto se transfiere a un temporal 0600 y se renombra en su directorio.
-Las plantillas de servidor omiten `GIT_COMMIT`: el commit y BUILD_TIME vienen horneados en la imagen.
-La compatibilidad con `.env` y `RUNTIME_ENV_FILE` sigue disponible durante la transición.
+Alternativa local: _Local .env file_ de la app (FIFO en Mac/Linux, sin lecturas concurrentes; no hacer que Vite lo vigile). `.env` y `RUNTIME_ENV_FILE` siguen siendo compatibles.
+CI usa `op environment secret list "$OP_ENVIRONMENT_ID" --reveal --format=dotenv`, capturado sin logs, y obtiene también JSON para contrastar los valores exactos. Antes de publicar el archivo, verifica su round-trip con el parser real de Compose. Si no coincide, serializa el JSON con quoting de Compose y verifica de nuevo; si sigue sin coincidir, falla conservando el archivo anterior. Esto cubre PEM y escaping sin asumir compatibilidad de la salida dotenv de la CLI. El test con datos ficticios verifica PEM multilínea, `$`, comilla simple, comilla invertida y barra inversa a través de `docker compose config` y un contenedor que consume su salida. Compose representa `$` como `$$` al serializar su config; el valor recibido por el contenedor es idéntico.
+El archivo se escribe por rename atómico en 0600, sin artefactos de Actions. CLI fijada en 2.42.0 mediante install-cli-action. No se usa el comando de lectura deprecado ni load-secrets-action. El servidor no tiene cuenta de servicio; recibe el archivo temporal por SSH. La sustitución ocurre bajo el lock del deploy y guarda el runtime anterior; cualquier fallo lo restaura antes de recrear las imágenes anteriores.
+`GIT_COMMIT` y `BUILD_TIME` se excluyen del runtime: proceden de la imagen.
 
 Conservar una copia privada del antiguo env hasta validar producción. Después eliminarla de forma controlada.
 Rotar primero credenciales de deploy/proveedores por entorno y comprobar el servicio tras cada cambio.
@@ -75,7 +69,7 @@ docker buildx imagetools inspect "ghcr.io/povedica/tick-tack-done-api:$SHA"
 ```
 
 API: tags `sha-<7>`, SHA completo, `main` y `v*` cuando exista. Web: SHA completo y `sha-<7>` con sufijo de entorno.
-Los filtros evitan construir la otra aplicación en un cambio exclusivo. Un cambio solo de docs no publica ni despliega.
+El plan resuelve la última revisión de los inputs de cada componente en todo el historial. Cada revisión tiene un tag inmutable; si ya existe, no se reconstruye. Ambas referencias deseadas viajan siempre: el servidor compara con las imágenes en marcha, aunque un push anterior no se haya aprobado o haya fallado. Solo se recrean los componentes distintos; cambiar runtime env recrea ambas apps, nunca Postgres ni Redis. Un cambio solo de docs no publica ni despliega.
 Las capas se cachean con scopes API/web-staging/web-prod. No publicar manualmente encima de tags de SHA existentes.
 Los paquetes se mantienen privados aunque el repositorio sea público (M5). No se crean GitHub Releases: DEC-002 sigue fuera de alcance.
 

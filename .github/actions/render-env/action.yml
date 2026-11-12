@@ -1,9 +1,6 @@
 name: Render private runtime env
-description: Resolve references on the runner and write an atomic 0600 file
+description: Read a 1Password Environment on the runner and write an atomic 0600 file
 inputs:
-  template:
-    required: true
-    description: Versioned template containing references only
   output:
     required: true
     description: Private runner temporary path
@@ -11,8 +8,9 @@ runs:
   using: composite
   steps:
     - uses: 1password/install-cli-action@v2
+      with:
+        version: 2.42.0
     - shell: bash
       env:
-        TEMPLATE: ${{ inputs.template }}
         OUTPUT_FILE: ${{ inputs.output }}
-      run: bash scripts/secrets/render-env.sh "$TEMPLATE" "$OUTPUT_FILE"
+      run: bash scripts/secrets/render-env.sh "$OP_ENVIRONMENT_ID" "$OUTPUT_FILE"

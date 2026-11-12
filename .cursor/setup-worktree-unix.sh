@@ -57,7 +57,7 @@ else
 fi
 
 # No copiar .env, .env-config ni .env.local privados entre worktrees.
-# Configuración: op run --env-file=.env.tpl -- pnpm dev.
+# Configuración: op run --environment "$OP_ENVIRONMENT_ID" -- pnpm dev.
 
 # 4) Infra aislada: proyecto compose propio => contenedores, red y volumen independientes.
 docker compose -p "$PROJECT" -f "$COMPOSE_LOCAL" up -d

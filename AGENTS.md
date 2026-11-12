@@ -114,7 +114,7 @@ pnpm lint && pnpm typecheck
 ## CI/CD y secretos (BKL-046)
 
 - Antes de empujar: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`.
-- Configuración local centralizada: `op run --env-file=.env.tpl -- pnpm dev`.
+- Configuración local centralizada: `op run --environment "$OP_ENVIRONMENT_ID" -- pnpm dev`.
 - Nunca imprimir valores de secretos, tampoco errores de 1Password ni config expandida de Compose.
 - Los agentes no crean ni editan Environments, secretos, reviewers ni protección de ramas.
 - Imágenes y deploy: [runbook](deploy/README.md). Producción siempre tras staging y aprobación de Pablo.

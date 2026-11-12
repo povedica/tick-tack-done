@@ -59,11 +59,11 @@ El flujo es PR → CI (`ci-ok`) → merge → imágenes GHCR → staging → apr
 El Compose raíz no despliega el servicio público. El procedimiento operativo vive en [deploy/README.md](deploy/README.md).
 
 En un Mac nuevo, instala 1Password, activa la integración del CLI con la app de escritorio e inicia sesión.
-Con acceso a la bóveda `ttd`, instala Docker y pnpm y ejecuta:
+Con acceso al 1Password Environment `ttd-dev`, instala Docker, pnpm y 1Password CLI ≥ 2.42.0. Activa la integración con la app de escritorio y asigna su ID público a `OP_ENVIRONMENT_ID`:
 
 ```bash
 pnpm install --frozen-lockfile
-op run --env-file=.env.tpl -- pnpm dev
+op run --environment "$OP_ENVIRONMENT_ID" -- pnpm dev
 ```
 
 No copies `.env` ni `.env-config/` de otro equipo. `.env.example` es el esquema; las plantillas solo contienen referencias.
