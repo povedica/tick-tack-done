@@ -9,7 +9,7 @@ import { newMutation, runOrQueue } from '../offline/client';
 import { CountdownCard } from './CountdownCard';
 import { CountdownDialog } from './CountdownDialog';
 import { countdownsApi, type Countdown, type CountdownDraft, type CountdownType } from './api';
-import { groupCountdowns, TYPE_LABEL } from './presentation';
+import { groupCountdowns, typeLabels } from './presentation';
 import './countdowns.css';
 import { Popover } from '../../components/Popover';
 
@@ -131,21 +131,24 @@ export function CountdownsPage() {
                   setMenu(null);
                 }}
                 anchor={newAnchor}
-                className="popover countdown-menu"
+                className="popover popover-menu"
               >
-                {(Object.entries(TYPE_LABEL) as [CountdownType, string][]).map(([type, label]) => (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    key={type}
-                    onClick={() => {
-                      setDialog({ type });
-                      setMenu(null);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
+                {(Object.entries(typeLabels(messages)) as [CountdownType, string][]).map(
+                  ([type, label]) => (
+                    <button
+                      type="button"
+                      className="popover-row"
+                      role="menuitem"
+                      key={type}
+                      onClick={() => {
+                        setDialog({ type });
+                        setMenu(null);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
               </Popover>
             </>
           ) : null}
@@ -194,7 +197,7 @@ export function CountdownsPage() {
         ? renderCards(items)
         : groupCountdowns(items).map(([type, entries]) => (
             <section key={type} className="countdown-group">
-              <h2>{TYPE_LABEL[type]}</h2>
+              <h2>{typeLabels(messages)[type]}</h2>
               {renderCards(entries)}
             </section>
           ))}

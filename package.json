@@ -16,7 +16,7 @@
     "build": "bash scripts/with-node.sh sh -c \"pnpm -r --filter '!reflexionia-tasks' build\"",
     "lint": "bash scripts/with-node.sh sh -c \"pnpm --filter @reflexionia/domain build && pnpm -r --filter '!reflexionia-tasks' lint\"",
     "format": "bash scripts/with-node.sh pnpm exec prettier --write .",
-    "format:check": "bash scripts/with-node.sh pnpm exec prettier --check .",
+    "format:check": "bash scripts/with-node.sh node scripts/ci/format-check.mjs",
     "typecheck": "bash scripts/with-node.sh sh -c \"pnpm --filter @reflexionia/domain build && pnpm -r --filter '!reflexionia-tasks' typecheck\"",
     "test": "bash scripts/with-node.sh sh -c \"pnpm --filter @reflexionia/domain build && pnpm -r --filter '!reflexionia-tasks' test\"",
     "test:integration": "bash scripts/with-node.sh pnpm --filter api test:integration",
@@ -25,7 +25,10 @@
     "db:deploy": "bash scripts/with-node.sh pnpm --filter api exec prisma migrate deploy",
     "db:seed": "bash scripts/with-node.sh pnpm --filter api seed",
     "backup": "bash scripts/backup.sh",
-    "backup:verify": "bash scripts/restore-verify.sh"
+    "backup:verify": "bash scripts/restore-verify.sh",
+    "lint:ci": "pnpm -r --filter '!reflexionia-tasks' lint",
+    "typecheck:ci": "pnpm -r --filter '!reflexionia-tasks' typecheck:ci",
+    "test:ci": "pnpm -r --filter '!reflexionia-tasks' test:ci && pnpm --filter web exec vitest run src/features/places/year-index.spec.ts --maxWorkers=1"
   },
   "pnpm": {
     "overrides": {
@@ -43,6 +46,6 @@
     "eslint-config-prettier": "9.1.0",
     "prettier": "3.9.10",
     "typescript": "5.7.3",
-    "typescript-eslint": "8.71.2"
+    "typescript-eslint": "8.72.1"
   }
 }

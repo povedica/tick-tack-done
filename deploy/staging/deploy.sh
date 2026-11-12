@@ -1,18 +1,10 @@
-#!/bin/sh
-# RF-2001/2005: levantar solo staging; la activación del proxy es un paso separado.
-set -eu
-root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
-: "${RUNTIME_ENV_FILE:?Set the private staging env file outside the repository}"
-case "$RUNTIME_ENV_FILE" in */staging.env) ;; *) echo "Expected a separate staging.env" >&2; exit 64;; esac
-# Guard against accidentally passing production configuration.
-grep -qx 'PUBLIC_URL=https://staging-todo.reflexionia.com' "$RUNTIME_ENV_FILE"
-grep -qx 'POSTGRES_DB=ttd_staging' "$RUNTIME_ENV_FILE"
-: "${GIT_COMMIT:?Set the exact staged commit}"
-export BUILD_TIME=${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}
-export COMPOSE_PARALLEL_LIMIT=1
-cd "$root"
-docker network inspect todo_staging_edge >/dev/null 2>&1 || docker network create todo_staging_edge
-docker compose -p todo-staging -f deploy/staging/docker-compose.yml --env-file "$RUNTIME_ENV_FILE" config --quiet
-docker compose -p todo-staging -f deploy/staging/docker-compose.yml --env-file "$RUNTIME_ENV_FILE" build staging-api
-docker compose -p todo-staging -f deploy/staging/docker-compose.yml --env-file "$RUNTIME_ENV_FILE" build staging-web
-docker compose -p todo-staging -f deploy/staging/docker-compose.yml --env-file "$RUNTIME_ENV_FILE" up -d --no-build
+#!/usr/bin/env bash
+set +x
+set -euo pipefail
+: "${RUNTIME_ENV_FILE:?Set private staging env file}"
+case "$RUNTIME_ENV_FILE" in */staging.env) ;; *) echo 'Expected separate staging.env' >&2; exit 64 ;; esac
+# Compose dotenv output uses quotes; accept only the expected isolated values.
+root="$(cd "$(dirname "$0")/../.." && pwd)"
+export DEPLOY_ENVIRONMENT=staging
+# shellcheck source=deploy/lib/deploy.sh
+source "$root/deploy/lib/deploy.sh"

@@ -27,7 +27,12 @@ export class CountdownsService {
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
   ) {}
 
-  async list(user: AuthUser, archived: boolean, dueWithinDays?: number): Promise<CountdownPageDto> {
+  async list(
+    user: AuthUser,
+    archived: boolean,
+    dueWithinDays?: number,
+    page?: { limit: number; cursor?: string | undefined },
+  ): Promise<CountdownPageDto> {
     const today = this.today(user);
     const rows = await this.prisma.countdown.findMany({
       where: { ownerId: user.id, deletedAt: null, archivedAt: archived ? { not: null } : null },
@@ -39,7 +44,42 @@ export class CountdownsService {
         (row) => dueWithinDays === undefined || (row.kind !== 'since' && row.days <= dueWithinDays),
       )
       .sort(compareCountdowns);
-    return { items, next_cursor: null };
+    if (page === undefined) return { items, next_cursor: null };
+    if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > 100)
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'limit must be an integer from 1 to 100',
+      );
+    const scope = JSON.stringify([user.id, archived, dueWithinDays ?? null, today]);
+    let start = 0;
+    if (page.cursor !== undefined) {
+      try {
+        const decoded: unknown = JSON.parse(Buffer.from(page.cursor, 'base64url').toString('utf8'));
+        if (
+          typeof decoded !== 'object' ||
+          decoded === null ||
+          !('id' in decoded) ||
+          !('scope' in decoded) ||
+          decoded.scope !== scope
+        )
+          throw new Error('cursor');
+        const index = items.findIndex((item) => item.id === decoded.id);
+        if (index < 0) throw new Error('cursor');
+        start = index + 1;
+      } catch {
+        throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'cursor is invalid');
+      }
+    }
+    const selected = items.slice(start, start + page.limit);
+    const last = selected.at(-1);
+    return {
+      items: selected,
+      next_cursor:
+        last !== undefined && start + selected.length < items.length
+          ? Buffer.from(JSON.stringify({ id: last.id, scope })).toString('base64url')
+          : null,
+    };
   }
 
   async get(user: AuthUser, id: string): Promise<CountdownResponseDto> {
@@ -311,10 +351,19 @@ function blankToNull(value: string | null | undefined): string | null {
 }
 function compareCountdowns(a: CountdownResponseDto, b: CountdownResponseDto): number {
   if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-  if (a.pinned) return Number(a.sort_order) - Number(b.sort_order);
+  if (a.pinned)
+    return (
+      Number(a.sort_order) - Number(b.sort_order) ||
+      a.effective_date.localeCompare(b.effective_date) ||
+      a.id.localeCompare(b.id)
+    );
   if (a.kind === 'since' && b.kind !== 'since') return 1;
   if (b.kind === 'since' && a.kind !== 'since') return -1;
   return (
-    a.effective_date.localeCompare(b.effective_date) || Number(a.sort_order) - Number(b.sort_order)
+    (a.kind === 'since'
+      ? b.effective_date.localeCompare(a.effective_date)
+      : a.effective_date.localeCompare(b.effective_date)) ||
+    Number(a.sort_order) - Number(b.sort_order) ||
+    a.id.localeCompare(b.id)
   );
 }

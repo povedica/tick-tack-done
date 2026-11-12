@@ -931,7 +931,7 @@ export function TodayPage() {
                   <Link to="/countdowns">
                     {item.emoji ?? '⏳'} {item.title}
                   </Link>
-                  <span>{countdownLabel(item.kind, item.days, item.effectiveDate)}</span>
+                  <span>{countdownLabel(item.kind, item.days, item.effectiveDate, locale)}</span>
                 </li>
               ))}
           </ul>

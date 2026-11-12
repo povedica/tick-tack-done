@@ -1,0 +1,16 @@
+# Camino manual de emergencia: usar junto al compose principal.
+services:
+  staging-api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+  staging-web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}

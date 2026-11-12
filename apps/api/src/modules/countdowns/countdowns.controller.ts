@@ -13,11 +13,12 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiHeader, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
+import { pageLimit } from '../../http/cursor.js';
 import { respondJson } from '../../http/respond.js';
 import {
   CountdownPageDto,
@@ -37,8 +38,17 @@ export class CountdownsController {
   @Scopes('countdowns:read')
   @ApiOperation({ summary: 'List countdowns with timezone-calculated days (RF-2431)' })
   @ApiOkResponse({ type: CountdownPageDto })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Page size, 1–100; omitted returns all countdowns.',
+  })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
   async list(
     @CurrentUser() user: AuthUser,
+    @Query('limit') limitRaw: string | undefined,
+    @Query('cursor') cursor: string | undefined,
     @Query('archived') archivedRaw: string | undefined,
     @Query('dueWithinDays') dueRaw: string | undefined,
     @Req() req: Request,
@@ -56,7 +66,14 @@ export class CountdownsController {
       req,
       res,
       200,
-      await this.countdowns.list(user, archivedRaw === 'true', dueWithinDays),
+      await this.countdowns.list(
+        user,
+        archivedRaw === 'true',
+        dueWithinDays,
+        limitRaw === undefined && cursor === undefined
+          ? undefined
+          : { limit: pageLimit(limitRaw), cursor },
+      ),
       true,
     );
   }

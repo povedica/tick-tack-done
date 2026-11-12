@@ -82,6 +82,7 @@ describe('McpService recurrence mapping', () => {
 
   const projectOverview = { overview: vi.fn(), markReviewed: vi.fn() };
   const search = { search: vi.fn() };
+  const countdowns = { list: vi.fn(), update: vi.fn(), restore: vi.fn(), create: vi.fn() };
   const closing = { replanTool: vi.fn(), discardReplan: vi.fn() };
   let service: McpService;
 
@@ -96,7 +97,7 @@ describe('McpService recurrence mapping', () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
+      countdowns as never,
       {} as never,
       search as never,
       prisma as never,
@@ -105,6 +106,66 @@ describe('McpService recurrence mapping', () => {
       {} as never,
       {} as never,
     );
+  });
+
+  it('RF-2440: updates every editable countdown field, including constant reminders and nulls', async () => {
+    const id = '33333333-3333-4333-8333-333333333333';
+    countdowns.update.mockResolvedValue({ id });
+    const args = {
+      id,
+      title: 'Trip',
+      target_date: '2027-01-01',
+      type: 'holiday',
+      emoji: null,
+      color: null,
+      notes: null,
+      repeat: 'yearly',
+      day_mode: 'plus_one',
+      reminders: [3, { offset_days: 0, constant: true }],
+      show_in_sidebar: false,
+      show_in_smart_list: false,
+      pinned: true,
+    };
+    await service.handle(
+      { ...user, scopes: ['countdowns:write'] },
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'update_countdown', arguments: args },
+      },
+    );
+    const { id: unusedId, repeat, ...changes } = args;
+    expect(unusedId).toBe(id);
+    expect(countdowns.update).toHaveBeenCalledWith(expect.objectContaining({ id: user.id }), id, {
+      ...changes,
+      repeat_rule: repeat,
+      reminders: [{ offset_days: 3 }, { offset_days: 0, constant: true }],
+    });
+  });
+
+  it('RF-2440: forwards pagination and restores deleted countdowns', async () => {
+    const id = '33333333-3333-4333-8333-333333333333';
+    countdowns.list.mockResolvedValue({ items: [], next_cursor: null });
+    countdowns.restore.mockResolvedValue({ id });
+    const owner = { ...user, scopes: ['countdowns:read', 'countdowns:write'] };
+    await service.handle(owner, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: {
+        name: 'list_countdowns',
+        arguments: { limit: 2, cursor: 'next', archived: true, due_within_days: 7 },
+      },
+    });
+    expect(countdowns.list).toHaveBeenCalledWith(owner, true, 7, { limit: 2, cursor: 'next' });
+    await service.handle(owner, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: { name: 'restore_countdown', arguments: { id } },
+    });
+    expect(countdowns.restore).toHaveBeenCalledWith(owner, id);
   });
 
   it('RF-2007: create_task with recurrence builds an RRULE for TasksService', async () => {

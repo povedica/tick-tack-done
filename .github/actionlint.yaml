@@ -1,0 +1,5 @@
+# CodeQL is already disabled in main; activation is outside BKL-046.
+paths:
+  .github/workflows/security.yml:
+    ignore:
+      - 'constant expression "false" in condition'

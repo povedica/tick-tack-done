@@ -2,6 +2,28 @@ import { extraEn } from './extra';
 import type { es } from './es';
 
 export const en = {
+  countdownTypeCountdown: 'Countdown',
+  countdownTypeAnniversary: 'Anniversary',
+  countdownTypeBirthday: 'Birthday',
+  countdownTypeHoliday: 'Holiday',
+  countdownEdit: 'Edit',
+  countdownPin: 'Pin',
+  countdownUnpin: 'Unpin',
+  countdownUnarchive: 'Unarchive',
+  countdownDay: 'day',
+  countdownDays: 'days',
+  countdownUntil: 'until {date}',
+  countdownSince: 'since {date}',
+  countdownRemaining: '{days} {unit} left',
+  countdownElapsed: '{days} {unit} elapsed',
+  countdownTodayShort: 'Today!',
+  countdownMoreOptions: 'More options',
+  countdownEmojiRecent: 'Recent',
+  countdownEmojiSuggested: 'Suggested',
+  countdownEmojiPaste: 'Paste an emoji',
+  countdownEmojiInvalid: 'Enter a single emoji.',
+  countdownOpenCalendar: 'Open calendar',
+
   accountProgressLabel: 'Streak {days}. Control {score}, {state}',
   calendarTodayLabel: '{date}, today',
   accountProgress: 'Your progress',
