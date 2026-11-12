@@ -7,39 +7,157 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
-  quality:
-    runs-on: ubuntu-latest
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      api: ${{ steps.filter.outputs.api }}
+      browser: ${{ steps.filter.outputs.browser }}
+      tooling: ${{ steps.filter.outputs.tooling }}
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
         with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reflexionia/domain build
-      - run: pnpm lint
-      - run: pnpm format:check
-      - run: pnpm typecheck
+          filters: |
+            shared: &shared
+              - 'packages/domain/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - '.npmrc'
+              - 'tsconfig*'
+              - '.github/**'
+              - 'scripts/!(backlog)/**'
+              - 'scripts/*'
+            code:
+              - *shared
+              - 'apps/**'
+              - 'packages/**'
+              - 'eslint*'
+            api:
+              - *shared
+              - 'apps/api/**'
+            browser:
+              - *shared
+              - 'apps/web/**'
+              - 'packages/sdk/**'
+              - 'apps/api/src/auth/**'
+              - 'apps/api/src/health/**'
+            tooling:
+              - '.github/**'
+              - 'deploy/**'
+              - 'scripts/**'
+
+  code-checks:
+    env:
+      FORMAT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      quality: ${{ steps.checks.outputs.quality }}
+      unit: ${{ steps.checks.outputs.unit }}
+      openapi: ${{ steps.checks.outputs.openapi }}
+      browser: ${{ steps.checks.outputs.browser }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          build-api: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
+      - name: Fail fast on formatting before launching expensive checks
+        run: pnpm format:check
+      - name: Resolve installed Playwright version
+        if: github.event_name == 'push' || needs.changes.outputs.browser == 'true'
+        id: playwright
+        run: echo "version=$(pnpm --filter web exec playwright --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        if: github.event_name == 'push' || needs.changes.outputs.browser == 'true'
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: (github.event_name == 'push' || needs.changes.outputs.browser == 'true') && steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter web exec playwright install --with-deps chromium
+      - if: (github.event_name == 'push' || needs.changes.outputs.browser == 'true') && steps.browsers.outputs.cache-hit == 'true'
+        run: |
+          browser=$(find "$HOME/.cache/ms-playwright" -type f \( -name chrome -o -name chrome-headless-shell \) -print -quit)
+          if [[ -z "$browser" ]] || ldd "$browser" | grep -q 'not found'; then
+            pnpm --filter web exec playwright install-deps chromium
+          fi
+      - id: checks
+        name: Run independent checks concurrently on one runner
+        env:
+          RUN_UNIT: 'false'
+          RUN_API: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
+          RUN_BROWSER: ${{ github.event_name == 'push' || needs.changes.outputs.browser == 'true' }}
+        run: bash scripts/ci/run-code-checks.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r80-browser-evidence
+          path: |
+            apps/web/test-results
+            test-artifacts/audit/r80/98-waterfall-despues-*.json
+          retention-days: 14
+
+  quality:
+    needs: [changes, code-checks]
+    if: always() && (github.event_name == 'push' || needs.changes.outputs.code == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - env:
+          RESULT: ${{ needs.code-checks.outputs.quality }}
+          PARENT: ${{ needs.code-checks.result }}
+        run: test "$PARENT" = success && test "$RESULT" = 0
 
   test-unit:
-    runs-on: ubuntu-latest
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reflexionia/domain build
-      - run: pnpm test
+      - uses: ./.github/actions/setup
+      - run: pnpm test:ci
+
+  openapi-check:
+    needs: [changes, code-checks]
+    if: always() && (github.event_name == 'push' || needs.changes.outputs.api == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - env:
+          RESULT: ${{ needs.code-checks.outputs.openapi }}
+          PARENT: ${{ needs.code-checks.result }}
+        run: test "$PARENT" = success && test "$RESULT" = 0
+
+  r80-browser-contracts:
+    needs: [changes, code-checks]
+    if: always() && (github.event_name == 'push' || needs.changes.outputs.browser == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - env:
+          RESULT: ${{ needs.code-checks.outputs.browser }}
+          PARENT: ${{ needs.code-checks.result }}
+        run: test "$PARENT" = success && test "$RESULT" = 0
 
   test-integration:
-    runs-on: ubuntu-latest
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.api == 'true'
+    timeout-minutes: 15
+    runs-on: ubuntu-24.04
     env:
       CI_POSTGRES_USER: reflexionia
       CI_POSTGRES_PASSWORD: ci
@@ -56,75 +174,74 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U reflexionia"
-          --health-interval 5s --health-timeout 3s --health-retries 10
+          --health-interval 1s --health-timeout 3s --health-retries 30
+      postgres-shard2:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ${{ env.CI_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.CI_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.CI_POSTGRES_DB }}
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U reflexionia"
+          --health-interval 1s --health-timeout 3s --health-retries 30
+      postgres-shard3:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ${{ env.CI_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.CI_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.CI_POSTGRES_DB }}
+        ports: ['5434:5432']
+        options: >-
+          --health-cmd "pg_isready -U reflexionia"
+          --health-interval 1s --health-timeout 3s --health-retries 30
+      postgres-shard4:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ${{ env.CI_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.CI_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.CI_POSTGRES_DB }}
+        ports: ['5435:5432']
+        options: >-
+          --health-cmd "pg_isready -U reflexionia"
+          --health-interval 1s --health-timeout 3s --health-retries 30
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
+      redis-shard2:
+        image: redis:7-alpine
+        ports: ['6380:6379']
+      redis-shard3:
+        image: redis:7-alpine
+        ports: ['6381:6379']
+      redis-shard4:
+        image: redis:7-alpine
+        ports: ['6382:6379']
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/setup
         with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Install PostgreSQL 17 backup client
+          build-api: true
+          api-only: true
+      - name: Use the PostgreSQL service for backup tools
         run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl --fail --silent --show-error -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          pgdg_codename="$(lsb_release -cs)"
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${pgdg_codename}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update
-          sudo apt-get install --yes postgresql-client-17
-          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
-      - run: pnpm db:deploy
-      - run: pnpm test:integration
-
-  openapi-check:
-    # Sección 18: el OpenAPI se genera del código y CI verifica que no hay endpoints sin documentar.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter api build
-      - run: pnpm --filter api openapi:generate
-      - name: El OpenAPI generado no debe tener diff sin commitear
-        run: git diff --exit-code apps/api/openapi.json apps/api/src/mcp/api-operations.json
-
-  r80-browser-contracts:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reflexionia/domain build
-      - run: pnpm --filter web build
-      - run: pnpm --filter web exec playwright install --with-deps chromium
-      - name: Verify Agenda timing and Google, links, About and push UI contracts
+          mkdir -p "$RUNNER_TEMP/pg-bin"
+          for tool in pg_dump pg_restore; do
+            cp scripts/ci/postgres-client.sh "$RUNNER_TEMP/pg-bin/$tool"
+            chmod +x "$RUNNER_TEMP/pg-bin/$tool"
+          done
+          echo "$RUNNER_TEMP/pg-bin" >> "$GITHUB_PATH"
+      - run: nproc
+      - run: bash scripts/ci/run-integration.sh
         env:
-          R80_PHASE: despues
-          R80_PREVIEW: '1'
-        run: pnpm --filter web exec playwright test --config playwright.r80.config.ts r80-agenda-performance.spec.ts r80-google.spec.ts r80-integrations.spec.ts r80-links.spec.ts r80-about.spec.ts r80-push-actions.spec.ts production-session.spec.ts password-reset.spec.ts --workers=1
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: r80-browser-evidence
-          path: |
-            apps/web/test-results
-            test-artifacts/audit/r80/98-waterfall-despues-*.json
-          retention-days: 14
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+          POSTGRES_CONTAINER_SHARD2: ${{ job.services.postgres-shard2.id }}
+          POSTGRES_CONTAINER_SHARD3: ${{ job.services.postgres-shard3.id }}
+          POSTGRES_CONTAINER_SHARD4: ${{ job.services.postgres-shard4.id }}
 
   public-tree-guard:
-    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -136,3 +253,68 @@ jobs:
         run: |
           git fetch origin "${{ github.base_ref }}"
           bash scripts/public-tree-guard.sh --diff-base "origin/${{ github.base_ref }}"
+
+  docs-format:
+    env:
+      FORMAT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+    needs: changes
+    if: github.event_name != 'push' && needs.changes.outputs.code != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+
+  infra-check:
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.tooling == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate workflows
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.11
+      - name: Validate CI shell scripts
+        run: shellcheck scripts/ci/*.sh scripts/secrets/*.sh deploy/lib/*.sh deploy/staging/deploy.sh deploy/production/*.sh scripts/backup.sh scripts/dev.sh .cursor/setup-worktree-unix.sh
+      - uses: actions/checkout@v7
+        with:
+          repository: dorny/paths-filter
+          ref: v3
+          path: .ci-tools/paths-filter
+          persist-credentials: false
+      - name: Test private env and deployment contracts offline
+        env:
+          PATHS_FILTER_ACTION: ${{ github.workspace }}/.ci-tools/paths-filter/dist/index.js
+        run: |
+          python3 -B -m unittest discover -s scripts/secrets -v
+          python3 -B -m unittest discover -s scripts/deploy -v
+          python3 -B -m unittest discover -s scripts/ci -v
+
+  ci-ok:
+    if: always()
+    needs:
+      [
+        changes,
+        code-checks,
+        quality,
+        test-unit,
+        test-integration,
+        openapi-check,
+        r80-browser-contracts,
+        public-tree-guard,
+        docs-format,
+        infra-check,
+      ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")'

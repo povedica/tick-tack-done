@@ -1,18 +1,19 @@
-#!/bin/sh
-# Daily backup. Paths come from the environment, not from this file.
-set -eu
-
+#!/usr/bin/env bash
+# Daily RF-1704 backup using structured Compose env, never shell sourcing.
+set +x
+set -euo pipefail
 : "${APP_DIR:?Set APP_DIR}"
 : "${RUNTIME_ENV_FILE:?Set RUNTIME_ENV_FILE}"
-: "${BACKUP_DIR:?Set BACKUP_DIR}"
-
 cd "$APP_DIR"
-set -a
-# shellcheck disable=SC1090
-. "$RUNTIME_ENV_FILE"
-set +a
-export COMPOSE_FILE=deploy/production/docker-compose.yml
-export COMPOSE_PROJECT_NAME=todo
-export BACKUP_DIR
-mkdir -p "$BACKUP_DIR"
-exec ./scripts/backup.sh
+root=$PWD
+file=deploy/production/docker-compose.yml
+project=todo
+api=api
+state="$(dirname "$RUNTIME_ENV_FILE")/.ttd-deploy-production/last-good.env"
+while IFS='=' read -r key value; do
+  case "$key" in API_IMAGE|WEB_IMAGE) export "$key=$value" ;; *) exit 64 ;; esac
+done < "$state"
+compose() { docker compose -p "$project" -f "$file" --env-file "$RUNTIME_ENV_FILE" "$@"; }
+# shellcheck source=deploy/lib/migrate.sh
+source "$root/deploy/lib/migrate.sh"
+backup_before_migrate

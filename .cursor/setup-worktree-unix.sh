@@ -36,12 +36,8 @@ sed -e "s/5432:5432/${PG_PORT}:5432/" \
     -e "s/pgdata_dev/pgdata_wt${WT_OFFSET}/g" \
     docker-compose.dev.yml > "$COMPOSE_LOCAL"
 
-# 3) .env del worktree: copia el del checkout principal si existe (config identica,
-#    incluidos APP_SECRET y claves VAPID); si no, parte de .env.example.
-#    Despues reapunta puertos a ESTE worktree.
-if [[ -n "${ROOT_WORKTREE_PATH:-}" && -f "$ROOT_WORKTREE_PATH/.env" ]]; then
-  cp "$ROOT_WORKTREE_PATH/.env" .env
-else
+# 3) Solo defaults públicos. Nunca copiar secretos del checkout principal.
+if [[ ! -f .env ]]; then
   cp .env.example .env
 fi
 perl -pi -e "s|localhost:5432|localhost:${PG_PORT}|g;
@@ -60,15 +56,8 @@ else
   echo "COMPOSE_PROJECT_NAME=${PROJECT}" >> .env
 fi
 
-# .env-config y el .env.local de la web no van en git. Se copian del checkout principal.
-if [[ -n "${ROOT_WORKTREE_PATH:-}" && -d "$ROOT_WORKTREE_PATH/.env-config" ]]; then
-  mkdir -p .env-config
-  cp -R "$ROOT_WORKTREE_PATH/.env-config/." .env-config/
-fi
-if [[ -n "${ROOT_WORKTREE_PATH:-}" && -f "$ROOT_WORKTREE_PATH/apps/web/.env.local" ]]; then
-  mkdir -p apps/web
-  cp "$ROOT_WORKTREE_PATH/apps/web/.env.local" apps/web/.env.local
-fi
+# No copiar .env, .env-config ni .env.local privados entre worktrees.
+# Configuración: op run --environment "$OP_ENVIRONMENT_ID" -- pnpm dev.
 
 # 4) Infra aislada: proyecto compose propio => contenedores, red y volumen independientes.
 docker compose -p "$PROJECT" -f "$COMPOSE_LOCAL" up -d

@@ -9,6 +9,7 @@
 
 ## Sin publicar
 
+- BKL-046: 1Password Environments, runtime env restaurable y plan de imágenes independiente del último push.
 - Cuenta atrás: filas legibles en móvil, tarjetas cuadradas en escritorio/tablet, colores saturados y menú con el estilo de la app. Alta y edición con bandeja de emojis y calendario de fecha civil; cadenas en español e inglés. MCP permite actualizar todos los campos editables, restaurar y paginar (BKL-058, #162; RF-2401–2405, RF-2431, RF-2440–2442, RF-2451–2455).
 
 ## 0.2.0 (10 de noviembre de 2026)
@@ -230,3 +231,11 @@
 Por petición de Pablo, se retira `docs/` del árbol. Las evidencias históricas siguen enlazadas en la PR; las nuevas ejecuciones generan artefactos ignorados por Git en `test-artifacts/`.
 
 Implementación y pruebas locales: el estado quedó en la PR. Las verificaciones externas pendientes se detallan allí; estos cambios no se han desplegado. Contrato MCP: `docs/mcp/CHANGELOG.md`.
+
+## BKL-046 · CI/CD y 1Password
+
+- CI por paths con `ci-ok`, caché de domain/Playwright, integración en shards y timeouts.
+- Imágenes ligeras con healthcheck, GHCR y caché BuildKit; el VPS hace pull incremental.
+- Configuración centralizada en 1Password; importación privada, referencias por entorno y runbook.
+- Staging previo, aprobación de producción, backup antes de migrar y rollback de imágenes.
+- Pasos manuales M1–M9 y métricas pendientes documentados, sin cambios de protección ni migraciones Prisma.

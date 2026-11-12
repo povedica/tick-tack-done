@@ -110,3 +110,12 @@ pnpm lint && pnpm typecheck
 6. Backlog al día: se cumple `docs/backlog/DOD.md` (columna correcta,
    comentarios de decisión en la issue, Agente y Rama, la descripción empieza
    por `Closes #N` y DECISIONES.md si aplica).
+
+## CI/CD y secretos (BKL-046)
+
+- Antes de empujar: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`.
+- Configuración local centralizada: `op run --environment "$OP_ENVIRONMENT_ID" -- pnpm dev`.
+- Nunca imprimir valores de secretos, tampoco errores de 1Password ni config expandida de Compose.
+- Los agentes no crean ni editan Environments, secretos, reviewers ni protección de ramas.
+- Imágenes y deploy: [runbook](deploy/README.md). Producción siempre tras staging y aprobación de Pablo.
+- `ci-ok` agrega también integración, guard público, actionlint, shellcheck y pruebas de despliegue.

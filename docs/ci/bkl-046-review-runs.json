@@ -1,0 +1,120 @@
+{
+  "measured_at": "2026-11-12T11:39:08.919003+00:00",
+  "since_sha": "cd883d63ad81fe150db9a90e8b71c10df68e7591",
+  "definition_sha256": "1f87b874b7cf92cfa2489e84a1a1f18cd2735196703a04f9c1060328a15317cd",
+  "summary": {
+    "n": 2,
+    "median_seconds": 171.5,
+    "p90_seconds": 172.0,
+    "median_runner_min": 6.875,
+    "results": {
+      "success": 2
+    }
+  },
+  "runs": [
+    {
+      "id": 43210038754,
+      "sha": "cd883d63ad81fe150db9a90e8b71c10df68e7591",
+      "created_at": "2026-11-12T11:32:34Z",
+      "conclusion": "success",
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43210038754",
+      "seconds": 172.0,
+      "queue_seconds": 2.0,
+      "runner_min": 6.783333333333333,
+      "jobs": {
+        "changes": {
+          "seconds": 7.0,
+          "conclusion": "success"
+        },
+        "public-tree-guard": {
+          "seconds": 15.0,
+          "conclusion": "success"
+        },
+        "test-integration": {
+          "seconds": 154.0,
+          "conclusion": "success"
+        },
+        "test-unit": {
+          "seconds": 77.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 24.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 116.0,
+          "conclusion": "success"
+        },
+        "r80-browser-contracts": {
+          "seconds": 4.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "openapi-check": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "ci-ok": {
+          "seconds": 4.0,
+          "conclusion": "success"
+        }
+      }
+    },
+    {
+      "id": 43210517532,
+      "sha": "bedbae062ae654bd87f3597842162a1916d1d003",
+      "created_at": "2026-11-12T11:35:51Z",
+      "conclusion": "success",
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43210517532",
+      "seconds": 171.0,
+      "queue_seconds": 2.0,
+      "runner_min": 6.966666666666667,
+      "jobs": {
+        "public-tree-guard": {
+          "seconds": 16.0,
+          "conclusion": "success"
+        },
+        "changes": {
+          "seconds": 7.0,
+          "conclusion": "success"
+        },
+        "test-integration": {
+          "seconds": 136.0,
+          "conclusion": "success"
+        },
+        "test-unit": {
+          "seconds": 77.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 146.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 22.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 4.0,
+          "conclusion": "success"
+        },
+        "openapi-check": {
+          "seconds": 4.0,
+          "conclusion": "success"
+        },
+        "r80-browser-contracts": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "ci-ok": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        }
+      }
+    }
+  ]
+}
