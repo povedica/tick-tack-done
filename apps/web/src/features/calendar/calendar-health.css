@@ -44,8 +44,11 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  font-weight: 600;
+  color: var(--ink);
+  font-weight: 400;
+  font-size: var(--fs-base);
   gap: 6px;
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .calendar-toolbar > .calendar-sync.ui-button:hover:not(:disabled) {
   background: var(--surface-2);

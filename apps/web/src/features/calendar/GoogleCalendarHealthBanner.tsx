@@ -101,7 +101,7 @@ export function CalendarSyncButton() {
     >
       <RefreshCw
         className={phase === 'syncing' ? 'is-spinning' : undefined}
-        size={20}
+        size={18}
         aria-hidden="true"
       />
       <span>{label}</span>

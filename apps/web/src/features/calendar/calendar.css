@@ -25,11 +25,15 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
+  color: var(--ink);
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .calendar-toolbar > .calendar-nav > .ui-button:not([aria-label]) {
   width: auto;
   padding: 0 10px;
-  font-weight: 600;
+  font-weight: 400;
+  font-size: var(--fs-base);
+  color: var(--ink);
 }
 .calendar-toolbar > .calendar-nav > .ui-button:hover,
 .calendar-toolbar > .calendar-add.ui-button:hover {
@@ -1333,6 +1337,23 @@
 }
 .calendar-toolbar :is(.calendar-filter-menu, .calendar-mobile-views) > button:hover {
   background: var(--surface-2);
+}
+@media (min-width: 701px) {
+  .calendar-toolbar > .calendar-filter-menu > button {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink);
+    transition: background-color var(--dur-fast) var(--ease);
+  }
+  .calendar-toolbar > .calendar-filter-menu > button:hover {
+    background: var(--surface-2);
+  }
 }
 .calendar-toolbar
   :is(.calendar-filter-menu, .calendar-mobile-views)
