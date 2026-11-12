@@ -2,31 +2,33 @@
 
 ## Flujo y límites
 
-PR → CI (`ci-ok`) → merge en main → imágenes GHCR → staging → aprobación de Pablo → producción.
+PR → CI (`ci-ok`) → merge en main → imágenes GHCR → solo staging.
+Release por fast-forward de `production` a un SHA validado de `main` → preflight → aprobación de Pablo → producción, sin reconstruir imágenes.
 El Compose raíz es un camino manual/de desarrollo; producción usa `deploy/production` y staging `deploy/staging`.
 El Caddy de borde permanece externo, con redes/aliases existentes y sin publicar 80/443 desde estos stacks.
 Staging es permanente y no reinicia Caddy. Producción lo reinicia solo si cambia `todo.caddy`.
 
 Los workflows no crean Environments. Primero deben existir por M4; el preflight comprueba también al reviewer Pablo.
-La imagen web de producción se construye en el job aprobado, después de staging, con su propia site key pública.
+Images construye en main las variantes web staging/prod, con sus propias site keys públicas, antes del despliegue.
+La variable pública `VITE_RECAPTCHA_PRODUCTION_SITE_KEY` del Environment staging (o de repositorio) debe contener la site key de producción actual; `VITE_RECAPTCHA_SITE_KEY` conserva la de staging. Ambas deben estar configuradas antes de publicar una variante nueva: Images falla con un error si falta la key correspondiente. No son secretos. Así no se necesita aprobar ni permitir main en el Environment production para construir imágenes.
 Los tags web siempre llevan sufijo `staging` o `prod`; así nunca se confunden las dos configuraciones.
 Images espera la CI del SHA exacto antes de publicar: el objetivo de deploy desde imágenes disponibles no incluye otra espera de CI.
 El job de deploy verifica además una CI de push a main en verde para el SHA exacto. Una PR no despliega.
 
 ## Preparación manual (Pablo)
 
-| Paso | Preparación, sin enviar valores al agente                                                                                                                                                       |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M1   | **Hecho por Pablo, 11/11/2026**: creados `ttd-dev`, `ttd-staging`, `ttd-prod` en 1Password Environments e importados los archivos desde la app. No hay bóveda.                                  |
-| M2   | Cuenta de servicio con lectura exclusivamente de `ttd-staging` y `ttd-prod`, nunca de `ttd-dev`.                                                                                                |
-| M3   | Secret `OP_SERVICE_ACCOUNT_TOKEN` y Variable `OP_ENVIRONMENT_ID` correspondiente en cada GitHub Environment. Los IDs no son secretos.                                                           |
-| M3b  | Comprobar solo nombres con `check-1password-fields.sh <ID o nombre de Environment>`, frente a `.env.example`.                                                                                   |
-| M4   | GitHub Environments `staging` y `production`; production con reviewer Pablo y solo main. Variable `VITE_RECAPTCHA_SITE_KEY` en ambos. Son distintos de los Environments de 1Password.           |
-| M5   | Paquetes GHCR privados y acceso del repo; login del usuario deploy con `read:packages`.                                                                                                         |
-| M6   | Secret `DEPLOY_SSH_KEY`; variables `DEPLOY_KNOWN_HOSTS`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_APP_DIR`, `RUNTIME_ENV_FILE`, `PUBLIC_HEALTH_URL`; comprobar huella SSH por canal independiente. |
-| M7   | Completar `ttd-prod`; variables `EDGE_NETWORK`, `CADDY_SITES_DIR`, `EDGE_CADDY_CONTAINER`. Aprobar primer deploy tras merge.                                                                    |
-| M8   | Exigir PR y `ci-ok` en main; guard/pr-check independientes opcionales. El agente no cambia protecciones.                                                                                        |
-| M9   | Verificar `op run --environment "$OP_ENVIRONMENT_ID" -- pnpm dev` en checkout limpio, usando el ID de `ttd-dev` y Touch ID, sin token de servicio local.                                        |
+| Paso | Preparación, sin enviar valores al agente                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1   | **Hecho por Pablo, 11/11/2026**: creados `ttd-dev`, `ttd-staging`, `ttd-prod` en 1Password Environments e importados los archivos desde la app. No hay bóveda.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| M2   | Cuenta de servicio con lectura exclusivamente de `ttd-staging` y `ttd-prod`, nunca de `ttd-dev`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| M3   | Secret `OP_SERVICE_ACCOUNT_TOKEN` y Variable `OP_ENVIRONMENT_ID` correspondiente en cada GitHub Environment. Los IDs no son secretos.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| M3b  | Comprobar solo nombres con `check-1password-fields.sh <ID o nombre de Environment>`, frente a `.env.example`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| M4   | GitHub Environments `staging` y `production`; production con reviewer `povedica` y _Deployment branches_: solo la rama `production` (políticas personalizadas, sin tags). **Antes del primer merge**, configurar `VITE_RECAPTCHA_PRODUCTION_SITE_KEY` en el Environment staging o como variable de repositorio, con el mismo valor que la site key de producción actual; si falta, Images falla antes de publicar. `VITE_RECAPTCHA_SITE_KEY` de staging se usa para su variante; la del Environment production ya no la usa ningún build. Son distintos de los Environments de 1Password. |
+| M5   | Paquetes GHCR privados y acceso del repo; login del usuario deploy con `read:packages`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| M6   | Secret `DEPLOY_SSH_KEY`; variables `DEPLOY_KNOWN_HOSTS`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_APP_DIR`, `RUNTIME_ENV_FILE`, `PUBLIC_HEALTH_URL`; comprobar huella SSH por canal independiente.                                                                                                                                                                                                                                                                                                                                                                                           |
+| M7   | Completar `ttd-prod`; variables `EDGE_NETWORK`, `CADDY_SITES_DIR`, `EDGE_CADDY_CONTAINER`. Aprobar primer deploy tras merge.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| M8   | Exigir PR y `ci-ok` en main; proteger `production` sin force-push ni borrado y con push restringido a Pablo. El agente no cambia protecciones.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| M9   | Verificar `op run --environment "$OP_ENVIRONMENT_ID" -- pnpm dev` en checkout limpio, usando el ID de `ttd-dev` y Touch ID, sin token de servicio local.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 El usuario deploy necesita Docker sin sudo, Bash, jq, curl, herramientas POSIX y permisos de escritura en
 `DEPLOY_APP_DIR`, el directorio de `RUNTIME_ENV_FILE` y, en producción, `CADDY_SITES_DIR`.
@@ -34,6 +36,8 @@ BACKUP_DIR debe apuntar a un directorio persistente fuera de releases, para mant
 Para backups externos necesita age y rclone o la integración Drive ya configurada (RF-1704).
 El runtime env de staging debe llamarse `staging.env`; `PUBLIC_URL` debe ser el dominio de staging y `POSTGRES_DB=ttd_staging`.
 Cada Environment debe usar su propio directorio base, archivo privado, red y volúmenes. No reutilizar los de producción.
+
+La rama `production` ya existe. Pablo comprueba su estado; si no existe en una instalación nueva, la crea manualmente desde el SHA que está actualmente en producción (no desde la punta de main). No se crea ni se mueve automáticamente.
 
 La primera transición exige un stack ya arrancado y sano: el script descubre sus imágenes como respaldo inicial.
 No se deben borrar las imágenes anteriores. Tras el primer éxito se escribe `last-good.env` en el subdirectorio `.ttd-deploy-<entorno>` junto al runtime env.
@@ -95,11 +99,20 @@ El archivo `last-good.env` se escribe atómicamente solo después del éxito; no
 
 ## Aprobación y recuperación
 
-En Actions → Deploy, escoger el SHA completo de un run Images correcto, o `last-good` para redesplegar el último par sano.
-La ejecución se hace desde main; staging debe pasar antes de que producción llegue a su aprobación.
-Pablo revisa SHA y evidencia de staging y aprueba el Environment production. El primer deploy real es después del merge.
-Para volver a un SHA anterior, usar ese SHA completo (debe existir su plan de imágenes y CI en main).
-`last-good` representa el último éxito; tras un deploy correcto nuevo, para volver al éxito previo se usa su SHA explícito.
+Solo se pueden liberar SHAs de main con CI de push en verde, plan Images y staging correcto. Un commit solo de documentación no genera `deployment-plan`; en ese caso se libera el último SHA con plan y staging correcto. La release consiste en avanzar `production` por fast-forward a ese SHA exacto:
+
+```bash
+git fetch origin
+# SHA completo ya validado; sin --force.
+git push origin <sha>:production
+```
+
+Una PR main → production con merge commit o rebase no sirve: genera un SHA nuevo sin CI de main ni plan de imágenes. El push normal rechaza avances que no sean fast-forward. El preflight comprueba además que el SHA pertenece al historial de main y que existe un deployment correcto en staging; si falla no accede al servidor. Solo lee la configuración del Environment production: exige reviewer `povedica` y Deployment branches exclusivamente `production`, sin modificarla.
+
+En Actions → Deploy, escoger `environment` y SHA completo de un run Images correcto, o `last-good` para redesplegar el último SHA desplegado correctamente en ese entorno. Para staging ejecutar desde la rama `main`; para production, desde `production`. `last-good` se resuelve mediante los deployments explícitos `ttd-deploy` de GitHub (registrados con el SHA objetivo incluso en dispatch) antes de validar y hacer checkout del SHA exacto, nunca del main actual.
+Para production, incluso en rollback, el SHA debe ser alcanzable desde `production`, conservar CI de push en main y plan Images, y tener staging correcto. Los preflights fallan antes de acceder al servidor o solicitar la aprobación del deploy. Pablo revisa SHA y evidencia de staging y aprueba el Environment production también en redespliegues y rollbacks.
+Tras un deploy correcto nuevo, para volver al éxito previo se usa su SHA explícito; no se retrocede la rama production. Los planes de imágenes caducan a los 30 días: sin plan disponible el preflight falla.
+No se puede volver por workflow a SHAs anteriores a este pipeline: no tienen deployment `ttd-deploy` ni imagen web `-prod`. Esa marcha atrás es manual, usando `last-good.env` en el servidor.
 Nunca se cancela un deploy en curso. Un lock por runtime env impide solapamientos con el camino manual.
 Si un proceso es interrumpido de forma abrupta, comprobar que no queda un deploy activo antes de retirar el directorio `.lock` del estado.
 
