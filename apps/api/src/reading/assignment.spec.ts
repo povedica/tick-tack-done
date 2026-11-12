@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { assignmentOf, keptAssignedBy, latestAssignment, type AssignmentEvent } from './assignment';
+import {
+  assignmentOf,
+  keptAssignedBy,
+  latestAssignment,
+  type AssignmentEvent,
+} from './assignment.js';
 
 const at = (iso: string): Date => new Date(iso);
 
