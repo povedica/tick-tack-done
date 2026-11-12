@@ -22,22 +22,28 @@ umask 077
 runtime_changed=false
 runtime_backup=''
 runtime_existed=false
+runtime_restored=false
 deployment_success=false
 restore_runtime_env() {
   if [[ -n $runtime_backup ]]; then
     if $runtime_existed; then
-      cp "$runtime_backup" "$RUNTIME_ENV_FILE.restore"
-      chmod 600 "$RUNTIME_ENV_FILE.restore"
-      mv "$RUNTIME_ENV_FILE.restore" "$RUNTIME_ENV_FILE"
+      cp "$runtime_backup" "$RUNTIME_ENV_FILE.restore" &&
+        chmod 600 "$RUNTIME_ENV_FILE.restore" &&
+        mv "$RUNTIME_ENV_FILE.restore" "$RUNTIME_ENV_FILE" || return 1
     else
-      rm -f "$RUNTIME_ENV_FILE"
+      rm -f "$RUNTIME_ENV_FILE" || return 1
     fi
   fi
+  runtime_restored=true
 }
 # shellcheck disable=SC2329 # EXIT trap.
 cleanup() {
-  if ! $deployment_success; then restore_runtime_env; fi
-  [[ -z $runtime_backup ]] || rm -f "$runtime_backup"
+  if ! $deployment_success; then
+    restore_runtime_env || echo 'Runtime restoration failed; previous file retained for operator' >&2
+  fi
+  if $deployment_success || $runtime_restored; then
+    [[ -z $runtime_backup ]] || rm -f "$runtime_backup"
+  fi
   rmdir "$lock"
 }
 trap cleanup EXIT
@@ -126,7 +132,7 @@ if ! declare -F restore_proxy >/dev/null; then restore_proxy() { :; }; fi
 if ! declare -F after_success >/dev/null; then after_success() { :; }; fi
 rollback() {
   echo 'Restoring last-good images' >&2
-  restore_runtime_env
+  restore_runtime_env || return 1
   local proxy_status=0
   restore_proxy || proxy_status=$?
   API_IMAGE=$old_api; WEB_IMAGE=$old_web; export API_IMAGE WEB_IMAGE
