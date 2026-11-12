@@ -2,6 +2,14 @@ import busboy, { type FileInfo } from 'busboy';
 import type { Request } from 'express';
 import type { Readable } from 'node:stream';
 import { DomainException } from './domain.exception.js';
+
+export type UploadedFileInfo = FileInfo & { filename: string };
+
+function namedFile(info: FileInfo): UploadedFileInfo | undefined {
+  if (!info.filename) return undefined;
+  return { ...info, filename: info.filename };
+}
+
 export async function* multipartFileParts(file: Readable): AsyncGenerator<Uint8Array> {
   for await (const chunk of file as AsyncIterable<Buffer>) yield chunk;
   if ('truncated' in file && file.truncated)
@@ -10,7 +18,7 @@ export async function* multipartFileParts(file: Readable): AsyncGenerator<Uint8A
 /** Backpressure reaches the request; there is no disk storage or whole-file buffer. */
 export function multipartStream<T>(
   req: Request,
-  onFile: (file: Readable, info: FileInfo, fields: ReadonlyMap<string, string>) => Promise<T>,
+  onFile: (file: Readable, info: UploadedFileInfo, fields: ReadonlyMap<string, string>) => Promise<T>,
   maxFiles = 1,
 ): Promise<{ fields: ReadonlyMap<string, string>; files: T[] }> {
   return new Promise((resolve, reject) => {
@@ -63,13 +71,19 @@ export function multipartStream<T>(
         file.destroy(new DomainException(413, 'payload_too_large', 'Attachment exceeds 25 MiB')),
       );
       file.on('error', fail);
+      const named = namedFile(info);
+      if (!named) {
+        file.resume();
+        fail(new DomainException(400, 'validation_failed', 'A file name is required'));
+        return;
+      }
       chain = chain
         .then(async () => {
           if (settled) {
             file.resume();
             return;
           }
-          files.push(await onFile(file, info, fields));
+          files.push(await onFile(file, named, fields));
         })
         .catch((error: unknown) => {
           file.resume();
