@@ -43,3 +43,12 @@ class ImagePlanTest(unittest.TestCase):
             later = json.loads(subprocess.check_output(['python3', str(SCRIPT)], cwd=directory))
             self.assertEqual(later['api_sha'], api)
             self.assertEqual(later['web_sha'], web)
+
+    def test_workflow_keeps_component_identities_distinct(self):
+        text = (SCRIPT.parents[2] / '.github/workflows/images.yml').read_text()
+        api = text.split('\n  api:\n', 1)[1].split('\n  web:\n', 1)[0]
+        web = text.split('\n  web:\n', 1)[1].split('\n  deployment-plan:\n', 1)[0]
+        self.assertIn('tick-tack-done-api:${{ needs.changes.outputs.api_sha }}', api)
+        self.assertNotIn('outputs.web_sha', api)
+        self.assertIn('tick-tack-done-web:${{ needs.changes.outputs.web_sha }}', web)
+        self.assertNotIn('outputs.api_sha', web)

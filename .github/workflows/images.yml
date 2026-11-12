@@ -22,6 +22,8 @@ jobs:
       deploy: ${{ steps.paths.outputs.deploy }}
       api_sha: ${{ steps.revisions.outputs.api_sha }}
       web_sha: ${{ steps.revisions.outputs.web_sha }}
+      api_short: ${{ steps.revisions.outputs.api_short }}
+      web_short: ${{ steps.revisions.outputs.web_short }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -30,7 +32,7 @@ jobs:
         name: Resolve revisions independently of the previous push
         run: |
           python3 scripts/ci/image-plan.py > "$RUNNER_TEMP/component-plan.json"
-          jq -r '"api_sha=\(.api_sha)\nweb_sha=\(.web_sha)"' "$RUNNER_TEMP/component-plan.json" >> "$GITHUB_OUTPUT"
+          jq -r '"api_sha=\(.api_sha)\nweb_sha=\(.web_sha)\napi_short=\(.api_sha[0:7])\nweb_short=\(.web_sha[0:7])"' "$RUNNER_TEMP/component-plan.json" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@v3
         id: paths
         with:
@@ -112,7 +114,7 @@ jobs:
         with:
           images: ghcr.io/povedica/tick-tack-done-api
           tags: |
-            type=sha,format=short,value=${{ needs.changes.outputs.api_sha }}
+            type=raw,value=sha-${{ needs.changes.outputs.api_short }}
             type=raw,value=${{ needs.changes.outputs.api_sha }}
             type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=tag
@@ -170,7 +172,7 @@ jobs:
         with:
           images: ghcr.io/povedica/tick-tack-done-web
           tags: |
-            type=sha,format=short,value=${{ needs.changes.outputs.web_sha }},suffix=-${{ matrix.suffix }}
+            type=raw,value=sha-${{ needs.changes.outputs.web_short }}-${{ matrix.suffix }}
             type=raw,value=${{ needs.changes.outputs.web_sha }}-${{ matrix.suffix }}
             type=raw,value=main-${{ matrix.suffix }},enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=tag,suffix=-${{ matrix.suffix }}
