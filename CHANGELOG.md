@@ -9,6 +9,8 @@
 
 ## Sin publicar
 
+- BKL-046: 1Password Environments, runtime env restaurable y plan de imágenes independiente del último push.
+
 ## 0.2.0 (10 de noviembre de 2026)
 
 - La salud de Google Calendar (`ok`, `error`, `reconnect_required`) sale en

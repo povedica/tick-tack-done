@@ -7,7 +7,7 @@ on:
 permissions:
   actions: read
   contents: read
-  packages: write
+  packages: read
 concurrency:
   group: images-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -20,8 +20,17 @@ jobs:
       web: ${{ steps.paths.outputs.web }}
       environments: ${{ steps.config.outputs.environments }}
       deploy: ${{ steps.paths.outputs.deploy }}
+      api_sha: ${{ steps.revisions.outputs.api_sha }}
+      web_sha: ${{ steps.revisions.outputs.web_sha }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: revisions
+        name: Resolve revisions independently of the previous push
+        run: |
+          python3 scripts/ci/image-plan.py > "$RUNNER_TEMP/component-plan.json"
+          jq -r '"api_sha=\(.api_sha)\nweb_sha=\(.web_sha)"' "$RUNNER_TEMP/component-plan.json" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@v3
         id: paths
         with:
@@ -34,6 +43,7 @@ jobs:
               - '.dockerignore'
               - 'tsconfig.base.json'
               - '.github/workflows/images.yml'
+              - 'scripts/ci/image-plan.py'
               - 'packages/domain/**'
             deploy:
               - 'deploy/**'
@@ -47,7 +57,7 @@ jobs:
               - 'apps/web/**'
               - 'packages/sdk/**'
       - name: Require main CI before making deployable images available
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -74,8 +84,11 @@ jobs:
           fi
 
   api:
+    permissions:
+      contents: read
+      packages: write
     needs: changes
-    if: needs.changes.outputs.api == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.deploy == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -89,7 +102,7 @@ jobs:
       - name: Preserve an already published SHA
         id: existing
         env:
-          IMAGE: ghcr.io/povedica/tick-tack-done-api:${{ github.sha }}
+          IMAGE: ghcr.io/povedica/tick-tack-done-api:${{ needs.changes.outputs.api_sha }}
         run: |
           if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
             echo 'exists=true' >> "$GITHUB_OUTPUT"
@@ -99,8 +112,8 @@ jobs:
         with:
           images: ghcr.io/povedica/tick-tack-done-api
           tags: |
-            type=sha,format=short
-            type=raw,value=${{ github.sha }}
+            type=sha,format=short,value=${{ needs.changes.outputs.api_sha }}
+            type=raw,value=${{ needs.changes.outputs.api_sha }}
             type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=tag
       - uses: docker/build-push-action@v6
@@ -111,20 +124,23 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
-            GIT_COMMIT=${{ github.sha }}
+            GIT_COMMIT=${{ needs.changes.outputs.api_sha }}
             BUILD_TIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
       - name: Smoke published API and migration failure isolation
         env:
-          IMAGE: ghcr.io/povedica/tick-tack-done-api:${{ github.sha }}
+          IMAGE: ghcr.io/povedica/tick-tack-done-api:${{ needs.changes.outputs.api_sha }}
         run: |
           docker pull "$IMAGE"
           bash scripts/ci/test-migrations.sh "$IMAGE"
 
   web:
+    permissions:
+      contents: read
+      packages: write
     needs: changes
-    if: needs.changes.outputs.environments == 'true' && (needs.changes.outputs.web == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
+    if: needs.changes.outputs.environments == 'true' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.deploy == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
     strategy:
       matrix:
         include:
@@ -144,7 +160,7 @@ jobs:
       - name: Preserve an already published SHA
         id: existing
         env:
-          IMAGE: ghcr.io/povedica/tick-tack-done-web:${{ github.sha }}-${{ matrix.suffix }}
+          IMAGE: ghcr.io/povedica/tick-tack-done-web:${{ needs.changes.outputs.web_sha }}-${{ matrix.suffix }}
         run: |
           if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
             echo 'exists=true' >> "$GITHUB_OUTPUT"
@@ -154,8 +170,8 @@ jobs:
         with:
           images: ghcr.io/povedica/tick-tack-done-web
           tags: |
-            type=sha,format=short,suffix=-${{ matrix.suffix }}
-            type=raw,value=${{ github.sha }}-${{ matrix.suffix }}
+            type=sha,format=short,value=${{ needs.changes.outputs.web_sha }},suffix=-${{ matrix.suffix }}
+            type=raw,value=${{ needs.changes.outputs.web_sha }}-${{ matrix.suffix }}
             type=raw,value=main-${{ matrix.suffix }},enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=tag,suffix=-${{ matrix.suffix }}
       - uses: docker/build-push-action@v6
@@ -166,14 +182,14 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
-            GIT_COMMIT=${{ github.sha }}
+            GIT_COMMIT=${{ needs.changes.outputs.web_sha }}
             BUILD_TIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             VITE_RECAPTCHA_SITE_KEY=${{ vars.VITE_RECAPTCHA_SITE_KEY }}
           cache-from: type=gha,scope=web-${{ matrix.suffix }}
           cache-to: type=gha,mode=max,scope=web-${{ matrix.suffix }}
       - name: Smoke published web
         env:
-          IMAGE: ghcr.io/povedica/tick-tack-done-web:${{ github.sha }}-${{ matrix.suffix }}
+          IMAGE: ghcr.io/povedica/tick-tack-done-web:${{ needs.changes.outputs.web_sha }}-${{ matrix.suffix }}
         run: |
           docker pull "$IMAGE"
           name="ttd-web-smoke-$GITHUB_RUN_ID"
@@ -187,17 +203,17 @@ jobs:
 
   deployment-plan:
     needs: [changes, api, web]
-    if: always() && needs.changes.result == 'success' && (needs.api.result == 'success' || needs.web.result == 'success' || needs.changes.outputs.deploy == 'true') && needs.api.result != 'failure' && needs.web.result != 'failure' && (needs.changes.outputs.web != 'true' || needs.web.result == 'success')
+    if: always() && needs.changes.result == 'success' && needs.api.result == 'success' && needs.web.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v7
-      - name: Record only changed images
+      - name: Record both desired immutable component revisions
         env:
-          API_RESULT: ${{ needs.api.result }}
-          WEB_RESULT: ${{ needs.web.result }}
+          API_SHA: ${{ needs.changes.outputs.api_sha }}
+          WEB_SHA: ${{ needs.changes.outputs.web_sha }}
         run: |
-          jq -n --arg sha "$GITHUB_SHA" --arg api "$API_RESULT" --arg web "$WEB_RESULT" '{sha:$sha,api:($api == "success"),web:($web == "success")}' > deploy/plan.json
+          jq -n --arg sha "$GITHUB_SHA" --arg api_sha "$API_SHA" --arg web_sha "$WEB_SHA" '{sha:$sha,api:true,web:true,api_sha:$api_sha,web_sha:$web_sha}' > deploy/plan.json
       - uses: actions/upload-artifact@v4
         with:
           name: deployment-plan
