@@ -1,6 +1,28 @@
 import { extraEs } from './extra';
 
 export const es = {
+  countdownTypeCountdown: 'Cuenta atrás',
+  countdownTypeAnniversary: 'Aniversario',
+  countdownTypeBirthday: 'Cumpleaños',
+  countdownTypeHoliday: 'Festivo',
+  countdownEdit: 'Editar',
+  countdownPin: 'Fijar',
+  countdownUnpin: 'Desfijar',
+  countdownUnarchive: 'Desarchivar',
+  countdownDay: 'día',
+  countdownDays: 'días',
+  countdownUntil: 'hasta el {date}',
+  countdownSince: 'desde el {date}',
+  countdownRemaining: 'Faltan {days} {unit}',
+  countdownElapsed: 'Han pasado {days} {unit}',
+  countdownTodayShort: '¡Hoy!',
+  countdownMoreOptions: 'Más opciones',
+  countdownEmojiRecent: 'Recientes',
+  countdownEmojiSuggested: 'Sugeridos',
+  countdownEmojiPaste: 'Pegar un emoji',
+  countdownEmojiInvalid: 'Introduce un solo emoji.',
+  countdownOpenCalendar: 'Abrir calendario',
+
   accountProgressLabel: 'Racha {days}. Control {score}, {state}',
   calendarTodayLabel: '{date}, hoy',
   accountProgress: 'Tu progreso',

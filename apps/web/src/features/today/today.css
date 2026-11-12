@@ -1344,21 +1344,25 @@ a.task-title {
   overflow-x: hidden;
 }
 
-.detail-menu .menu-group {
+.detail-menu .menu-group,
+.popover-menu .menu-group {
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
 }
 
-.detail-menu .popover-row {
+.detail-menu .popover-row,
+.popover-menu .popover-row {
   min-width: 0;
 }
 
-.detail-menu .popover-row svg {
+.detail-menu .popover-row svg,
+.popover-menu .popover-row svg {
   flex-shrink: 0;
 }
 
-.detail-menu .popover-row span {
+.detail-menu .popover-row span,
+.popover-menu .popover-row span {
   min-width: 0;
   white-space: normal;
   overflow-wrap: anywhere;

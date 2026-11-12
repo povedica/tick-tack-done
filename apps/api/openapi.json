@@ -1723,6 +1723,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Page size, 1–100; omitted returns all countdowns.",
+            "schema": {
+              "type": "number"
+            }
           }
         ],
         "responses": {
