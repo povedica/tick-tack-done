@@ -2305,10 +2305,17 @@
 .cal-toolbar,
 .cal-views {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--sp-2);
   align-items: center;
   width: 100%;
+}
+
+.cal-toolbar {
+  flex-wrap: nowrap;
+}
+
+.cal-views {
+  flex-wrap: wrap;
 }
 
 .cal-views {
@@ -2316,9 +2323,14 @@
   min-width: 0;
 }
 
-.cal-title {
+.cal-title,
+.cal-toolbar > strong {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-weight: 600;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .cal-views a {
@@ -2983,30 +2995,164 @@ a.link:hover {
 .detail-metadata {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   margin: 8px 0 20px;
 }
 .detail-meta-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 26px;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 32px;
+  min-height: 32px;
   max-width: 100%;
-  padding: 3px 7px;
-  border: 1px solid var(--accent);
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
-  background: transparent;
+  background: var(--surface);
   color: var(--ink);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1;
   white-space: nowrap;
   cursor: pointer;
+}
+.detail-meta-chip .chip-prefix {
+  color: var(--ink-2);
 }
 .detail-meta-chip[data-empty='true'] {
   color: var(--ink-2);
 }
-.detail-meta-chip.is-overdue {
+.detail-meta-chip.is-overdue,
+.detail-meta-chip.is-overdue .chip-prefix {
   color: var(--danger);
+  border-color: var(--border-strong);
+}
+.detail-assignee {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+}
+.detail-assign {
+  display: contents;
+}
+.detail-assign-row {
+  width: 100%;
+}
+.detail-assign-row > span:first-of-type {
+  flex: 1;
+  min-width: 0;
+}
+.detail-assign-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 13px;
+}
+.detail-assign-value.is-empty {
+  color: var(--ink-3);
+}
+.detail-assign-value > svg {
+  flex: none;
+  color: var(--ink-3);
+}
+.detail-menu .detail-assign-name {
+  max-width: 7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-assign-avatar {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+}
+.detail-assign-avatar[data-tone='0'] {
+  background: var(--chart-5);
+}
+.detail-assign-avatar[data-tone='1'] {
+  background: var(--chart-4);
+}
+.detail-assign-avatar[data-tone='2'] {
+  background: var(--chart-1);
+}
+.detail-assign-avatar[data-tone='3'] {
+  background: var(--chart-2);
+}
+.detail-assign-avatar[data-tone='4'] {
+  background: var(--chart-6);
+}
+.detail-assign-menu {
+  position: fixed;
+  z-index: 60;
+  width: 196px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+.detail-assign-menu-title {
+  margin: 4px 8px 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+.detail-assign-menu .detail-assign-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.detail-assign-menu .detail-assign-option:hover,
+.detail-assign-menu .detail-assign-option:focus-visible {
+  background: var(--surface-2);
+}
+.detail-assign-menu .detail-assign-option > span:not(.detail-assign-avatar) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-assign-menu .detail-assign-option > svg {
+  flex: none;
+  color: var(--accent);
+}
+.detail-assign-menu .detail-assign-avatar {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  font-size: 11px;
 }
 .detail-assistant {
   color: var(--accent);

@@ -27,6 +27,8 @@ import {
 import { useCalendarSyncOnOpen } from '../calendar/sync-calendars';
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   ChevronDown,
   Plus,
@@ -519,6 +521,7 @@ export function CalendarPage() {
   const rangedTasks = useQuery<Task[]>({
     enabled: current !== 'agenda',
     queryKey: ['calendar-tasks', 'auto', range.dueAfter, range.dueBefore],
+    placeholderData: (previous) => previous,
     queryFn: () =>
       collectTasks((query) => api.listTasks(query), {
         status: 'active',
@@ -691,7 +694,7 @@ export function CalendarPage() {
                   move(-1);
                 }}
               >
-                ‹
+                <ChevronLeft size={18} aria-hidden="true" />
               </Button>
               <Button
                 onClick={() => {
@@ -710,7 +713,7 @@ export function CalendarPage() {
                   move(1);
                 }}
               >
-                ›
+                <ChevronRight size={18} aria-hidden="true" />
               </Button>
             </div>
             <CalendarPeriod
@@ -743,7 +746,7 @@ export function CalendarPage() {
               openTaskComposer(composerContextFor(window.location, { cache: composerClient }));
             }}
           >
-            <Plus size={17} aria-hidden="true" />
+            <Plus size={18} aria-hidden="true" />
           </Button>
         ) : null}
         <CalendarSyncButton />
@@ -752,7 +755,7 @@ export function CalendarPage() {
           label={messages.calendarFilterTitle}
           trigger={
             <span className="calendar-filter-indicator" data-active={activeFilterCount > 0}>
-              <ListFilter size={22} aria-hidden="true" />
+              <ListFilter size={18} aria-hidden="true" />
               {activeFilterCount > 0 ? (
                 <sup
                   className="calendar-filter-count"
@@ -830,11 +833,7 @@ export function CalendarPage() {
           }}
         />
       ) : null}
-      {tasks.isPending ||
-      externalQuery.isPending ||
-      (startTaskIds.length > 0 && startTasks.isPending) ? (
-        <SkeletonRows />
-      ) : null}
+      {tasks.isPending && tasks.data === undefined ? <SkeletonRows /> : null}
       {tasks.isError || externalQuery.isError || startTasks.isError ? (
         <ErrorState
           title={fill(messages.loadFailed, messages.calendarTitle)}
@@ -859,12 +858,7 @@ export function CalendarPage() {
           }}
         />
       ) : null}
-      {!tasks.isPending &&
-      !externalQuery.isPending &&
-      !(startTaskIds.length > 0 && startTasks.isPending) &&
-      !startTasks.isError &&
-      !tasks.isError &&
-      !externalQuery.isError ? (
+      {!(tasks.isPending && tasks.data === undefined) && !tasks.isError ? (
         <>
           {current === 'quarter' ? (
             <YearBoard

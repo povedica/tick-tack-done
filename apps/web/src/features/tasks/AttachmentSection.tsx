@@ -2,7 +2,7 @@ import { pickDriveFile } from './drive-picker';
 import { taskFetch } from './task-http';
 import { useQueryClient } from '@tanstack/react-query';
 import { runAction } from '../../components/run-action';
-import { Paperclip, X } from 'lucide-react';
+import { FolderInput, Paperclip, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Popover } from '../../components/Popover';
@@ -60,54 +60,52 @@ export function AttachmentSection({
       aria-label={messages.attachments}
       data-task-assets={taskId}
     >
-      <h3>
-        {messages.attachments}
-        {files.length ? ` (${String(files.length)})` : ''}
-      </h3>
-      <p className="asset-help">{messages.driveMetadataOnly}</p>
-      <label
-        className="detail-attach-btn"
-        aria-disabled={!drive.connected}
-        title={!drive.connected ? hint : messages.upload}
-      >
-        <input
-          type="file"
-          multiple
-          disabled={!drive.connected}
-          onChange={(event) => {
-            if (event.target.files?.length) {
-              onFiles(event.target.files);
-              event.target.value = '';
-            }
-          }}
-        />
-        <Paperclip size={14} aria-hidden="true" />
-        {messages.upload}
-      </label>
-      {drive.connected ? (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            runAction(
-              pickDriveFile()
-                .then(async (id) => {
-                  if (id) {
-                    await taskFetch('POST', `/api/v1/tasks/${taskId}/attachments/drive-link`, {
-                      drive_file_id: id,
-                    });
-                    await queryClient.invalidateQueries({ queryKey: ['attachments', taskId] });
-                  }
-                })
-                .catch((caught: unknown) => {
-                  setError(apiMessage(caught, messages));
-                }),
-            );
-          }}
+      <div className="detail-asset-actions">
+        <label
+          className="detail-attach-btn detail-asset-btn"
+          aria-disabled={!drive.connected}
+          title={!drive.connected ? hint : messages.upload}
         >
-          {messages.drivePicker}
-        </Button>
-      ) : null}
+          <input
+            type="file"
+            multiple
+            disabled={!drive.connected}
+            onChange={(event) => {
+              if (event.target.files?.length) {
+                onFiles(event.target.files);
+                event.target.value = '';
+              }
+            }}
+          />
+          <Paperclip size={14} aria-hidden="true" />
+          {messages.upload}
+        </label>
+        {drive.connected ? (
+          <Button
+            className="detail-asset-btn"
+            onClick={() => {
+              runAction(
+                pickDriveFile()
+                  .then(async (id) => {
+                    if (id) {
+                      await taskFetch('POST', `/api/v1/tasks/${taskId}/attachments/drive-link`, {
+                        drive_file_id: id,
+                      });
+                      await queryClient.invalidateQueries({ queryKey: ['attachments', taskId] });
+                    }
+                  })
+                  .catch((caught: unknown) => {
+                    setError(apiMessage(caught, messages));
+                  }),
+              );
+            }}
+          >
+            <FolderInput size={16} aria-hidden="true" />
+            {messages.drivePicker}
+          </Button>
+        ) : null}
+      </div>
+      <p className="asset-help">{messages.driveMetadataOnly}</p>
       {error && !removal ? <p role="alert">{error}</p> : null}
       {!drive.connected ? (
         <p className="asset-connect">

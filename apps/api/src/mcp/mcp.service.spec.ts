@@ -214,6 +214,72 @@ describe('McpService recurrence mapping', () => {
     expect(text.repeat_label).toBe('El día 19 de cada mes');
   });
 
+  it('BKL-054: create_task stores doubly escaped newlines as real breaks', async () => {
+    tasks.create.mockResolvedValue({
+      body: {
+        id: '33333333-3333-4333-8333-333333333333',
+        title: 'Nota',
+        content: 'Quedar por la tarde.\n\n- Comprar la tarta',
+      },
+      statusCode: 201,
+      replayed: false,
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 11,
+      method: 'tools/call',
+      params: {
+        name: 'create_task',
+        arguments: {
+          title: 'Nota',
+          content: 'Quedar por la tarde.\\n\\n- Comprar la tarta',
+        },
+      },
+    });
+    expect(tasks.create).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({
+        content: 'Quedar por la tarde.\n\n- Comprar la tarta',
+      }),
+      undefined,
+      'mcp',
+    );
+  });
+
+  it('BKL-054: update_task stores doubly escaped newlines as real breaks', async () => {
+    tasks.get.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      title: 'Nota',
+      project_id: '11111111-1111-4111-8111-111111111111',
+      time_zone: 'Europe/Madrid',
+      due_date: null,
+      repeat_rule: null,
+    });
+    tasks.update.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      title: 'Nota',
+      content: 'Hola\n\n- uno',
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 12,
+      method: 'tools/call',
+      params: {
+        name: 'update_task',
+        arguments: {
+          id: '33333333-3333-4333-8333-333333333333',
+          content: 'Hola\\n\\n- uno',
+        },
+      },
+    });
+    expect(tasks.update).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+      expect.objectContaining({ content: 'Hola\n\n- uno' }),
+      'mcp',
+    );
+  });
+
   it('RF-2014: recurrence without due_date returns missing_anchor', async () => {
     const result = await service.handle(user, {
       jsonrpc: '2.0',

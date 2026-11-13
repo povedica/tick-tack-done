@@ -1,12 +1,16 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import type { SmartList } from '@prisma/client';
+import { Prisma, type SmartList } from '@prisma/client';
 import {
+  ASSIGNED_BY_ME_KEY,
   isSmartListKey,
+  isVirtualSmartListKey,
   parseTaskView,
   rebalancedSortOrders,
+  shiftLocalDays,
   SMART_LIST_KEYS,
   FIXED_SMART_LIST_KEYS,
   smartListClause,
+  type FilterClause,
   type FilterClock,
   type SmartListKey,
 } from '@reflexionia/domain';
@@ -19,6 +23,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { ListAccessService } from '../collaboration/list-access.js';
 import type { Tx } from '../../prisma/tx.js';
 import type { ViewPageJson } from '../../reading/view-page.js';
+import { assignedByWhere, taskIdsLastAssignedBy } from '../../reading/assignment.js';
 import { countViewTasks, pageViewTasks } from '../../reading/view-query.js';
 import { workFilterFor, type WorkContextMode } from '../../work/work-context.js';
 import type { SmartListResponseDto, UpdateSmartListsDto } from './filters.dto.js';
@@ -58,16 +63,19 @@ export class SmartListsService {
         );
       }),
     );
-    return {
-      items: rows.map((row, index) => this.toJson(row, counts[index] ?? 0)),
-    };
+    const items = rows.map((row, index) => this.toJson(row, counts[index] ?? 0));
+    if (await this.sharesLists(user.id)) {
+      items.push(await this.assignedByMeItem(user, input.clock, work ?? undefined));
+    }
+    return { items };
   }
 
   async update(
     user: AuthUser,
     dto: UpdateSmartListsDto,
   ): Promise<{ items: SmartListResponseDto[] }> {
-    const keys = dto.items.map((item) => item.key);
+    const persisted = dto.items.filter((item) => !isVirtualSmartListKey(item.key));
+    const keys = persisted.map((item) => item.key);
     if (
       keys.length !== SMART_LIST_KEYS.length ||
       new Set(keys).size !== keys.length ||
@@ -84,7 +92,7 @@ export class SmartListsService {
       await this.ensure(tx, user.id);
       const current = await tx.smartList.findMany({ where: { ownerId: user.id, deletedAt: null } });
       const byKey = new Map(current.map((row) => [row.key, row]));
-      for (const [index, item] of dto.items.entries()) {
+      for (const [index, item] of persisted.entries()) {
         const key = this.key(item.key);
         const row = byKey.get(key);
         const sortOrder = orders[index];
@@ -128,6 +136,9 @@ export class SmartListsService {
     cursorRaw: string | undefined,
     context: WorkContextMode = 'all',
   ): Promise<ViewPageJson> {
+    if (isVirtualSmartListKey(keyRaw)) {
+      return this.assignedByMeTasks(user, groupBy, sort, limit, cursorRaw, context);
+    }
     const key = this.key(keyRaw);
     await this.ensureOnce(user.id);
     const view = parseTaskView(groupBy, sort);
@@ -190,6 +201,110 @@ export class SmartListsService {
         });
       }
     }
+  }
+
+  private async assignedByMeTasks(
+    user: AuthUser,
+    groupBy: string | undefined,
+    sort: string | undefined,
+    limit: number,
+    cursorRaw: string | undefined,
+    context: WorkContextMode,
+  ): Promise<ViewPageJson> {
+    const view = parseTaskView(groupBy, sort);
+    if (!view.ok) {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', view.reason);
+    }
+    const clock = this.clock(user);
+    const work = await workFilterFor(this.prisma, user.id, context);
+    const scope = await this.access.taskVisibility(user);
+    return pageViewTasks(this.prisma, {
+      ownerId: user.id,
+      clause: this.assignedByMeClause(),
+      clock,
+      groupBy: view.groupBy,
+      sort: view.sort,
+      limit,
+      cursor: this.cursor(cursorRaw),
+      scope,
+      extra: await this.assignedByMeFilter(user.id, clock, work ?? undefined),
+    });
+  }
+
+  private async assignedByMeItem(
+    user: AuthUser,
+    clock: FilterClock,
+    work: Prisma.TaskWhereInput | undefined,
+  ): Promise<SmartListResponseDto> {
+    const scope = await this.access.taskVisibility(user);
+    const count = await countViewTasks(
+      this.prisma,
+      user.id,
+      this.assignedByMeClause(),
+      clock,
+      await this.assignedByMeFilter(user.id, clock, work),
+      scope,
+    );
+    return {
+      id: ASSIGNED_BY_ME_KEY,
+      key: ASSIGNED_BY_ME_KEY,
+      enabled: true,
+      sort_order: '0',
+      task_count: count,
+    };
+  }
+
+  private assignedByMeClause(): FilterClause {
+    return {
+      op: 'and',
+      items: [
+        { op: 'deleted', deleted: false },
+        { op: 'exclude_status', status: 'archived' },
+        {
+          op: 'or',
+          items: [
+            { op: 'status', status: 'active' },
+            { op: 'status', status: 'completed' },
+          ],
+        },
+      ],
+    };
+  }
+
+  private async assignedByMeFilter(
+    userId: string,
+    clock: FilterClock,
+    work: Prisma.TaskWhereInput | undefined,
+  ) {
+    const since = shiftLocalDays(clock.now, clock.timeZone, -7);
+    const recent =
+      since === null
+        ? { status: 'active' as const }
+        : {
+            OR: [
+              { status: 'active' as const },
+              { status: 'completed' as const, completedAt: { gte: new Date(since) } },
+            ],
+          };
+    return {
+      AND: [
+        assignedByWhere(userId, await taskIdsLastAssignedBy(this.prisma, userId)),
+        recent,
+        ...(work === undefined ? [] : [work]),
+      ],
+    };
+  }
+
+  private async sharesLists(ownerId: string): Promise<boolean> {
+    const shared = await this.prisma.projectMember.count({
+      where: {
+        deletedAt: null,
+        status: 'accepted',
+        project: { deletedAt: null, isInbox: false },
+        OR: [{ project: { ownerId } }, { memberId: ownerId }],
+      },
+    });
+    return shared > 0;
   }
 
   private async inboxId(ownerId: string): Promise<string | null> {

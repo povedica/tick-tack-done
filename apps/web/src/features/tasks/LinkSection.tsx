@@ -65,7 +65,18 @@ export function LinkSection({ taskId }: { readonly taskId: string }) {
   };
   return (
     <section className="detail-block task-links" aria-label={messages.taskLinks}>
-      <h3>{messages.taskLinks}</h3>
+      <div className="detail-asset-actions">
+        <Button
+          className="detail-asset-btn"
+          onClick={() => {
+            setAdding(true);
+            setError('');
+          }}
+        >
+          <LinkIcon size={16} aria-hidden="true" />
+          {messages.taskLinkAdd}
+        </Button>
+      </div>
       <ul className="attachment-chips">
         {(links.data?.items ?? []).map((link) => {
           const normalized = normalizeTaskUrl(link.url);
@@ -132,16 +143,6 @@ export function LinkSection({ taskId }: { readonly taskId: string }) {
           );
         })}
       </ul>
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={() => {
-          setAdding(true);
-          setError('');
-        }}
-      >
-        {messages.taskLinkAdd}
-      </Button>
       {adding ? (
         <form
           className="link-form"

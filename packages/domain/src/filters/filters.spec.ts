@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   arrangeTasks,
+  ASSIGNED_BY_ME_KEY,
   compileRules,
+  isAssignedByActor,
+  isVirtualSmartListKey,
   matchesClause,
   matchesFilter,
   matchesSmartList,
@@ -339,6 +342,15 @@ describe('smart lists', () => {
     expect(matchesSmartList('today', subject({ dueDate: '2026-10-17T22:30:00.000Z' }), input)).toBe(
       false,
     );
+    expect(matchesSmartList('today', subject({ assigneeId: null }), input)).toBe(true);
+    expect(matchesSmartList('today', subject({ assigneeId: 'other' }), input)).toBe(false);
+    expect(
+      matchesSmartList(
+        'tomorrow',
+        subject({ assigneeId: 'other', dueDate: '2026-10-18T10:00:00.000Z' }),
+        input,
+      ),
+    ).toBe(true);
     expect(
       matchesSmartList(
         'today',
@@ -453,6 +465,41 @@ describe('list view', () => {
       sort: 'manual',
     });
     expect(parseTaskView('kanban', 'manual')).toEqual({ ok: false, reason: 'invalid_view' });
+    expect(parseTaskView('assignee', 'manual')).toEqual({
+      ok: true,
+      groupBy: 'assignee',
+      sort: 'manual',
+    });
+  });
+
+  it('groups by assignee name and leaves unassigned last', () => {
+    const rows = [
+      task({ id: 'none-task', assigneeId: null, assigneeName: null, title: 'Suelta' }),
+      task({ id: 'ana', assigneeId: 'user-ana', assigneeName: 'Ana', title: 'Ana' }),
+      task({ id: 'maria', assigneeId: 'user-maria', assigneeName: 'María', title: 'María' }),
+      task({ id: 'lucas', assigneeId: 'user-lucas', assigneeName: 'Lucas', title: 'Lucas' }),
+    ];
+    const grouped = arrangeTasks(rows, {
+      groupBy: 'assignee',
+      sort: 'title',
+      timeZone: clock.timeZone,
+    });
+    expect(grouped.map((group) => ({ key: group.key, label: group.label }))).toEqual([
+      { key: 'user-ana', label: 'Ana' },
+      { key: 'user-lucas', label: 'Lucas' },
+      { key: 'user-maria', label: 'María' },
+      { key: 'none', label: 'none' },
+    ]);
+  });
+
+  it('assigned_by_me stays virtual and drops a task another person reassigned', () => {
+    expect(ASSIGNED_BY_ME_KEY).toBe('assigned_by_me');
+    expect(isVirtualSmartListKey('assigned_by_me')).toBe(true);
+    expect(isVirtualSmartListKey('today')).toBe(false);
+    expect(isAssignedByActor('user-ana', 'user-1', 'user-1')).toBe(true);
+    expect(isAssignedByActor('user-1', 'user-1', 'user-1')).toBe(false);
+    expect(isAssignedByActor(null, 'user-1', 'user-1')).toBe(false);
+    expect(isAssignedByActor('user-ana', 'user-1', 'user-2')).toBe(false);
   });
 
   it('RF-1001: pages a grouped list without splitting the cursor identity', () => {

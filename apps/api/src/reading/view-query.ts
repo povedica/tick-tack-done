@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import {
   arrangeTasks,
+  isOverdue,
   type FilterClause,
   type FilterClock,
   type TaskGroupBy,
@@ -10,7 +11,8 @@ import { whereFromClause as clauseWhere } from '../filters/where-from-clause.js'
 import { encodeCursor } from '../http/cursor.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { Tx } from '../prisma/tx.js';
-import { toViewJson, loadViewTasks, type ViewTask } from './view-tasks.js';
+import { loadAssignmentMap } from './assignment.js';
+import { toViewJson, loadViewTasks, type ViewTask, type ViewTaskJson } from './view-tasks.js';
 import type { ViewPageJson } from './view-page.js';
 
 type Db = PrismaService | Tx;
@@ -63,16 +65,46 @@ export async function pageViewTasks(
     return task === undefined ? [] : [task];
   });
   const last = ordered.at(-1);
+  const assignments = await loadAssignmentMap(
+    db,
+    input.ownerId,
+    ordered.map((task) => ({ id: task.id, assigneeId: task.assigneeId })),
+  );
   return {
     count,
     group_by: input.groupBy,
     sort: input.sort,
-    groups: groupPreserving(ordered, input.groupBy, input.clock.timeZone),
+    groups: groupPreserving(ordered, input.groupBy, input.clock.timeZone).map((group) => {
+      const tasks = group.tasks.map((task) => ({
+        ...task,
+        assignment: assignments.get(task.id) ?? null,
+      }));
+      return {
+        ...group,
+        tasks,
+        ...(input.groupBy === 'assignee'
+          ? { overdue_count: overdueInGroup(tasks, input.clock.now) }
+          : {}),
+      };
+    }),
     next_cursor:
       hasMore && last !== undefined
         ? encodeCursor(String(skip + ordered.length - 1), last.id)
         : null,
   };
+}
+
+function overdueInGroup(tasks: readonly ViewTaskJson[], now: string): number {
+  return tasks.filter((task) =>
+    isOverdue({
+      status: task.status,
+      dueDate: task.due_date,
+      startDate: task.start_date,
+      isAllDay: task.is_all_day,
+      timeZone: task.time_zone,
+      now,
+    }),
+  ).length;
 }
 
 function viewWhere(

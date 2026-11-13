@@ -365,7 +365,7 @@ export class FiltersService {
     groupBy: string | undefined,
     sort: string | undefined,
   ): {
-    groupBy: 'none' | 'section' | 'date' | 'tag' | 'priority';
+    groupBy: 'none' | 'section' | 'date' | 'tag' | 'priority' | 'assignee';
     sort: 'manual' | 'date' | 'priority' | 'title' | 'created';
   } {
     const parsed = parseTaskView(groupBy, sort);

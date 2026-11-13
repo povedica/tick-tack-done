@@ -1,10 +1,10 @@
-import { Flag, Sparkles, X } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
+import type { ReactNode, Ref } from 'react';
 import { Link } from 'react-router';
-import { fill, type Messages } from '../../i18n';
+import type { Messages } from '../../i18n';
 import { useTickyAvailable } from '../ticky/useTickyAvailable';
 
 export function DetailHeader({
-  priority,
   taskId,
 
   saving,
@@ -12,11 +12,11 @@ export function DetailHeader({
   savedLabel,
   savingLabel,
 
-  priorityLabel,
   closeLabel,
+  closeRef,
+  assignee,
   messages,
 
-  onOpenPriority,
   onClose,
 }: {
   readonly taskId: string;
@@ -33,6 +33,8 @@ export function DetailHeader({
   readonly dateLabel: string;
   readonly priorityLabel: string;
   readonly closeLabel: string;
+  readonly closeRef?: Ref<HTMLButtonElement>;
+  readonly assignee?: ReactNode;
   readonly messages: Messages;
   readonly onComplete: () => void;
   readonly onOpenDate: () => void;
@@ -40,20 +42,13 @@ export function DetailHeader({
   readonly onClose: () => void;
 }) {
   const ticky = useTickyAvailable();
-  const priorityName =
-    priority === 'high'
-      ? messages.priorityHigh
-      : priority === 'medium'
-        ? messages.priorityMedium
-        : priority === 'low'
-          ? messages.priorityLow
-          : messages.priorityNone;
   return (
     <header className="detail-head">
       <span className="detail-save" role="status">
         {saving ? savingLabel : saved ? savedLabel : ''}
       </span>
       <span className="detail-head-spacer" />
+      {assignee}
       {ticky.available ? (
         <Link
           className="icon-button detail-assistant"
@@ -65,23 +60,10 @@ export function DetailHeader({
         </Link>
       ) : null}
       <button
-        type="button"
-        className="icon-button"
-        aria-label={fill(messages.priorityNamed, priorityName)}
-        title={fill(messages.priorityNamed, priorityName)}
-        onClick={onOpenPriority}
-      >
-        <Flag
-          size={18}
-          color={`var(--prio-${priority})`}
-          fill={priority === 'none' ? 'none' : `var(--prio-${priority})`}
-          aria-hidden="true"
-        />
-      </button>
-      <span className="sr-only">{priorityLabel}</span>
-      <button
+        ref={closeRef}
         type="button"
         className="icon-button detail-close"
+        data-popover-initial=""
         aria-label={closeLabel}
         onClick={onClose}
       >

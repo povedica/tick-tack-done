@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeTasks,
+  formatDetailChip,
   formatDueDate,
   formatDueTime,
   groupFromLocation,
@@ -218,6 +219,31 @@ describe('today groups', () => {
     );
     expect(parts.overdue.map((item) => item.id)).toEqual(['started', 'yesterday']);
     expect(parts.today.map((item) => item.id)).toEqual(['today']);
+  });
+
+  it('BKL-054: detail chips keep a short label and the long form as title', () => {
+    const overdue = formatDetailChip(
+      '2026-10-01T09:00:00.000Z',
+      'Europe/Madrid',
+      false,
+      now,
+      'es',
+      { empty: 'Fecha', today: 'Hoy' },
+    );
+    expect(overdue.tone).toBe('overdue');
+    expect(overdue.text).not.toMatch(/hace/);
+    expect(overdue.title).toMatch(/hace/);
+    expect(overdue.text).toMatch(/oct/);
+    const today = formatDetailChip('2026-10-17T08:00:00.000Z', 'Europe/Madrid', true, now, 'es', {
+      empty: 'Fecha',
+      today: 'Hoy',
+    });
+    expect(today.text).toBe('Hoy');
+    const empty = formatDetailChip(null, 'Europe/Madrid', true, now, 'es', {
+      empty: 'Fecha límite',
+      today: 'Hoy',
+    });
+    expect(empty).toEqual({ text: 'Fecha límite', title: 'Fecha límite', tone: 'empty' });
   });
 
   it('shifts a Madrid midnight across the UTC day boundary', () => {

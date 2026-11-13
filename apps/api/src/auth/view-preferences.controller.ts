@@ -22,8 +22,8 @@ class ViewPreferenceDto {
   @ApiProperty({ enum: ['list', 'kanban', 'timeline', 'matrix'] })
   @IsIn(['list', 'kanban', 'timeline', 'matrix'])
   view!: string;
-  @ApiProperty({ enum: ['none', 'section', 'date', 'tag', 'priority', 'due', 'list'] })
-  @IsIn(['none', 'section', 'date', 'tag', 'priority', 'due', 'list'])
+  @ApiProperty({ enum: ['none', 'section', 'date', 'tag', 'priority', 'assignee', 'due', 'list'] })
+  @IsIn(['none', 'section', 'date', 'tag', 'priority', 'assignee', 'due', 'list'])
   group!: string;
   @ApiProperty({ enum: ['manual', 'date', 'priority', 'title', 'created', 'due'] })
   @IsIn(['manual', 'date', 'priority', 'title', 'created', 'due'])

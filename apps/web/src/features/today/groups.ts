@@ -259,6 +259,42 @@ export function taskWhen(
   };
 }
 
+/** Short chip label. The long relative form stays available as `title`. */
+export function formatDetailChip(
+  dueDate: string | null,
+  timeZone: string,
+  allDay: boolean,
+  now: Date,
+  locale: string,
+  labels: { readonly empty: string; readonly today: string },
+  startDate?: string | null,
+): {
+  readonly text: string;
+  readonly title: string;
+  readonly tone: 'empty' | 'overdue' | 'accent' | 'muted';
+} {
+  const full = formatDueChip(dueDate, timeZone, allDay, now, locale, labels, startDate);
+  if (dueDate === null) {
+    return { text: labels.empty, title: labels.empty, tone: 'empty' };
+  }
+  const timed = hasTime(dueDate, timeZone, allDay);
+  const time = timed ? formatDueTime(dueDate, timeZone, locale) : null;
+  const today = calendarDay(dueDate, timeZone) === calendarDay(now.toISOString(), timeZone);
+  const short = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    timeZone,
+  }).format(new Date(dueDate));
+  const text = today
+    ? time === null
+      ? labels.today
+      : `${labels.today}, ${time}`
+    : time === null
+      ? short
+      : `${short}, ${time}`;
+  return { text, title: full.text, tone: full.tone };
+}
+
 export function formatDueChip(
   dueDate: string | null,
   timeZone: string,

@@ -99,10 +99,13 @@ export type {
 } from './reminders/trigger';
 
 export {
+  ASSIGNED_BY_ME_KEY,
   arrangeTasks,
   calendarDateKey,
   compileRules,
+  isAssignedByActor,
   isSmartListKey,
+  isVirtualSmartListKey,
   matchesClause,
   matchesFilter,
   matchesSmartList,
@@ -131,6 +134,7 @@ export type {
   ParsedSearch,
   TagRef,
   SmartListInput,
+  VirtualSmartListKey,
   TaskGroup,
   TaskGroupBy,
   TaskSort,
@@ -157,6 +161,7 @@ export {
 } from './priority/priority';
 export type { TickTickPriority } from './priority/priority';
 
+export { normalizeStoredNewlines } from './text/newlines';
 export { extractMarkdownChecklist } from './checklist/markdown';
 export type { ExtractedChecklist, ExtractedChecklistItem } from './checklist/markdown';
 export { checklistProgress } from './checklist/progress';
