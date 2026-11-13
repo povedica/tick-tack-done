@@ -153,7 +153,6 @@ test -n "$RESEND_API_KEY" && echo resend || echo smtp
 7. Prueba de humo solo si la pide quien opera la cuenta: el aviso llega a la bandeja (no a spam), `Authentication-Results` muestra `spf=pass dkim=pass dmarc=pass` y el enlace conserva `#token`.
 8. Si se pierden a la vez el TOTP y los códigos de recuperación, en el servidor: `docker exec -it "$API_CONTAINER" node dist/scripts/disable-totp.js --email "$ACCOUNT_EMAIL"`. Pide confirmación, deja ActivityLog y no tiene endpoint HTTP.
 
-
 ## Backup local previo a migraciones (#169)
 
 En staging y producción, antes de migrar se guarda un `pg_dump` comprimido en
