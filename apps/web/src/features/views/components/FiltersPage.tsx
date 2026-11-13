@@ -223,12 +223,6 @@ export function FiltersPage() {
           onDelete={() => {
             setMenu(null);
             askDelete({ id: open.id, name: open.name });
-            window.setTimeout(() => {
-              const rows = [...document.querySelectorAll<HTMLElement>('[data-filter-id]')];
-              const index = rows.findIndex((row) => row.dataset.filterId === open.id);
-              const next = rows[index + 1] ?? newRef.current;
-              next?.focus();
-            }, 0);
           }}
         />
       ) : null}

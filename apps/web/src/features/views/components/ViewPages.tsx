@@ -3,7 +3,7 @@ import { runAction } from '../../../components/run-action';
 import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Funnel } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { completeBody } from '../../tasks/complete-body';
@@ -165,28 +165,30 @@ export function FilterViewPage() {
         ? {}
         : {
             menuExtra: (
-              <FilterMenuButtons
-                messages={messages}
-                pinned={filter.pinned}
-                onSelect={(id) => {
-                  if (id === 'conditions') {
-                    useFilterUi.getState().openEdit(filter.id, 'conditions');
-                  } else if (id === 'name') {
-                    useFilterUi.getState().openEdit(filter.id, 'name');
-                  } else if (id === 'pin') {
-                    pinFilter(
-                      queryClient,
-                      filter,
-                      messages.filterPinnedLive,
-                      messages.filterUnpinnedLive,
-                    );
-                  } else if (id === 'duplicate') {
-                    duplicateFilter(queryClient, filter, messages.filterDuplicated);
-                  } else {
-                    useFilterUi.getState().askDelete({ id: filter.id, name: filter.name });
-                  }
-                }}
-              />
+              <FilterViewMenuFocus>
+                <FilterMenuButtons
+                  messages={messages}
+                  pinned={filter.pinned}
+                  onSelect={(id) => {
+                    if (id === 'conditions') {
+                      useFilterUi.getState().openEdit(filter.id, 'conditions');
+                    } else if (id === 'name') {
+                      useFilterUi.getState().openEdit(filter.id, 'name');
+                    } else if (id === 'pin') {
+                      pinFilter(
+                        queryClient,
+                        filter,
+                        messages.filterPinnedLive,
+                        messages.filterUnpinnedLive,
+                      );
+                    } else if (id === 'duplicate') {
+                      duplicateFilter(queryClient, filter, messages.filterDuplicated);
+                    } else {
+                      useFilterUi.getState().askDelete({ id: filter.id, name: filter.name });
+                    }
+                  }}
+                />
+              </FilterViewMenuFocus>
             ),
           })}
       {...(capture === undefined ? {} : { captureDraft: capture })}
@@ -216,6 +218,20 @@ export function FilterViewPage() {
       }
     />
   );
+}
+
+function FilterViewMenuFocus({ children }: { readonly children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // The shared popover initially measures its hidden portal; focus once it is visible.
+    const frame = requestAnimationFrame(() => {
+      ref.current?.closest('[role="menu"]')?.querySelector<HTMLButtonElement>('button')?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+  return <div ref={ref}>{children}</div>;
 }
 
 export function ProjectListPage() {

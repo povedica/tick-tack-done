@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { UndoToastStack } from '../../../components/UndoToast';
 import { Button, Modal } from '../../../components/ui';
@@ -23,6 +23,17 @@ export function FilterChrome() {
   const closeEditor = useFilterUi((state) => state.closeEditor);
   const cancelDelete = useFilterUi((state) => state.cancelDelete);
   const dropToast = useFilterUi((state) => state.dropToast);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (deleting === null) return;
+    // Wait until the menu has restored its trigger, then focus the safe action.
+    const frame = requestAnimationFrame(() => {
+      cancelRef.current?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [deleting]);
   return (
     <>
       <p className="filter-live" aria-live="polite">
@@ -41,13 +52,24 @@ export function FilterChrome() {
         >
           <p>{messages.filterDeleteHint}</p>
           <div className="actions">
-            <Button autoFocus onClick={cancelDelete}>
+            <Button ref={cancelRef} autoFocus onClick={cancelDelete}>
               {messages.cancel}
             </Button>
             <Button
               variant="danger"
               onClick={() => {
+                const rows = [...document.querySelectorAll<HTMLElement>('.filter-row')];
+                const index = rows.findIndex((row) => row.dataset.filterId === deleting.id);
+                const next = rows[index + 1]?.querySelector<HTMLElement>('.filter-link');
                 deleteFilter(queryClient, deleting, messages.filterDeleteFailed);
+                if (location.pathname === '/filters') {
+                  requestAnimationFrame(() => {
+                    (
+                      next ??
+                      document.querySelector<HTMLElement>('.filters-page .page-header .ui-button')
+                    )?.focus();
+                  });
+                }
                 if (location.pathname === `/filter/${deleting.id}`) {
                   void Promise.resolve(navigate('/filters')).catch(() => undefined);
                 }
