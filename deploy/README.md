@@ -86,7 +86,7 @@ La nueva imagen se descarga antes de tocar el contenedor. Solo se ejecuta up sob
 con `--no-build --no-deps`; los datos permanecen en sus volúmenes.
 
 Si el contenido SQL de migraciones difiere del de la imagen anterior:
-backup externo RF-1704 → migrate deploy one-shot con la imagen nueva → recreación de API.
+backup local previo a migración → migrate deploy one-shot con la imagen nueva → recreación de API.
 Si falla backup o migrate, el script sale y deja la API anterior en ejecución. No hay nuevas migraciones en esta PR.
 Las migraciones futuras deben seguir expand/contract y rollback verificado: **el rollback de imagen no revierte el esquema**.
 
@@ -152,3 +152,48 @@ test -n "$RESEND_API_KEY" && echo resend || echo smtp
 6. `PUBLIC_URL` es la única base del enlace. No se usa `Host` ni `X-Forwarded-Host`.
 7. Prueba de humo solo si la pide quien opera la cuenta: el aviso llega a la bandeja (no a spam), `Authentication-Results` muestra `spf=pass dkim=pass dmarc=pass` y el enlace conserva `#token`.
 8. Si se pierden a la vez el TOTP y los códigos de recuperación, en el servidor: `docker exec -it "$API_CONTAINER" node dist/scripts/disable-totp.js --email "$ACCOUNT_EMAIL"`. Pide confirmación, deja ActivityLog y no tiene endpoint HTTP.
+
+
+## Backup local previo a migraciones (#169)
+
+En staging y producción, antes de migrar se guarda un `pg_dump` comprimido en
+`PRE_MIGRATE_BACKUP_DIR/<STAMP>/db.sql.gz`. Por defecto se usa
+`<raíz del entorno>/backups/pre-migrate/`, por ejemplo
+`/opt/todo-staging/backups/pre-migrate/` o `/opt/todo/backups/pre-migrate/`.
+La raíz se obtiene del release (`<raíz>/releases/<run>`); las rutas dentro de
+`releases/`, incluso mediante enlaces simbólicos, se rechazan. Puede configurarse
+una ruta absoluta persistente con `PRE_MIGRATE_BACKUP_DIR` en el entorno.
+El usuario de deploy debe poder crear y escribir ese directorio.
+
+Los directorios tienen permisos 0700 y el dump 0600. El log muestra únicamente la
+ruta y el tamaño de la copia. Si falla la escritura, `pg_dump` o el dump está vacío,
+el deploy termina antes de migrar o reemplazar la API anterior.
+`BACKUP_RETENTION_DAYS` fija la retención (30 días por defecto); se conservan siempre
+las tres copias completas más recientes, aunque excedan ese plazo. La limpieza se
+hace después de completar una copia nueva y solo afecta a este directorio.
+
+Esta copia local no usa Drive, rclone, cifrado para subida ni tokens de usuario.
+El cron diario externo de RF-1704 conserva su comportamiento: llama al mismo
+código previo, ahora denominado `backup_daily_external`, y a `scripts/backup.sh`.
+El render importa los valores de 1Password; no fija `GOOGLE_DRIVE_FOLDER_ID` en
+staging. Pablo debe eliminar esa entrada de 1Password para staging.
+
+Para restaurar, usa `scripts/restore.sh` desde un checkout del repositorio
+(el release mínimo del VPS no incluye ese script). El comando aplica SQL sobre la
+base indicada: detén las escrituras y selecciona explícitamente el stack correcto.
+Ejemplo para staging, con su archivo privado existente:
+
+```bash
+export COMPOSE_FILE="$PWD/deploy/staging/docker-compose.yml"
+export COMPOSE_PROJECT_NAME=todo-staging
+export COMPOSE_ENV_FILES=/etc/todo/staging.env
+export POSTGRES_USER=reflexionia POSTGRES_DB=ttd_staging
+BACKUP_DIR=/opt/todo-staging/backups/pre-migrate RESTORE_CONFIRM=restore \
+  bash scripts/restore.sh <STAMP>
+```
+
+En producción usa `deploy/production/docker-compose.yml`, proyecto `todo`, su
+archivo privado y sus nombres reales de base/usuario, con
+`BACKUP_DIR=/opt/todo/backups/pre-migrate`. No imprime ni copies secretos al log.
+La aceptación operativa queda pendiente de que Pablo fusione y relance Deploy de
+staging: health verde y dump no vacío con 0600 en la ruta persistente.

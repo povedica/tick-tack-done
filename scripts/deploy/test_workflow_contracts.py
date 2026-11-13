@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -86,3 +87,56 @@ class WorkflowContracts(unittest.TestCase):
                                                  input=json.dumps(run), text=True, capture_output=True)
                         self.assertEqual(found == '123', expected)
                         self.assertEqual(checked.returncode == 0, expected)
+
+
+class PreMigrationBackupContracts(unittest.TestCase):
+    def backup(self, directory, override=''):
+        release=directory/'releases'/'run-1'
+        release.mkdir(parents=True)
+        script = r'''source "$SOURCE"
+root=$RELEASE
+api=staging-api
+compose() {
+  if [[ $1 == config ]]; then
+    printf '%s\n' '{"services":{"postgres":{"environment":{"POSTGRES_DB":"fixture","POSTGRES_USER":"fixture"}},"staging-api":{"environment":{}}}}'
+  else
+    printf '%s\n' '-- fixture SQL'
+  fi
+}
+backup_before_migrate
+'''
+        env={k:v for k,v in os.environ.items() if not k.startswith('GOOGLE_') and k not in ('BACKUP_REMOTE','PRE_MIGRATE_BACKUP_DIR','BACKUP_RETENTION_DAYS')}
+        env.update(SOURCE=str(ROOT/'deploy/lib/migrate.sh'),RELEASE=str(release))
+        if override: env['PRE_MIGRATE_BACKUP_DIR']=str(override)
+        return subprocess.run(['bash','-euo','pipefail','-c',script],env=env,capture_output=True,text=True)
+
+    def test_default_is_persistent_outside_releases_without_remote_credentials(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory=Path(temporary)
+            result=self.backup(directory)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(len(list((directory/'backups/pre-migrate').glob('*/db.sql.gz'))),1)
+            self.assertFalse(list((directory/'releases').glob('**/db.sql.gz')))
+
+    def test_release_paths_and_symlink_aliases_are_rejected(self):
+        for kind in ('direct','symlink','parent'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary:
+                directory=Path(temporary)
+                release=directory/'releases'
+                release.mkdir()
+                if kind=='direct': target=release/'backups'
+                elif kind=='parent': target=directory/'backups/../releases/backups'
+                else:
+                    target=directory/'alias'
+                    target.symlink_to(release,target_is_directory=True)
+                result=self.backup(directory,target)
+                self.assertNotEqual(result.returncode,0)
+                self.assertFalse(list(release.glob('**/db.sql.gz')))
+
+    def test_daily_cron_keeps_original_external_backup_entrypoint(self):
+        source=(ROOT/'deploy/lib/migrate.sh').read_text()
+        local=source.split('backup_before_migrate() (',1)[1].split('migrate_before_replace()',1)[0]
+        self.assertNotRegex(local,r'GOOGLE_|BACKUP_REMOTE|seal_for_upload|scripts/backup.sh')
+        self.assertIn('backup_daily_external', (ROOT/'deploy/production/cron-backup.sh').read_text())
+        external=source.split('backup_daily_external() (',1)[1].split('# Local safety',1)[0]
+        self.assertIn('bash "$root/scripts/backup.sh"',external)
