@@ -593,7 +593,6 @@ a.task-title {
   white-space: nowrap;
 }
 
-.popover,
 .task-context {
   position: absolute;
   top: 36px;
@@ -616,7 +615,6 @@ a.task-title {
   max-height: calc(100dvh - 24px);
 }
 
-.popover-menu,
 .task-context {
   width: 220px;
 }
@@ -627,17 +625,7 @@ a.task-title {
   right: auto;
 }
 
-.popover-list {
-  max-height: min(320px, calc(100dvh - 80px));
-  margin: 0;
-  padding: 0;
-  overflow: auto;
-  list-style: none;
-}
-
-.popover-row,
-.date-shortcuts button,
-.popover-actions button {
+.date-shortcuts button {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -654,33 +642,12 @@ a.task-title {
   cursor: pointer;
 }
 
-.popover-row:hover,
 .date-shortcuts button:hover {
   background: var(--surface-2);
 }
 
-.tag-picker .popover-row input[type='checkbox'] {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-}
-
-.popover-row.is-danger {
-  color: var(--danger);
-}
-
-.popover-label {
-  margin: 8px 8px 2px;
-  color: var(--ink-3);
-  font-size: 13px;
-}
-
-.popover-search,
-.popover-field input,
 .date-popover input[type='time'],
-.date-popover input[type='number'],
-.detail-panel .tag-picker input.popover-search {
+.date-popover input[type='number'] {
   box-sizing: border-box;
   width: 100%;
   max-width: none;
@@ -725,9 +692,7 @@ a.task-title {
   color: var(--ink-inverse);
 }
 
-.cal-toolbar,
-.popover-tabs,
-.popover-actions {
+.cal-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -796,11 +761,6 @@ a.task-title {
   width: 220px;
   max-height: min(320px, 50dvh);
   overflow: auto;
-}
-
-.detail-list-menu .popover-row[aria-checked='true'] {
-  background: var(--surface-2);
-  color: var(--accent-active);
 }
 
 .detail-sep {
@@ -1317,8 +1277,7 @@ a.task-title {
   list-style: none;
 }
 
-.detail-files li,
-.popover-row {
+.detail-files li {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -1347,28 +1306,10 @@ a.task-title {
   overflow-x: hidden;
 }
 
-.detail-menu .menu-group,
-.popover-menu .menu-group {
+.detail-menu .menu-group {
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
-}
-
-.detail-menu .popover-row,
-.popover-menu .popover-row {
-  min-width: 0;
-}
-
-.detail-menu .popover-row svg,
-.popover-menu .popover-row svg {
-  flex-shrink: 0;
-}
-
-.detail-menu .popover-row span,
-.popover-menu .popover-row span {
-  min-width: 0;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 
 @media (max-width: 699px) {

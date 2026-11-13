@@ -7,6 +7,7 @@ import {
   type RefObject,
   type CSSProperties,
 } from 'react';
+import './popover.css';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { bindPopover, dismissPopover, isTopPopover } from './popover-stack';

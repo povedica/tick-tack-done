@@ -1,5 +1,10 @@
 # Historial de cambios
 
+## Sin publicar
+
+- El menú de proyectos recupera su fondo en claro y oscuro, también al abrir
+  directamente el tablero. Las columnas se distinguen y el botón es visible en táctil.
+
 ## Contratos del navegador
 
 - Recuperar contraseña vuelve a mandar el POST. El idioma sale de la etiqueta
