@@ -267,6 +267,7 @@ it('offers pause, resume and delete according to the column', () => {
     });
   }
   const { rerender } = render(createElement(MenuProbe, { state: 'active' }));
+  expect(screen.getByRole('dialog', { hidden: true }).classList.contains('popover')).toBe(true);
   expect(screen.getByText('Pausar')).toBeTruthy();
   expect(screen.getByText('Archivar')).toBeTruthy();
   expect(screen.queryByText('Eliminar…')).toBeNull();

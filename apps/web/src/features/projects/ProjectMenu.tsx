@@ -46,7 +46,7 @@ export function ProjectMenu({
       label={`${copy.menu}: ${item.name}`}
       onClose={onClose}
       mobileSheet={sheet}
-      className="project-menu"
+      className="popover project-menu"
       sheetHeader={
         sheet ? (
           <div className="project-sheet-head">

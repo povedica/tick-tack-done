@@ -1,5 +1,5 @@
 .projects-page {
-  background: var(--surface-2);
+  background: var(--surface);
   min-height: 100%;
 }
 
@@ -8,7 +8,7 @@
   top: 0;
   z-index: 2;
   align-items: center;
-  background: var(--surface-2);
+  background: var(--surface);
 }
 
 .projects-heading {
@@ -609,4 +609,14 @@
   .garden-project-row .garden-project-progress {
     grid-column: 2;
   }
+}
+
+@media (hover: none) {
+  .project-card-menu {
+    opacity: 1;
+  }
+}
+
+[data-theme='dark'] .project-column {
+  border: 1px solid var(--border);
 }
