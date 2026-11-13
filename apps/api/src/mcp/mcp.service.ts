@@ -35,6 +35,7 @@ import { loadDashboardSnapshot } from '../reading/snapshot.js';
 import type { CreateFilterDto, UpdateFilterDto } from '../modules/filters/filters.dto.js';
 import { FiltersService } from '../modules/filters/filters.service.js';
 import { SmartListsService } from '../modules/filters/smart-lists.service.js';
+import type { UpdateCountdownDto } from '../modules/countdowns/countdowns.dto.js';
 import { CountdownsService } from '../modules/countdowns/countdowns.service.js';
 import { HabitsService } from '../modules/habits/habits.service.js';
 import { ListsService } from '../modules/lists/lists.service.js';
@@ -1033,6 +1034,7 @@ export class McpService {
           user,
           args.archived === true,
           typeof args.due_within_days === 'number' ? args.due_within_days : undefined,
+          { limit, cursor: cursorOf(args) },
         );
       case 'get_countdown':
         return this.countdowns.get(user, requiredUuid(args, 'id'));
@@ -1043,37 +1045,17 @@ export class McpService {
             {
               title: requiredString(args, 'title', 200),
               target_date: requiredDate(args),
-              ...(typeof args.type === 'string'
-                ? { type: args.type as 'countdown' | 'anniversary' | 'birthday' | 'holiday' }
-                : {}),
-              ...(typeof args.emoji === 'string' ? { emoji: args.emoji } : {}),
-              ...(typeof args.color === 'string' ? { color: args.color as never } : {}),
-              ...(typeof args.repeat === 'string' ? { repeat_rule: args.repeat as never } : {}),
-              ...(typeof args.day_mode === 'string' ? { day_mode: args.day_mode as never } : {}),
-              ...(Array.isArray(args.reminders)
-                ? {
-                    reminders: args.reminders
-                      .filter((v): v is number => typeof v === 'number')
-                      .map((offset_days) => ({ offset_days })),
-                  }
-                : {}),
-              ...(typeof args.notes === 'string' ? { notes: args.notes } : {}),
-              ...(typeof args.show_in_sidebar === 'boolean'
-                ? { show_in_sidebar: args.show_in_sidebar }
-                : {}),
-              ...(typeof args.show_in_smart_list === 'boolean'
-                ? { show_in_smart_list: args.show_in_smart_list }
-                : {}),
+              ...countdownChanges(args),
             },
             undefined,
           )
         ).body;
       case 'update_countdown':
         return this.countdowns.update(user, requiredUuid(args, 'id'), {
-          ...(typeof args.title === 'string' ? { title: args.title } : {}),
-          ...(typeof args.target_date === 'string' ? { target_date: args.target_date } : {}),
-          ...(typeof args.pinned === 'boolean' ? { pinned: args.pinned } : {}),
+          ...countdownChanges(args),
         });
+      case 'restore_countdown':
+        return this.countdowns.restore(user, requiredUuid(args, 'id'));
       case 'delete_countdown':
         await this.countdowns.remove(user, requiredUuid(args, 'id'));
         return { deleted: true };
@@ -2297,4 +2279,41 @@ function countOf(args: Record<string, unknown>): number {
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'count is invalid');
   }
   return args.count;
+}
+
+function countdownChanges(args: Record<string, unknown>): {
+  [K in keyof UpdateCountdownDto]: UpdateCountdownDto[K];
+} {
+  type Changes = { [K in keyof UpdateCountdownDto]: UpdateCountdownDto[K] };
+  return {
+    ...(typeof args.title === 'string' ? { title: args.title } : {}),
+    ...(typeof args.target_date === 'string' ? { target_date: args.target_date } : {}),
+    ...(typeof args.type === 'string'
+      ? { type: args.type as Exclude<Changes['type'], undefined> }
+      : {}),
+    ...(typeof args.repeat === 'string'
+      ? { repeat_rule: args.repeat as Exclude<Changes['repeat_rule'], undefined> }
+      : {}),
+    ...(typeof args.day_mode === 'string'
+      ? { day_mode: args.day_mode as Exclude<Changes['day_mode'], undefined> }
+      : {}),
+    ...(typeof args.emoji === 'string' || args.emoji === null ? { emoji: args.emoji } : {}),
+    ...(typeof args.color === 'string' || args.color === null
+      ? { color: args.color as Exclude<Changes['color'], undefined> }
+      : {}),
+    ...(typeof args.notes === 'string' || args.notes === null ? { notes: args.notes } : {}),
+    ...(typeof args.show_in_sidebar === 'boolean' ? { show_in_sidebar: args.show_in_sidebar } : {}),
+    ...(typeof args.show_in_smart_list === 'boolean'
+      ? { show_in_smart_list: args.show_in_smart_list }
+      : {}),
+    ...(typeof args.pinned === 'boolean' ? { pinned: args.pinned } : {}),
+    ...(Array.isArray(args.reminders)
+      ? {
+          reminders: args.reminders.map(
+            (value: number | { offset_days: number; constant?: boolean }) =>
+              typeof value === 'number' ? { offset_days: value } : value,
+          ),
+        }
+      : {}),
+  };
 }

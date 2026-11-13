@@ -17,7 +17,7 @@ Marcadores, no rutas del host: `<APP_DIR>` es el directorio de la aplicación, `
 
 ## Despliegue
 
-Ejecutar `deploy.sh` con `RUNTIME_ENV_FILE` y `GIT_COMMIT` explícitos. El script construye secuencialmente y levanta solo el proyecto de staging. No activa ni reinicia el proxy.
+Ejecutar `deploy.sh` con `RUNTIME_ENV_FILE` y `GIT_COMMIT` explícitos. El camino habitual hace pull incremental y comprueba health/rollback; el build local es un override de emergencia. Ver [runbook común](../README.md). No activa ni reinicia el proxy.
 
 El Caddy compartido actual es 2.10.2 con `admin off`: no admite recarga por API ni SIGUSR1. Instalar `staging.caddy` en `<PROXY_SITES_DIR>` y validar la configuración completa es seguro sin activarla; la activación requiere resolver esa limitación con Pablo antes de interrumpir el proxy compartido. No usar el reinicio automático de `deploy/production/deploy.sh` para staging.
 
@@ -27,7 +27,9 @@ Usar un cliente OAuth web propio de staging; habilitar Calendar, Drive y Picker 
 
 Configurar `TELEGRAM_BOT_TOKEN` y `TELEGRAM_WEBHOOK_SECRET` de un bot exclusivo de staging y un SMTP dedicado con buzón de prueba. No reutilizar el webhook del bot de producción. El consentimiento Google, iPhone físico y recepción/acciones desde el sistema requieren intervención humana. No confundir transporte simulado con aceptación externa.
 
-## Retirada al terminar la aceptación
+## Retirada excepcional acordada con Pablo
+
+Staging pasa a ser permanente (BKL-046). No ejecutar esta retirada al cerrar una aceptación ordinaria. Solo con decisión explícita de Pablo:
 
 1. Instalar `index.html` como `<PROXY_SITES_DIR>/staging-index.html` y sustituir únicamente `staging.caddy` por `retired.caddy`.
 2. Validar y activar el proxy por el procedimiento acordado. Comprobar que el dominio sirve la página estática y producción sigue sana.

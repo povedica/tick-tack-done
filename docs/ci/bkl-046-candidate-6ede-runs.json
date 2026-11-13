@@ -1,0 +1,173 @@
+{
+  "measured_at": "2026-11-11T23:31:47.311002+00:00",
+  "since_sha": "6ede440543d007deb42830358e5595dde90f4d99",
+  "definition_sha256": "4dc6b9f409d1f85776a7e80214e6432d1c361f98771be03dabcb46a75f5874bc",
+  "summary": {
+    "n": 3,
+    "median_seconds": 170.0,
+    "p90_seconds": 174.0,
+    "median_runner_min": 7.416666666666667,
+    "results": {
+      "success": 2,
+      "failure": 1
+    }
+  },
+  "runs": [
+    {
+      "id": 43117956330,
+      "sha": "6ede440543d007deb42830358e5595dde90f4d99",
+      "created_at": "2026-11-11T23:12:01Z",
+      "conclusion": "success",
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43117956330",
+      "seconds": 170.0,
+      "queue_seconds": 2.0,
+      "runner_min": 7.516666666666667,
+      "jobs": {
+        "changes": {
+          "seconds": 5.0,
+          "conclusion": "success"
+        },
+        "public-tree-guard": {
+          "seconds": 17.0,
+          "conclusion": "success"
+        },
+        "test-integration": {
+          "seconds": 157.0,
+          "conclusion": "success"
+        },
+        "test-unit": {
+          "seconds": 100.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 140.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 18.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "openapi-check": {
+          "seconds": 4.0,
+          "conclusion": "success"
+        },
+        "r80-browser-contracts": {
+          "seconds": 4.0,
+          "conclusion": "success"
+        },
+        "ci-ok": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        }
+      }
+    },
+    {
+      "id": 43118529362,
+      "sha": "9c92f9cf02c4fa01121ff537a4ba519cc52cab8d",
+      "created_at": "2026-11-11T23:16:21Z",
+      "conclusion": "success",
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43118529362",
+      "seconds": 166.0,
+      "queue_seconds": 2.0,
+      "runner_min": 7.416666666666667,
+      "jobs": {
+        "public-tree-guard": {
+          "seconds": 18.0,
+          "conclusion": "success"
+        },
+        "changes": {
+          "seconds": 6.0,
+          "conclusion": "success"
+        },
+        "test-unit": {
+          "seconds": 95.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 31.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 132.0,
+          "conclusion": "success"
+        },
+        "test-integration": {
+          "seconds": 151.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "r80-browser-contracts": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "openapi-check": {
+          "seconds": 4.0,
+          "conclusion": "success"
+        },
+        "ci-ok": {
+          "seconds": 2.0,
+          "conclusion": "success"
+        }
+      }
+    },
+    {
+      "id": 43118941115,
+      "sha": "8a799f9130f31e3e0da2b246ca662113e31c47a7",
+      "created_at": "2026-11-11T23:19:35Z",
+      "conclusion": "failure",
+      "url": "https://github.com/povedica/tick-tack-done/actions/runs/43118941115",
+      "seconds": 174.0,
+      "queue_seconds": 2.0,
+      "runner_min": 7.066666666666666,
+      "jobs": {
+        "public-tree-guard": {
+          "seconds": 18.0,
+          "conclusion": "success"
+        },
+        "changes": {
+          "seconds": 6.0,
+          "conclusion": "success"
+        },
+        "test-integration": {
+          "seconds": 160.0,
+          "conclusion": "success"
+        },
+        "test-unit": {
+          "seconds": 94.0,
+          "conclusion": "success"
+        },
+        "infra-check": {
+          "seconds": 27.0,
+          "conclusion": "success"
+        },
+        "code-checks": {
+          "seconds": 110.0,
+          "conclusion": "success"
+        },
+        "openapi-check": {
+          "seconds": 2.0,
+          "conclusion": "success"
+        },
+        "quality": {
+          "seconds": 3.0,
+          "conclusion": "success"
+        },
+        "r80-browser-contracts": {
+          "seconds": 2.0,
+          "conclusion": "failure"
+        },
+        "ci-ok": {
+          "seconds": 2.0,
+          "conclusion": "failure"
+        }
+      }
+    }
+  ]
+}

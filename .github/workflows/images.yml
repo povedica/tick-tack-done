@@ -1,0 +1,237 @@
+name: Images
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+  packages: read
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      api: ${{ steps.paths.outputs.api }}
+      web: ${{ steps.paths.outputs.web }}
+      environments: ${{ steps.config.outputs.environments }}
+      deploy: ${{ steps.paths.outputs.deploy }}
+      api_sha: ${{ steps.revisions.outputs.api_sha }}
+      web_sha: ${{ steps.revisions.outputs.web_sha }}
+      api_short: ${{ steps.revisions.outputs.api_short }}
+      web_short: ${{ steps.revisions.outputs.web_short }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: revisions
+        name: Resolve revisions independently of the previous push
+        run: |
+          python3 scripts/ci/image-plan.py > "$RUNNER_TEMP/component-plan.json"
+          jq -r '"api_sha=\(.api_sha)\nweb_sha=\(.web_sha)\napi_short=\(.api_sha[0:7])\nweb_short=\(.web_sha[0:7])"' "$RUNNER_TEMP/component-plan.json" >> "$GITHUB_OUTPUT"
+      - uses: dorny/paths-filter@v4
+        id: paths
+        with:
+          filters: |
+            common: &common
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.npmrc'
+              - '.dockerignore'
+              - 'tsconfig.base.json'
+              - '.github/workflows/images.yml'
+              - 'scripts/ci/image-plan.py'
+              - 'packages/domain/**'
+            deploy:
+              - 'deploy/**'
+              - 'scripts/backup.sh'
+              - 'scripts/backup-to-drive.mjs'
+            api:
+              - *common
+              - 'apps/api/**'
+            web:
+              - *common
+              - 'apps/web/**'
+              - 'packages/sdk/**'
+      - name: Require main CI before making deployable images available
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          conclusion=''
+          for _ in {1..60}; do
+            conclusion=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=push&per_page=10" --jq '[.workflow_runs[] | select(.head_branch == "main")][0].conclusion // empty')
+            case "$conclusion" in
+              success) break ;;
+              failure|cancelled|timed_out|action_required) echo 'Main CI did not pass' >&2; exit 1 ;;
+            esac
+            sleep 5
+          done
+          [[ "$conclusion" == success ]] || { echo 'Timed out waiting for main CI' >&2; exit 1; }
+      - name: Check manually created environments without creating any
+        id: config
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/environments" > "$RUNNER_TEMP/environments.json"
+          if jq -e '[.environments[].name] | (index("staging") != null and index("production") != null)' "$RUNNER_TEMP/environments.json" >/dev/null; then
+            echo 'environments=true' >> "$GITHUB_OUTPUT"
+          else
+            echo '::warning::M4 pending: Pablo must create staging and production. Web publishing is blocked.'
+          fi
+
+  api:
+    permissions:
+      contents: read
+      packages: write
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.deploy == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Preserve an already published SHA
+        id: existing
+        env:
+          IMAGE: ghcr.io/povedica/tick-tack-done-api:${{ needs.changes.outputs.api_sha }}
+        run: |
+          if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          fi
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/povedica/tick-tack-done-api
+          tags: |
+            type=raw,value=sha-${{ needs.changes.outputs.api_short }}
+            type=raw,value=${{ needs.changes.outputs.api_sha }}
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=tag
+      - uses: docker/build-push-action@v7
+        if: steps.existing.outputs.exists != 'true'
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            GIT_COMMIT=${{ needs.changes.outputs.api_sha }}
+            BUILD_TIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Smoke published API and migration failure isolation
+        env:
+          IMAGE: ghcr.io/povedica/tick-tack-done-api:${{ needs.changes.outputs.api_sha }}
+        run: |
+          docker pull "$IMAGE"
+          bash scripts/ci/test-migrations.sh "$IMAGE"
+
+  web:
+    permissions:
+      contents: read
+      packages: write
+    needs: changes
+    if: needs.changes.outputs.environments == 'true' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.deploy == 'true' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/'))
+    strategy:
+      matrix:
+        include:
+          - environment: staging
+            suffix: staging
+          - environment: staging
+            suffix: prod
+    environment: ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Preserve an already published SHA
+        id: existing
+        env:
+          IMAGE: ghcr.io/povedica/tick-tack-done-web:${{ needs.changes.outputs.web_sha }}-${{ matrix.suffix }}
+        run: |
+          if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ghcr.io/povedica/tick-tack-done-web
+          tags: |
+            type=raw,value=sha-${{ needs.changes.outputs.web_short }}-${{ matrix.suffix }}
+            type=raw,value=${{ needs.changes.outputs.web_sha }}-${{ matrix.suffix }}
+            type=raw,value=main-${{ matrix.suffix }},enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=tag,suffix=-${{ matrix.suffix }}
+      - name: Require the variant reCAPTCHA site key before publishing
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          SITE_KEY: ${{ vars[matrix.suffix == 'prod' && 'VITE_RECAPTCHA_PRODUCTION_SITE_KEY' || 'VITE_RECAPTCHA_SITE_KEY'] }}
+          SUFFIX: ${{ matrix.suffix }}
+        run: |
+          variable=VITE_RECAPTCHA_SITE_KEY
+          [[ "$SUFFIX" != prod ]] || variable=VITE_RECAPTCHA_PRODUCTION_SITE_KEY
+          if [[ -z "$SITE_KEY" ]]; then
+            echo "::error::Missing $variable: configure it in Environment staging or as a repository variable before publishing the $SUFFIX web image."
+            exit 1
+          fi
+      - uses: docker/build-push-action@v7
+        if: steps.existing.outputs.exists != 'true'
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            GIT_COMMIT=${{ needs.changes.outputs.web_sha }}
+            BUILD_TIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VITE_RECAPTCHA_SITE_KEY=${{ vars[matrix.suffix == 'prod' && 'VITE_RECAPTCHA_PRODUCTION_SITE_KEY' || 'VITE_RECAPTCHA_SITE_KEY'] }}
+          cache-from: type=gha,scope=web-${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=web-${{ matrix.suffix }}
+      - name: Smoke published web
+        env:
+          IMAGE: ghcr.io/povedica/tick-tack-done-web:${{ needs.changes.outputs.web_sha }}-${{ matrix.suffix }}
+        run: |
+          docker pull "$IMAGE"
+          name="ttd-web-smoke-$GITHUB_RUN_ID"
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$name" "$IMAGE"
+          for _ in {1..15}; do
+            if docker exec "$name" wget -q -O /dev/null http://127.0.0.1:8080/; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+
+  deployment-plan:
+    needs: [changes, api, web]
+    if: always() && needs.changes.result == 'success' && needs.api.result == 'success' && needs.web.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+      - name: Record both desired immutable component revisions
+        env:
+          API_SHA: ${{ needs.changes.outputs.api_sha }}
+          WEB_SHA: ${{ needs.changes.outputs.web_sha }}
+        run: |
+          jq -n --arg sha "$GITHUB_SHA" --arg api_sha "$API_SHA" --arg web_sha "$WEB_SHA" '{sha:$sha,api:true,web:true,api_sha:$api_sha,web_sha:$web_sha}' > deploy/plan.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deployment-plan
+          path: deploy/plan.json
+          retention-days: 30

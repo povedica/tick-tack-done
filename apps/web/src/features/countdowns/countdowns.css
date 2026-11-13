@@ -66,136 +66,6 @@
 .countdown-actions summary::-webkit-details-marker {
   display: none;
 }
-.countdown-menu {
-  position: absolute;
-  z-index: 4;
-  right: 0;
-  min-width: 10rem;
-  padding: 0.35rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-md);
-}
-.countdown-menu button {
-  display: block;
-  width: 100%;
-  padding: 0.45rem 0.65rem;
-  border: 0;
-  border-radius: var(--radius-sm);
-  text-align: left;
-  background: transparent;
-  color: var(--ink);
-}
-.countdown-menu button:hover {
-  background: var(--surface-2);
-}
-.countdown-menu .is-danger {
-  color: var(--danger, #b42318);
-}
-.countdown-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--sp-3);
-}
-.countdown-group h2 {
-  margin: var(--sp-4) 0 var(--sp-2);
-  font-size: var(--fs-base);
-}
-.countdown-card {
-  display: flex;
-  flex-direction: column;
-  min-height: 12.5rem;
-  padding: var(--sp-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-}
-.countdown-card[data-color='blue'] {
-  background: var(--countdown-blue-bg);
-}
-.countdown-card[data-color='teal'] {
-  background: var(--countdown-teal-bg);
-}
-.countdown-card[data-color='green'] {
-  background: var(--countdown-green-bg);
-}
-.countdown-card[data-color='lime'] {
-  background: var(--countdown-lime-bg);
-}
-.countdown-card[data-color='orange'] {
-  background: var(--countdown-orange-bg);
-}
-.countdown-card[data-color='red'] {
-  background: var(--countdown-red-bg);
-}
-.countdown-card[data-color='pink'] {
-  background: var(--countdown-pink-bg);
-}
-.countdown-card[data-color='purple'] {
-  background: var(--countdown-purple-bg);
-}
-.countdown-card[data-color='navy'] {
-  background: var(--countdown-navy-bg);
-}
-.countdown-card[data-color='brown'] {
-  background: var(--countdown-brown-bg);
-}
-.countdown-card[data-color='black'] {
-  background: var(--countdown-black-bg);
-  color: var(--countdown-black-ink);
-}
-.countdown-card[data-color='rainbow'] {
-  background-color: var(--countdown-blue-bg);
-  background-image: var(--countdown-rainbow-bg);
-}
-.countdown-card header {
-  justify-content: space-between;
-  gap: var(--sp-2);
-}
-.countdown-emoji {
-  flex-shrink: 0;
-  line-height: 1.2;
-  font-size: 1.1em;
-}
-.countdown-title {
-  display: -webkit-box;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: normal;
-  font-weight: 600;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.countdown-actions {
-  opacity: 0.4;
-}
-.countdown-card:hover .countdown-actions,
-.countdown-actions:focus-within {
-  opacity: 1;
-}
-.countdown-number {
-  display: block;
-  margin: auto 0 0.4rem;
-  text-align: center;
-  color: var(--accent-ink);
-  font-size: clamp(2.25rem, 5vw, 4rem);
-  line-height: 1;
-}
-.countdown-card[data-color='black'] .countdown-number {
-  color: var(--countdown-black-ink);
-}
-.countdown-card p {
-  margin: 0;
-  text-align: center;
-  color: var(--ink-3);
-  font-size: 0.875rem;
-}
-.countdown-card[data-color='black'] p {
-  color: var(--countdown-black-muted);
-}
 .countdown-dialog {
   display: grid;
   gap: var(--sp-3);
@@ -239,21 +109,304 @@
 .countdown-dialog-actions {
   justify-content: flex-end;
 }
-@media (max-width: 760px) {
+
+.countdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.25rem, 1fr));
+  gap: var(--sp-3);
+}
+.countdown-group h2 {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: var(--fs-base);
+}
+.countdown-card,
+.countdown-swatches button {
+  --countdown-color: var(--countdown-saturated-blue);
+  --countdown-number-ink: var(--countdown-readable-blue);
+}
+.countdown-card[data-color='pink'],
+.countdown-swatches button[data-color='pink'] {
+  --countdown-color: var(--countdown-saturated-pink);
+  --countdown-number-ink: var(--countdown-readable-pink);
+}
+.countdown-card[data-color='orange'],
+.countdown-swatches button[data-color='orange'],
+.countdown-card[data-color='brown'],
+.countdown-swatches button[data-color='brown'] {
+  --countdown-color: var(--countdown-saturated-orange);
+  --countdown-number-ink: var(--countdown-readable-orange);
+}
+.countdown-card[data-color='teal'],
+.countdown-swatches button[data-color='teal'],
+.countdown-card[data-color='green'],
+.countdown-swatches button[data-color='green'],
+.countdown-card[data-color='lime'],
+.countdown-swatches button[data-color='lime'] {
+  --countdown-color: var(--countdown-saturated-teal);
+  --countdown-number-ink: var(--countdown-readable-teal);
+}
+.countdown-card[data-color='purple'],
+.countdown-swatches button[data-color='purple'],
+.countdown-card[data-color='rainbow'],
+.countdown-swatches button[data-color='rainbow'] {
+  --countdown-color: var(--countdown-saturated-purple);
+  --countdown-number-ink: var(--countdown-readable-purple);
+}
+.countdown-card[data-color='red'],
+.countdown-swatches button[data-color='red'] {
+  --countdown-color: var(--countdown-saturated-pink);
+  --countdown-number-ink: var(--countdown-readable-pink);
+}
+.countdown-card[data-color='navy'],
+.countdown-swatches button[data-color='navy'],
+.countdown-card[data-color='black'],
+.countdown-swatches button[data-color='black'] {
+  --countdown-color: #1e293b;
+  --countdown-number-ink: var(--ink);
+}
+.countdown-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.countdown-card header {
+  align-items: flex-start;
+  padding-right: 1.75rem;
+  gap: 0.5rem;
+}
+.countdown-emoji {
+  flex: none;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+.countdown-title {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.countdown-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.countdown-actions button {
+  width: 44px;
+  height: 44px;
+  color: inherit;
+}
+.countdown-count {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.2rem;
+  margin: auto 0;
+  color: var(--countdown-number-ink);
+  white-space: nowrap;
+}
+.countdown-number {
+  font-family: var(--font-serif);
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  font-weight: 400;
+  line-height: 1;
+}
+.countdown-unit {
+  font-size: 0.85rem;
+}
+.countdown-card p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  text-align: center;
+  color: var(--ink-2);
+}
+.countdown-card.is-pinned {
+  background: var(--countdown-color);
+  color: #fff;
+  border-color: var(--countdown-color);
+}
+.countdown-card.is-pinned .countdown-count,
+.countdown-card.is-pinned p {
+  color: #fff;
+}
+@media (hover: hover) and (pointer: fine) {
+  .countdown-actions {
+    opacity: 0;
+  }
+  .countdown-card:hover .countdown-actions,
+  .countdown-card:focus-within .countdown-actions {
+    opacity: 1;
+  }
+}
+.countdown-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.countdown-identity > label {
+  flex: 1;
+  min-width: 0;
+}
+.countdown-emoji-trigger {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 1.7rem;
+}
+.countdown-emoji-tray {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.25rem;
+}
+.countdown-emoji-tray button {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.countdown-emoji-picker h3 {
+  font-size: 0.85rem;
+}
+.countdown-date-field {
+  display: grid;
+  gap: 0.35rem;
+}
+.countdown-date-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.65rem;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+.countdown-type-chips,
+.countdown-swatches {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 0.5rem !important;
+  border: 0 !important;
+  padding: 0;
+}
+.countdown-type-chips button {
+  min-height: 44px;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.countdown-type-chips button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.countdown-swatches button {
+  width: 44px;
+  height: 44px;
+  border: 5px solid var(--surface);
+  outline: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--countdown-color);
+}
+.countdown-swatches button[data-color='none'] {
+  background: var(--surface);
+}
+.countdown-swatches button[aria-pressed='true'] {
+  outline: 2px solid var(--ink);
+}
+.countdown-more-options > summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+}
+.countdown-more-options[open] {
+  display: grid;
+  gap: var(--sp-3);
+}
+@media (max-width: 599px) {
   .countdown-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: var(--sp-2);
   }
   .countdown-card {
-    min-height: 9.5rem;
-    padding: var(--sp-2);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4rem 44px;
+    grid-template-rows: auto auto;
+    gap: 0.25rem 0.5rem;
+    aspect-ratio: auto;
+    min-height: 96px;
+    padding: 0.75rem 0 0.75rem 0.75rem;
+  }
+  .countdown-card header {
+    grid-column: 1;
+    padding: 0;
+    align-self: end;
+  }
+  .countdown-card p {
+    grid-column: 1;
+    grid-row: 2;
+    text-align: left;
+    padding-left: 1.75rem;
+    font-size: 0.65rem;
+    align-self: start;
+  }
+  .countdown-count {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    margin: 0;
+    align-self: center;
+    min-height: 64px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    border-radius: var(--radius-md);
+    background: var(--countdown-color);
+    color: #fff;
   }
   .countdown-number {
-    font-size: 2.4rem;
+    font-size: 2rem;
+  }
+  .countdown-card.is-pinned .countdown-count {
+    background: transparent;
+  }
+  .countdown-actions {
+    position: static;
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    opacity: 1;
   }
   .countdown-title-select {
     align-items: flex-start;
     flex-direction: column;
     gap: 0;
+  }
+}
+
+@media (max-width: 599px) {
+  .countdown-card[data-kind='today'] .countdown-number {
+    font-size: 1.5rem;
   }
 }
