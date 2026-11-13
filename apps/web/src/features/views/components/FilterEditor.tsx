@@ -50,6 +50,7 @@ import type { FilterEditorRequest } from '../filter-ui';
 import { filterFolderLabels, filterTagLabels } from '../summarize';
 import { FieldPicker, type FieldOption } from './FieldPicker';
 import { MultiPicker, type PickerChoice } from './MultiPicker';
+import { AssigneePicker } from './AssigneePicker';
 
 const DATE_OPS = ['today', 'tomorrow', 'next_7_days', 'overdue', 'no_date', 'between'] as const;
 
@@ -900,18 +901,25 @@ function ValueField({
   readonly onChange: (next: ConditionDraft) => void;
 }) {
   const valueLabel = fill(messages.filterValueOf, fieldName(messages, condition.field));
-  if (condition.field === 'keyword' || condition.field === 'assignee') {
+  if (condition.field === 'assignee') {
+    return (
+      <AssigneePicker
+        value={condition.value}
+        label={valueLabel}
+        invalid={invalid}
+        describedBy={describedBy}
+        onChange={(value) => onChange({ ...condition, value })}
+      />
+    );
+  }
+  if (condition.field === 'keyword') {
     return (
       <input
         className="ui-input"
         aria-label={valueLabel}
         aria-invalid={invalid}
         aria-describedby={describedBy}
-        placeholder={
-          condition.field === 'keyword'
-            ? messages.filterKeywordPlaceholder
-            : messages.filterAssigneePlaceholder
-        }
+        placeholder={messages.filterKeywordPlaceholder}
         value={condition.value}
         onFocus={centerOnMobile}
         onChange={(event) => {

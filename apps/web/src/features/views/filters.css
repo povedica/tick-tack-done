@@ -1083,3 +1083,47 @@ body:has(.filter-editor) .date-popover {
     width: min(680px, 100%);
   }
 }
+
+.filter-assignee {
+  min-width: 0;
+}
+
+.filter-person-picker .filter-picker-row {
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+
+.filter-person-picker .filter-picker-row > span {
+  min-width: 0;
+  flex: 1;
+}
+
+.filter-person-picker .filter-picker-row small {
+  max-width: 55%;
+  overflow-wrap: anywhere;
+}
+
+.filter-person-status,
+.filter-person-warning {
+  margin: 8px 12px;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.filter-person-warning,
+.filter-assignee .is-unavailable {
+  color: var(--ink);
+  background: var(--warning-soft);
+  border-color: var(--warning);
+}
+
+.filter-person-retry {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
