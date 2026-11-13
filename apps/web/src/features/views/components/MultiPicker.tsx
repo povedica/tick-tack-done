@@ -7,6 +7,9 @@ import { fill } from '../../../i18n';
 
 export interface PickerChoice {
   readonly id: string;
+  readonly single?: boolean;
+  readonly onOpenChange?: (open: boolean) => void;
+  readonly status?: ReactNode;
   readonly label: string;
   readonly section: string;
   readonly sectionOrder: number;
@@ -14,6 +17,7 @@ export interface PickerChoice {
   readonly indent?: number;
   readonly rank?: number;
   readonly deleted?: boolean;
+  readonly unavailable?: boolean;
   readonly icon?: ReactNode;
   readonly tone?: 'tag';
   readonly color?: string | null;
@@ -33,6 +37,9 @@ export function MultiPicker({
   invalid,
   describedBy,
   onChange,
+  single = false,
+  onOpenChange,
+  status,
 }: {
   readonly label: string;
   readonly placeholder: string;
@@ -69,12 +76,20 @@ export function MultiPicker({
 
   function close(): void {
     setOpen(false);
+    onOpenChange?.(false);
     setQuery('');
     trigger.current?.focus();
   }
 
   function toggle(id: string): void {
-    onChange(selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id]);
+    onChange(
+      single
+        ? [id]
+        : selected.includes(id)
+          ? selected.filter((item) => item !== id)
+          : [...selected, id],
+    );
+    if (single) close();
   }
 
   return (
@@ -110,7 +125,11 @@ export function MultiPicker({
               key={id}
               type="button"
               className={
-                choice?.deleted === true ? 'filter-toggle-chip is-deleted' : 'filter-toggle-chip'
+                choice?.unavailable === true
+                  ? 'filter-toggle-chip is-unavailable'
+                  : choice?.deleted === true
+                    ? 'filter-toggle-chip is-deleted'
+                    : 'filter-toggle-chip'
               }
               aria-label={fill(removeLabel, name)}
               onClick={() => {
@@ -132,6 +151,7 @@ export function MultiPicker({
           aria-describedby={describedBy}
           onClick={() => {
             setOpen(true);
+            onOpenChange?.(true);
           }}
         >
           {selected.length === 0 ? placeholder : null}
@@ -145,7 +165,7 @@ export function MultiPicker({
         mobileSheet
         mobileSheetMaxWidth={1023}
         initialFocus={search}
-        className="filter-picker"
+        className={single ? 'filter-picker filter-person-picker' : 'filter-picker'}
         sheetFooter={
           <div className="filter-picker-foot">
             <span>
@@ -182,10 +202,11 @@ export function MultiPicker({
             }}
           />
         </div>
+        {status}
         <div
           className="filter-picker-list"
           role="listbox"
-          aria-multiselectable="true"
+          aria-multiselectable={!single}
           aria-label={label}
         >
           {groups.map((group) => (
@@ -199,6 +220,7 @@ export function MultiPicker({
                     className="filter-picker-row"
                     role="option"
                     aria-selected={on}
+                    aria-disabled={choice.unavailable === true || undefined}
                     style={
                       choice.indent === undefined
                         ? undefined
@@ -206,7 +228,9 @@ export function MultiPicker({
                     }
                   >
                     <input
-                      type="checkbox"
+                      type={single ? 'radio' : 'checkbox'}
+                      name={single ? label : undefined}
+                      disabled={choice.unavailable === true}
                       checked={on}
                       onChange={() => {
                         toggle(choice.id);
@@ -236,7 +260,9 @@ function groupChoices(
   const shown =
     needle.length === 0
       ? [...choices]
-      : choices.filter((choice) => choice.label.toLocaleLowerCase().includes(needle));
+      : choices.filter((choice) =>
+          `${choice.label} ${choice.detail ?? ''}`.toLocaleLowerCase().includes(needle),
+        );
   const groups = new Map<string, { title: string; order: number; choices: PickerChoice[] }>();
   for (const choice of shown) {
     const key = `${String(choice.sectionOrder)}:${choice.section}`;
