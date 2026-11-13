@@ -107,10 +107,54 @@ El check de `backlog-sync`, al ver `Closes`, `Fixes` o `Resolves`:
 - avisa en la PR si Agente está vacío;
 - si la tarjeta estaba en Listo para hacer, la pasa a En curso.
 
-El check falla si falta `Closes #N` o cambia una decisión sin actualizar
-`DECISIONES.md`. La falta de comentario de decisión en la issue es solo un
-aviso si está en En revisión o la PR ya no es borrador. No mueve a En revisión. Una PR
-antigua queda cubierta en cuanto se edita la descripción.
+Ese check falla si falta un `Closes`/`Fixes`/`Resolves` o si cambia una
+decisión sin actualizar `DECISIONES.md`. La falta de comentario de decisión
+en la issue es solo un aviso si está en En revisión o la PR ya no es
+borrador. No mueve a En revisión. Una PR antigua queda cubierta en cuanto se
+edita la descripción.
+
+`backlog-sync` sigue eximiendo a `sin-backlog`, a `dependabot*` y a
+`github-actions*` de ese script. Esa exención no abre la puerta a un agente:
+el check `issue-link`, que forma parte de `ci-ok`, es el que corta el merge.
+
+### 4.1. Ninguna PR de agente sin issue
+
+Pablo, 13/11/2026: «Un agente no puede trabajar sin issue asignada en
+GitHub. Nunca.» Incluye los ajustes rápidos después de cerrar una issue y
+su PR: la traza en el tablero es la medida de eficiencia y eficacia.
+
+- La descripción que escribe el agente empieza por `Closes #N`. `#N` existe
+  y está abierta. `issue-link` falla si, tras quitar comentarios HTML y
+  líneas en blanco del principio, el primer texto no es `Closes #N`. Así
+  no estorba el marcador que la herramienta guarda al crear la PR. Un
+  comentario HTML no es una exención de autor.
+- La única excepción es el autor `dependabot[bot]`. Un agente no usa
+  `sin-backlog` para saltarse la issue.
+- Un cambio pedido en el chat que no tiene issue: primero se crea la issue
+  y después se trabaja.
+
+### 4.2. Ajustes después del cierre
+
+Si la issue está cerrada y falta algo, no se reabre ni se reutiliza el
+número. Aunque el diff sea una línea, se crea:
+
+`BKL-NNN · Ajuste de #N: <qué>`
+
+- Etiqueta `ajuste`, además de `backlog`. No se pone en la issue original.
+- Comentario en la issue nueva y en la original, con el enlace cruzado.
+- Sub-issue de la original o, si el token no puede crearla, referencia
+  `Refs #N` en el cuerpo de la nueva.
+- Tarjeta propia en el Project y PR propia que empieza por `Closes #<nueva>`.
+
+La etiqueta `ajuste` se crea así si no existe:
+
+```bash
+gh label create ajuste --repo "$REPO" --color fbca04 \
+  --description "Ajuste posterior al cierre. Issue nueva enlazada a la original; no reabre ni reutiliza la cerrada."
+```
+
+Uso: solo esas issues nuevas. El título lleva el número de la original. La
+original permanece cerrada.
 
 ## 5. Reglas por evento
 
@@ -127,6 +171,8 @@ antigua queda cubierta en cuanto se edita la descripción.
 | Descartada | Hecho | Cerrar como «not planned» con comentario de decisión y motivo | Fila de DECISIONES a Decidida si aplicaba | Pablo |
 | Se pausa | Pausada | Comentario de decisión obligatorio: motivo, rama/commit, condición para retomar | — | Ese agente |
 | Se retoma (pausada, en revisión o abandonada) | En curso; actualizar Agente si cambia | Comentario de decisión «Retomada»: quién, commit/estado, qué falta y plan | — | Ese agente, con autorización de Pablo |
+| Ajuste tras el cierre | Tarjeta nueva | Issue nueva `BKL-NNN · Ajuste de #N: <qué>`, etiqueta `ajuste`, comentario en las dos y sub-issue o referencia. No se reabre la original | — | Ese agente |
+| Pedido en el chat sin issue | Igual que al reclamar una idea | Se crea la issue antes de tocar código | — | Ese agente |
 | Respuesta a revisión de Pablo | En curso mientras trabaja | Comentario de decisión; si retoma, aplicar la fila anterior | — | Ese agente |
 | Mejora obvia tras una entrega (opcional) | — | — | `APRENDIZAJES.md` y, con el sí de Pablo, `DOR.md`/`DOD.md` | Agente o Pablo propone; **Pablo aprueba** |
 
@@ -141,9 +187,13 @@ antigua queda cubierta en cuanto se edita la descripción.
 - **Pablo:** decide, prioriza, aprueba PRs y descarta.
 - **Workflows:** al abrir o editar una PR con `Closes`/`Fixes`/`Resolves`,
   backlog-sync escribe la Rama, avisa si Agente está vacío y pasa de
-  Listo para hacer a En curso. El check falla si falta `Closes #N` o cambia una decisión sin actualizar
-  `DECISIONES.md`; el aviso de comentario de decisión nunca bloquea.
-  Al fusionar una PR que cierra la issue, Status = Hecho.
+  Listo para hacer a En curso. Ese script falla si falta un cierre o cambia
+  una decisión sin actualizar `DECISIONES.md`; el aviso de comentario de
+  decisión nunca bloquea. `issue-link` (en los `needs` de `ci-ok`) corre en
+  `pull_request` opened, edited, synchronize y reopened, y falla si el cuerpo
+  no empieza por `Closes #N` o si `#N` no existe o está cerrada. La única
+  excepción es el autor `dependabot[bot]`. Al fusionar una PR que cierra la
+  issue, Status = Hecho.
 
 ## 7. Higiene
 

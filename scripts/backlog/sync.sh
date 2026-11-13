@@ -2,7 +2,12 @@
 # Sincroniza issues y Project «ttd · backlog» con el ciclo de vida de las PR y del despliegue.
 # Lo usa .github/workflows/backlog-sync.yml; también se puede ejecutar a mano.
 #
-#   sync.sh pr-check     <pr>   Falla solo si la descripción no tiene «Closes #N».
+#   sync.sh pr-check     <pr>   Falla solo si la descripción no tiene «Closes #N»
+#                               (sin-backlog, dependabot* y github-actions* siguen
+#                               exentos de ESTE script). Esa exención no vale para
+#                               issue-link en ci-ok: allí solo se salva dependabot[bot],
+#                               la issue tiene que existir y estar abierta, y el
+#                               cuerpo tiene que empezar por «Closes #N».
 #                               Si hay Closes/Fixes/Resolves, rellena Rama con la rama
 #                               de la PR, avisa si Agente está vacío y, si la tarjeta
 #                               estaba en «Listo para hacer», la pasa a «En curso».
@@ -221,12 +226,13 @@ cmd_pr_check() {
   labels="$(jq -r '.labels[].name' <<<"$data")"
   author="$(jq -r '.author.login' <<<"$data")"
   branch="$(jq -r '.headRefName // empty' <<<"$data")"
+  # Solo este script. issue-link (ci-ok) no perdona sin-backlog ni github-actions.
   if grep -qx 'sin-backlog' <<<"$labels" || [[ "$author" == dependabot* ]] || [[ "$author" == "github-actions"* ]]; then
     say "PR #$pr exenta del check de backlog (sin-backlog o bot)."
     return 0
   fi
   if ! has_closes "$body"; then
-    say "::error::La PR #$pr no tiene «Closes #N». Sin eso GitHub no la muestra en Development. La etiqueta sin-backlog exime a dependencias y CI."
+    say "::error::La PR #$pr no tiene «Closes #N». Sin eso GitHub no la muestra en Development."
     comment_once "$pr" "Backlog: falta «Closes #N» en la descripción. Tiene que ser la primera línea para que GitHub enlace la PR en Development." \
       || say "::warning::No pude avisar en la PR #$pr de que falta «Closes #N»."
     sync_linked_issues "$pr" "$body" "$branch" || say "::warning::No pude actualizar el Project de la PR #$pr."

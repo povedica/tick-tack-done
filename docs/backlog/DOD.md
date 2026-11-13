@@ -12,6 +12,7 @@ Fusionar no basta si falta un punto.
 - [ ] Existe al menos un comentario de decisión en la issue por cada decisión tomada;
       el último comentario resume el estado al pasar a En revisión.
 - [ ] PR fusionada en `main`; la issue se cierra con «Closes #N».
+- [ ] Si tras el cierre aparece un ajuste, va en una issue `ajuste` propia enlazada a la original.
 - [ ] Tablero correcto: columna Hecho, Agente y Rama rellenados, Zona
       correcta.
 - [ ] Si se aplicó una decisión, `DECISIONES.md` actualizado en la misma PR.
