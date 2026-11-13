@@ -29,8 +29,8 @@ if (calendar === undefined) {
 const files = new Set();
 const js = new Set();
 const css = new Set();
-walk(entry, files, js, css);
-walk(calendar, files, js, css);
+walk(entry, files, js, css, entry.file);
+walk(calendar, files, js, css, calendar.file);
 
 let jsBytes = 0;
 let cssBytes = 0;
@@ -65,15 +65,17 @@ function findCalendar(items, entryChunk) {
   );
 }
 
-function walk(item, seen, js, css) {
+function walk(item, seen, js, css, rootFile) {
   if (item === undefined || item === null || seen.has(item.file)) return;
+  const deferred = typeof item.file === 'string' && item.file.includes('/deferred-');
+  if (deferred && item.file !== rootFile) return;
   seen.add(item.file);
   if (typeof item.file === 'string' && item.file.endsWith('.js')) js.add(item.file);
   for (const file of item.css ?? []) css.add(file);
   const dynamic = new Set(item.dynamicImports ?? []);
   for (const ref of item.imports ?? []) {
     if (dynamic.has(ref)) continue;
-    walk(resolveImport(ref), seen, js, css);
+    walk(resolveImport(ref), seen, js, css, rootFile);
   }
 }
 
