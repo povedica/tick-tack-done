@@ -16,8 +16,6 @@ import sys
 
 OPENING = re.compile(r'Closes #([0-9]+)\b')
 EXEMPT_AUTHOR = 'dependabot[bot]'
-# The PR tool stores this line above the body the agent wrote. It is not an author exemption.
-CURSOR_BODY_MARKER = '<!-- CURSOR_AGENT_PR_BODY_BEGIN -->'
 
 
 class LookupFailed(Exception):
@@ -27,14 +25,34 @@ class LookupFailed(Exception):
 
 
 def opening_issue(body: str) -> str | None:
+    """Return the issue number when Closes #N is the first real line.
+
+    HTML comments and blank lines at the start do not count. A tool marker
+    such as <!-- CURSOR_AGENT_PR_BODY_BEGIN --> is one of those comments.
+    """
     if not body:
         return None
-    lines = body.splitlines()
-    if lines and lines[0].strip() == CURSOR_BODY_MARKER:
-        lines = lines[1:]
-    if not lines:
+    text = body
+    while text:
+        if text[0] in '\r\n':
+            text = text[1:]
+            continue
+        if text[0] in ' \t':
+            line, _, rest = text.partition('\n')
+            if line.strip() == '':
+                text = rest
+                continue
+            break
+        if text.startswith('<!--'):
+            end = text.find('-->')
+            if end == -1:
+                return None
+            text = text[end + 3:].lstrip(' \t')
+            continue
+        break
+    if not text:
         return None
-    match = OPENING.match(lines[0])
+    match = OPENING.match(text.splitlines()[0])
     return match.group(1) if match else None
 
 

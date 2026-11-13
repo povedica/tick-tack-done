@@ -207,8 +207,15 @@ class IssueLinkContracts(unittest.TestCase):
             ),
             (
                 'developer',
-                '<!-- otro -->\nCloses #12\n',
+                '<!-- otro -->\n\nCloses #12\n',
                 {'12': 'open'},
+                0,
+                'está abierta',
+            ),
+            (
+                'developer',
+                '<!-- Closes #99 -->\nNota\n',
+                {'99': 'open'},
                 1,
                 'no empieza por',
             ),
@@ -240,6 +247,39 @@ class IssueLinkContracts(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn('No pude leer la issue #12', result.stdout)
         self.assertNotIn('no existe', result.stdout)
+
+    def test_leading_html_comments_and_blank_lines_are_ignored(self):
+        preamble = (
+            '<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n'
+            '\n'
+            '<!--\n'
+            'nota que no cierra nada\n'
+            '-->\n'
+            '\n'
+            ' \n'
+            'Closes #170\n'
+        )
+        self.write_event('developer', preamble)
+        self.env['ISSUE_STATES'] = json.dumps({'170': 'open', '99': 'open'})
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Closes #170 está abierta', result.stdout)
+
+        hidden = '<!-- Closes #99 -->\n\nCloses #170\n'
+        self.write_event('developer', hidden)
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Closes #170 está abierta', result.stdout)
+        self.assertNotIn('#99', result.stdout)
+
+        self.write_event('developer', '<!-- sin cerrar\nCloses #170\n')
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('no empieza por', result.stdout)
+
+        self.write_event('developer', '  \n\t\nCloses #170\n')
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_dependabot_does_not_call_github(self):
         self.env['GH_REJECT'] = '1'

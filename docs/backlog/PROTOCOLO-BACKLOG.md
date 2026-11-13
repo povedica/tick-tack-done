@@ -123,11 +123,11 @@ Pablo, 13/11/2026: «Un agente no puede trabajar sin issue asignada en
 GitHub. Nunca.» Incluye los ajustes rápidos después de cerrar una issue y
 su PR: la traza en el tablero es la medida de eficiencia y eficacia.
 
-- La descripción de la PR de un agente empieza por `Closes #N`. `#N` existe
-  y está abierta. `issue-link` falla si no. Si la primera línea guardada es
-  exactamente `<!-- CURSOR_AGENT_PR_BODY_BEGIN -->` (la añade la herramienta
-  al crear la PR; el agente no la escribe), el check mira la línea siguiente.
-  Cualquier otro prefijo falla.
+- La descripción que escribe el agente empieza por `Closes #N`. `#N` existe
+  y está abierta. `issue-link` falla si, tras quitar comentarios HTML y
+  líneas en blanco del principio, el primer texto no es `Closes #N`. Así
+  no estorba el marcador que la herramienta guarda al crear la PR. Un
+  comentario HTML no es una exención de autor.
 - La única excepción es el autor `dependabot[bot]`. Un agente no usa
   `sin-backlog` para saltarse la issue.
 - Un cambio pedido en el chat que no tiene issue: primero se crea la issue
