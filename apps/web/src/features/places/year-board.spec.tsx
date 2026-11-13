@@ -22,7 +22,9 @@ it('visibilitychange without a day change does not re-render YearBoard', async (
   const onRender: ProfilerOnRenderCallback = () => {
     renders += 1;
   };
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+  });
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
@@ -39,6 +41,7 @@ it('visibilitychange without a day change does not re-render YearBoard', async (
     </QueryClientProvider>,
   );
   await waitFor(() => {
+    expect(client.getQueryState(['me'])?.status).toBe('success');
     expect(document.querySelectorAll('.year-card')).toHaveLength(12);
   });
   await act(async () => {
