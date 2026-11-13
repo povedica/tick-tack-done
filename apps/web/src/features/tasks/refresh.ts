@@ -21,6 +21,8 @@ export async function refreshTaskSurfaces(queryClient: QueryClient): Promise<voi
     queryClient.invalidateQueries({ queryKey: ['calendar-agenda'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['calendar-start-tasks'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['calendar-events'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['calendar-summary'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['calendar-range'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['search'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['search-page'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['task'], ...active }),

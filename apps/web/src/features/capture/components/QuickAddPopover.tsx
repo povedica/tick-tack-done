@@ -94,8 +94,20 @@ export function QuickAddPopover({
   }, [anchor, refs]);
   useEffect(() => bindPopover(requestClose), [requestClose, confirmDiscard]);
   useEffect(() => {
-    node.current?.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
+    const root = node.current;
+    let focused = false;
+    const focusTitle = () => {
+      if (focused || root === null) return;
+      const input = root.querySelector<HTMLInputElement>('input[name="title"]');
+      if (input === null) return;
+      input.focus();
+      focused = true;
+    };
+    focusTitle();
+    const observer = new MutationObserver(focusTitle);
+    if (root !== null) observer.observe(root, { childList: true, subtree: true });
     return () => {
+      observer.disconnect();
       const target = anchor?.element ?? previousFocus.current;
       if (!expanding.current && target?.isConnected) target.focus({ preventScroll: true });
     };

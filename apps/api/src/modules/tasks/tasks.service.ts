@@ -13,7 +13,8 @@ import {
   taskIdsLastAssignedBy,
 } from '../../reading/assignment.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
-import { annotateWork, workFilterFor } from '../../work/work-context.js';
+import { taskRangeWhere } from '../../reading/task-range.js';
+import { annotateWork, loadWorkRow, workFilterFor, type WorkRow } from '../../work/work-context.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
@@ -220,28 +221,17 @@ export class TasksService {
       query.to === undefined ? undefined : this.instant(query.to, 'to', user.timeZone).date;
     if (lower && upper && lower >= upper)
       throw new DomainException(HttpStatus.BAD_REQUEST, 'invalid_range', 'from must precede to');
-    const bounds = {
-      ...(lower === undefined ? {} : { gte: lower }),
-      ...(upper === undefined ? {} : { lt: upper }),
+    const range = taskRangeWhere(lower, upper, query.rangeField ?? 'any');
+    let workRow: WorkRow | undefined;
+    const workRowOnce = async (): Promise<WorkRow> => {
+      workRow ??= await loadWorkRow(this.prisma, user.id);
+      return workRow;
     };
-    const range: Prisma.TaskWhereInput | null =
-      lower === undefined && upper === undefined
+    const context = query.context ?? 'all';
+    const work =
+      context === 'all'
         ? null
-        : query.rangeField === 'due'
-          ? { dueDate: bounds }
-          : query.rangeField === 'start'
-            ? { startDate: bounds }
-            : {
-                OR: [
-                  { dueDate: bounds },
-                  { startDate: bounds },
-                  {
-                    startDate: { not: null, ...(upper === undefined ? {} : { lt: upper }) },
-                    dueDate: { not: null, ...(lower === undefined ? {} : { gte: lower }) },
-                  },
-                ],
-              };
-    const work = await workFilterFor(this.prisma, user.id, query.context ?? 'all');
+        : await workFilterFor(this.prisma, user.id, context, new Date(), await workRowOnce());
     const assignedBy =
       query.assignedByActorId === undefined
         ? null
@@ -285,6 +275,7 @@ export class TasksService {
       include: {
         _count: { select: { links: true } },
         tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
+        project: { select: { folderId: true } },
       },
       orderBy: taskOrderBy(query.sort),
       take: query.limit + 1,
@@ -304,7 +295,17 @@ export class TasksService {
       ...item,
       assignment: assignments.get(item.id) ?? null,
     }));
-    const flags = await annotateWork(this.prisma, user.id, withAssignment);
+    const flags =
+      page.length === 0
+        ? []
+        : annotateWork(
+            await workRowOnce(),
+            page.map((row) => ({
+              project_id: row.projectId,
+              tag_ids: row.tags.map((tag) => tag.tagId),
+              folder_id: row.project.folderId,
+            })),
+          );
     const last = page.at(-1);
     return {
       items: withAssignment.map((item, index) => ({ ...item, is_work: flags[index] ?? false })),
@@ -1075,6 +1076,7 @@ export class TasksService {
         data: {
           startDate: start,
           dueDate: due,
+          timeZone: current.timeZone,
           durationMinutes: this.duration(start, due, current.durationMinutes),
         },
       });
@@ -1390,10 +1392,16 @@ export class TasksService {
           dto.due_date === undefined
             ? null
             : this.nextDate(null, dto.due_date, 'due_date', user.timeZone).date;
-        await tx.task.updateMany({
+        const dated = await tx.task.findMany({
           where: { ownerId: user.id, id: { in: dto.ids } },
-          data: { dueDate: due },
+          select: { id: true, startDate: true, timeZone: true },
         });
+        for (const task of dated) {
+          await tx.task.update({
+            where: { id: task.id },
+            data: { startDate: task.startDate, dueDate: due, timeZone: task.timeZone },
+          });
+        }
         for (const id of dto.ids) {
           await this.emitUpdated(tx, user, id);
         }

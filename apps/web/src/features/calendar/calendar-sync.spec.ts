@@ -7,6 +7,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type * as I18n from '../../i18n';
 import { GlobalKeys } from '../../shell/GlobalKeys';
 import { CalendarSyncButton, GoogleCalendarHealthBanner } from './GoogleCalendarHealthBanner';
+import { syncTouchedEvents } from './sync-calendars';
 
 const syncCalendars = vi.hoisted(() => vi.fn());
 
@@ -26,6 +27,16 @@ afterEach(() => {
   cleanup();
   syncCalendars.mockReset();
   sessionStorage.clear();
+});
+
+it('RF-2565: an open sync that writes nothing does not need a second calendar read', () => {
+  expect(syncTouchedEvents({ subscriptions: [{ imported: 0, updated: 0, deleted: 0 }] })).toBe(
+    false,
+  );
+  expect(syncTouchedEvents({ subscriptions: [{ imported: 1, updated: 0, deleted: 0 }] })).toBe(
+    true,
+  );
+  expect(syncTouchedEvents(null)).toBe(true);
 });
 
 it('RF-2564: the banner asks to reconnect and keeps the rest of the page free to show events', () => {

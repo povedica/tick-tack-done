@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useMessages } from '../i18n';
 import { useAppLocale } from '../i18n/locale';
+import { dateTimeFormat } from '../lib/dates/formatters';
 import { usePreferences } from '../theme/preferences';
 import { localDateParam, monthCells } from '../features/places/month';
 import { CalendarSources } from '../features/calendar/CalendarSources';
@@ -34,7 +35,7 @@ export function CalendarSidebar({
   const todayKey = useCalendarToday();
   const monthLabel = formatMonthYear(cursor, locale, 'long');
   const monthShort = formatMonthYear(cursor, locale, 'short');
-  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
+  const weekday = dateTimeFormat(locale, { weekday: 'narrow' });
   const heads = Array.from({ length: 7 }, (_, index) => {
     const sample = cells[index] ?? cursor;
     return weekday.format(sample);

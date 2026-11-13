@@ -85,6 +85,8 @@
   align-items: center;
   gap: var(--sp-1);
   height: var(--chip-h);
+  min-height: 0;
+  max-height: var(--chip-h);
   max-width: var(--chip-max-w);
   padding-inline: var(--sp-2);
   border: var(--chip-border);
@@ -159,6 +161,7 @@
 @media (max-width: 768px) {
   .attachment-chip {
     height: var(--chip-h-mobile);
+    max-height: var(--chip-h-mobile);
   }
   .attachment-chip::before {
     content: '';

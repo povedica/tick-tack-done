@@ -73,9 +73,28 @@ export class SlidingWindowRateLimit {
   }
 }
 
+/**
+ * Production stays at {@link TOKEN_RATE_LIMIT}. `TOKEN_RATE_LIMIT_TEST` exists only
+ * outside production (CI perf job). `assertRuntimeConfig` refuses it when NODE_ENV=production.
+ */
+export function resolveTokenRateLimit(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env.TOKEN_RATE_LIMIT_TEST;
+  if (raw === undefined || raw.length === 0) {
+    return TOKEN_RATE_LIMIT;
+  }
+  if (env.NODE_ENV === 'production') {
+    throw new Error('TOKEN_RATE_LIMIT_TEST is refused when NODE_ENV=production');
+  }
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 1_000_000) {
+    throw new Error('TOKEN_RATE_LIMIT_TEST must be an integer from 1 to 1000000');
+  }
+  return parsed;
+}
+
 @Injectable()
 export class TokenRateLimiter {
-  private readonly window = new SlidingWindowRateLimit();
+  private readonly window = new SlidingWindowRateLimit(resolveTokenRateLimit());
 
   consume(tokenId: string): RateLimitDecision {
     return this.window.consume(tokenId);

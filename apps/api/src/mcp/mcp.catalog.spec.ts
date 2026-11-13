@@ -65,6 +65,8 @@ describe('MCP tool catalog', () => {
       'list_smart_list_tasks',
       'get_day_load',
       'list_calendar_events',
+      'calendar_summary',
+      'calendar_range',
       'get_day_plan',
     ]) {
       const tool = MCP_TOOLS.find((item) => item.name === name);
@@ -164,6 +166,8 @@ describe('MCP tool catalog', () => {
       expect.arrayContaining([
         'list_external_calendars',
         'list_calendar_events',
+        'calendar_summary',
+        'calendar_range',
         'get_calendar_sync_status',
       ]),
     );
@@ -172,6 +176,8 @@ describe('MCP tool catalog', () => {
     const write = visibleTools(['calendar:write']).map((tool) => tool.name);
     expect(write).toContain('sync_calendar');
     expect(write).not.toContain('list_calendar_events');
+    expect(write).not.toContain('calendar_summary');
+    expect(write).not.toContain('calendar_range');
     const tasks = visibleTools(['tasks:read']).map((tool) => tool.name);
     expect(tasks).not.toContain('list_external_calendars');
   });

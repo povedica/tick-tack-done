@@ -46,6 +46,14 @@ it('TTD-AUD-86 warns about ignored production legacy credentials without printin
   expect(JSON.stringify(warn.mock.calls)).not.toContain('synthetic-legacy-never-print');
 });
 
+it('refuses TOKEN_RATE_LIMIT_TEST in production', () => {
+  setup();
+  vi.stubEnv('TOKEN_RATE_LIMIT_TEST', '50000');
+  expect(() => assertRuntimeConfig()).toThrow(
+    'TOKEN_RATE_LIMIT_TEST is refused when NODE_ENV=production',
+  );
+});
+
 it('RF-2003: warns about both ignored legacy Telegram credentials without exposing values', () => {
   setup();
   vi.stubEnv('TELEGRAM_BOT_TOKEN', 'synthetic-bot-credential');

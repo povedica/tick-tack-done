@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type ActivityAction } from '@prisma/client';
 import type { EventActor } from '../auth/auth-user.js';
+import { bumpCalendarVersion, calendarVersionEvent } from '../modules/calendar/calendar-version.js';
 import type { Tx } from '../prisma/tx.js';
 
 export interface RecordedEvent {
@@ -39,5 +40,8 @@ export class EventRecorder {
             : { data: event.data, previous: event.previous, _event_type: event.type },
       },
     });
+    if (calendarVersionEvent(event.type, event.data)) {
+      await bumpCalendarVersion(tx, actor.ownerId);
+    }
   }
 }

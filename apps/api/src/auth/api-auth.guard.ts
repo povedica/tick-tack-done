@@ -23,6 +23,7 @@ import {
 import { TokenAudit } from './token-audit.js';
 import { createHash } from 'node:crypto';
 import { dayKey } from '@reflexionia/domain';
+import { beginAuth, endAuth } from '../observability/request-timing.js';
 import { applyRateLimitHeaders, TokenRateLimiter } from './token-rate-limit.js';
 import { trustedMcpSource } from '../mcp/internal-source.js';
 import { hashPersonalAccessToken, parseBearer } from './token-secret.js';
@@ -37,6 +38,13 @@ interface TokenRow {
 }
 
 const TOUCH_AFTER_MS = 60_000;
+
+/** One daily_use row per user and civil day, per process. The id stays deterministic. */
+const dailyUseByUser = new Map<string, string>();
+
+export function resetDailyUseCache(): void {
+  dailyUseByUser.clear();
+}
 
 /**
  * Dev requests (X-Dev-User-Email, AUTH_MODE=dev) still receive every scope the route declares.
@@ -63,8 +71,16 @@ export class ApiAuthGuard implements CanActivate {
     if (isPublic) {
       return true;
     }
-    const scopes = required ?? [];
+    beginAuth();
+    const authStarted = performance.now();
+    try {
+      return await this.authorize(context, required ?? []);
+    } finally {
+      endAuth(performance.now() - authStarted);
+    }
+  }
 
+  private async authorize(context: ExecutionContext, scopes: readonly string[]): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request & { user?: AuthUser }>();
     const response = context.switchToHttp().getResponse<Response>();
     const bearer = parseBearer(request.header('authorization'));
@@ -228,9 +244,27 @@ export class ApiAuthGuard implements CanActivate {
   ): Promise<AuthUser> {
     const row = await this.prisma.session.findFirst({
       where: { tokenHash: hashSecret(secret), revokedAt: null, expiresAt: { gt: new Date() } },
-      select: { id: true, userId: true, csrfToken: true, lastUsedAt: true, createdAt: true },
+      select: {
+        id: true,
+        userId: true,
+        csrfToken: true,
+        lastUsedAt: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            timeZone: true,
+            taskCompleteChildren: true,
+            deletedAt: true,
+          },
+        },
+      },
     });
     if (row === null) {
+      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid session');
+    }
+    if (row.user.deletedAt !== null) {
       throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid session');
     }
     const now = Date.now();
@@ -243,9 +277,14 @@ export class ApiAuthGuard implements CanActivate {
     assertCsrf(request, row.csrfToken);
     request.csrfToken = row.csrfToken;
     await this.touchLastUsed('session', row.id, row.lastUsedAt);
-    const user = await this.loadUser(row.userId);
+    const user = {
+      id: row.user.id,
+      email: row.user.email,
+      timeZone: row.user.timeZone,
+      completeChildren: row.user.taskCompleteChildren,
+    };
     const date = dayKey(new Date().toISOString(), user.timeZone);
-    if (date !== null) {
+    if (date !== null && dailyUseByUser.get(user.id) !== date) {
       // The existing UUID primary key makes concurrent first requests idempotent.
       const hash = createHash('sha256').update(`daily_use:${user.id}:${date}`).digest('hex');
       const id = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
@@ -263,6 +302,7 @@ export class ApiAuthGuard implements CanActivate {
         ],
         skipDuplicates: true,
       });
+      dailyUseByUser.set(user.id, date);
     }
     return {
       ...user,

@@ -1,3 +1,4 @@
+import { dateTimeFormat } from '../../lib/dates/formatters';
 import { useState } from 'react';
 import type { Messages } from '../../i18n';
 
@@ -27,7 +28,7 @@ export function ExternalEventPopover({
   readonly locale: string;
   readonly onClose: () => void;
 }) {
-  const when = new Intl.DateTimeFormat(locale, {
+  const when = dateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: event.is_all_day ? undefined : 'short',
   });

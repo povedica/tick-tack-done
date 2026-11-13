@@ -79,6 +79,7 @@ async function createTask(
       projectId,
       title: title.trim(),
       content: '',
+      startDate: null,
       dueDate: due,
       timeZone,
       createdById: user.id,

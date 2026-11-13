@@ -13,6 +13,7 @@ import {
 } from '../work/work-context.js';
 import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/email-address.js';
 import { DomainException } from '../http/domain.exception.js';
+import { LocalDayQueue } from '../modules/calendar/local-day-queue.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { actorOf, type AuthUser } from './auth-user.js';
 import { featureFlags } from './feature-flags.js';
@@ -32,6 +33,7 @@ export class MeService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(LocalDayQueue) private readonly localDays: LocalDayQueue,
   ) {}
 
   async get(user: AuthUser): Promise<MeResponseDto> {
@@ -82,7 +84,16 @@ export class MeService {
         'time_zone is not a valid IANA name',
       );
     }
-    return this.prisma.$transaction(async (tx) => {
+    const previousZone =
+      dto.time_zone === undefined
+        ? null
+        : ((
+            await this.prisma.user.findUnique({
+              where: { id: user.id },
+              select: { timeZone: true },
+            })
+          )?.timeZone ?? null);
+    const result = await this.prisma.$transaction(async (tx) => {
       if (dto.capture_settings?.default_list_id) {
         const list = await tx.project.findFirst({
           where: {
@@ -193,6 +204,10 @@ export class MeService {
         });
       return this.toJson(row);
     });
+    if (dto.time_zone !== undefined && previousZone !== null && previousZone !== dto.time_zone) {
+      await this.localDays.enqueueTimedRecalc(user.id);
+    }
+    return result;
   }
 
   private async mergeFeatures(

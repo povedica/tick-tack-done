@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  resolveTokenRateLimit,
   SlidingWindowRateLimit,
   TOKEN_RATE_LIMIT,
   TOKEN_RATE_WINDOW_MS,
@@ -24,5 +25,15 @@ describe('token rate limit', () => {
     const again = limiter.consume('token-1');
     expect(again.allowed).toBe(true);
     expect(again.remaining).toBe(TOKEN_RATE_LIMIT - 1);
+  });
+
+  it('keeps the production limit unless a non-production test override is set', () => {
+    expect(resolveTokenRateLimit({ NODE_ENV: 'production' })).toBe(TOKEN_RATE_LIMIT);
+    expect(resolveTokenRateLimit({ NODE_ENV: 'test', TOKEN_RATE_LIMIT_TEST: '50000' })).toBe(
+      50_000,
+    );
+    expect(() =>
+      resolveTokenRateLimit({ NODE_ENV: 'production', TOKEN_RATE_LIMIT_TEST: '50000' }),
+    ).toThrow('TOKEN_RATE_LIMIT_TEST is refused when NODE_ENV=production');
   });
 });

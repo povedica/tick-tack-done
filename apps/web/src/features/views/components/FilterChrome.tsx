@@ -1,12 +1,15 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { UndoToastStack } from '../../../components/UndoToast';
 import { Button, Modal } from '../../../components/ui';
 import { fill, useMessages } from '../../../i18n';
 import { deleteFilter, restoreFilter } from '../filter-commands';
 import { useFilterUi } from '../filter-ui';
-import { FilterEditor } from './FilterEditor';
-import '../filters.css';
+
+const FilterEditor = lazy(() =>
+  import('./FilterEditor').then((module) => ({ default: module.FilterEditor })),
+);
 
 export function FilterChrome() {
   const messages = useMessages();
@@ -25,7 +28,11 @@ export function FilterChrome() {
       <p className="filter-live" aria-live="polite">
         {notice ?? ''}
       </p>
-      {editor !== null ? <FilterEditor request={editor} onClose={closeEditor} /> : null}
+      {editor !== null ? (
+        <Suspense fallback={null}>
+          <FilterEditor request={editor} onClose={closeEditor} />
+        </Suspense>
+      ) : null}
       {deleting !== null ? (
         <Modal
           role="alertdialog"

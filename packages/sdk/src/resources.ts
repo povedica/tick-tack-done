@@ -393,6 +393,18 @@ export interface ResourceClient {
     from: string,
     to: string,
     context?: 'all' | 'work' | 'personal' | 'auto',
+    include?: 'external' | 'tasks' | 'all',
+  ): Promise<JsonObject>;
+  calendarSummary(
+    query: CalendarZoomQuery & { granularity?: 'day' | 'month' },
+  ): Promise<JsonObject>;
+  calendarRange(
+    query: CalendarZoomQuery & {
+      fields?: 'compact' | 'full';
+      include?: string;
+      cursor?: string;
+      limit?: number;
+    },
   ): Promise<JsonObject>;
   listGoogleCalendars(): Promise<readonly JsonObject[]>;
   listCalendarSubscriptions(): Promise<JsonObject>;
@@ -515,6 +527,43 @@ export interface ResourceClient {
   ): Promise<JsonObject>;
   revokePublicLink(projectId: string): Promise<void>;
   getPublicList(token: string): Promise<JsonObject>;
+}
+
+export interface CalendarZoomQuery {
+  readonly from: string;
+  readonly to: string;
+  readonly context?: 'all' | 'work' | 'personal' | 'auto';
+  readonly lists?: string;
+  readonly tags?: string;
+  readonly cals?: string;
+  readonly granularity?: 'day' | 'month';
+  readonly fields?: 'compact' | 'full';
+  readonly include?: string;
+  readonly cursor?: string;
+  readonly limit?: number;
+}
+
+function zoomQuery(query: CalendarZoomQuery): string {
+  const params = new URLSearchParams();
+  params.set('from', query.from);
+  params.set('to', query.to);
+  const optional: readonly (readonly [string, string | number | undefined])[] = [
+    ['context', query.context],
+    ['lists', query.lists],
+    ['tags', query.tags],
+    ['cals', query.cals],
+    ['granularity', query.granularity],
+    ['fields', query.fields],
+    ['include', query.include],
+    ['cursor', query.cursor],
+    ['limit', query.limit],
+  ];
+  for (const [key, value] of optional) {
+    if (value !== undefined && String(value).length > 0) {
+      params.set(key, String(value));
+    }
+  }
+  return `?${params.toString()}`;
 }
 
 function pageQuery(query: PageQuery | undefined): string {
@@ -772,14 +821,18 @@ export function resourceMethods(http: Http): ResourceClient {
         undefined,
         isJsonObject,
       ),
-    calendarEvents: (from, to, context) =>
+    calendarEvents: (from, to, context, include) =>
       ask(
         'GET',
-        `/api/v1/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${context === undefined ? '' : `&context=${encodeURIComponent(context)}`}`,
+        `/api/v1/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${context === undefined ? '' : `&context=${encodeURIComponent(context)}`}${include === undefined ? '' : `&include=${encodeURIComponent(include)}`}`,
         undefined,
         undefined,
         isJsonObject,
       ),
+    calendarSummary: (query) =>
+      ask('GET', `/api/v1/calendar/summary${zoomQuery(query)}`, undefined, undefined, isJsonObject),
+    calendarRange: (query) =>
+      ask('GET', `/api/v1/calendar/range${zoomQuery(query)}`, undefined, undefined, isJsonObject),
     listGoogleCalendars: () =>
       ask('GET', '/api/v1/calendar/google/calendars', undefined, undefined, isJsonList),
     listCalendarSubscriptions: () =>

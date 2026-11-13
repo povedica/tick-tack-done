@@ -46,6 +46,29 @@ export {
 export type { ParsedRule, RepeatDraft, RuleFailure, Weekday } from './recurrence/rule';
 
 export { instantFromWall, startOfZonedDay } from './dates/zoned';
+export { entryLocalDays } from './calendar/local-days';
+export type {
+  EntryLocalDays,
+  EventLocalInput,
+  LocalDayContext,
+  TaskLocalInput,
+} from './calendar/local-days';
+export {
+  EVENT_COLOR_CAP,
+  RANGE_MAX_DAYS,
+  RANGE_MAX_LIMIT,
+  SUMMARY_MAX_DAYS,
+  TASK_COLOR_CAP,
+  authorizedLists,
+  calendarScopeKey,
+  decodeCalendarCursor,
+  encodeCalendarCursor,
+  inclusiveCivilDays,
+  listScopeKey,
+  parseCivilDay,
+  zoomDensity,
+} from './calendar/zoom';
+export type { CalendarCursorKey, CalendarScope, ZoomCell, ZoomMark } from './calendar/zoom';
 export { parseTaskInstant } from './dates/parse-instant';
 export type { ParsedTaskInstant } from './dates/parse-instant';
 export { isOverdue, plannedForLater, snoozeDue } from './dates/schedule';
@@ -483,7 +506,8 @@ export { WEEKDAY_CODES, weekdayCodes, weekdayNumbers } from './work/weekdays';
 export type { WeekdayCode } from './work/weekdays';
 export type { NotificationKind, NotificationChannel } from './reminders/preferences';
 
-export { DEFAULT_CAPTURE_SETTINGS, captureSettings, parseCapture } from './nlp/capture-settings';
+export { DEFAULT_CAPTURE_SETTINGS, captureSettings } from './nlp/capture-settings';
+export { parseCapture } from './nlp/parse-capture';
 export type { CaptureSettings } from './nlp/capture-settings';
 
 export {

@@ -9,6 +9,12 @@ import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { oauthEdgeMiddleware } from './auth/oauth-edge.js';
 import { ApiExceptionFilter } from './http/api-exception.filter.js';
+import {
+  createRequestStore,
+  enterRequest,
+  installServerTiming,
+  normalizeRoute,
+} from './observability/request-timing.js';
 import { isPublicOperation } from './security/public-operations.js';
 import { trustProxyHops } from './security/runtime-config.js';
 
@@ -42,12 +48,20 @@ export function configureApp(app: INestApplication): void {
   app.use(cookieParser());
   app.use((req: Request, res: Response, next: NextFunction) => {
     const path = (req.originalUrl.length > 0 ? req.originalUrl : req.url).split('?')[0] ?? '';
-    if (path.startsWith('/api/') || path.startsWith('/mcp') || path.startsWith('/feeds/')) {
+    if (path.startsWith('/api/v1/calendar')) {
+      res.setHeader('Cache-Control', 'private, no-cache');
+      res.setHeader('Vary', 'Cookie, Authorization');
+    } else if (path.startsWith('/api/') || path.startsWith('/mcp') || path.startsWith('/feeds/')) {
       res.setHeader('Cache-Control', 'no-store');
     }
     const incoming = req.header('x-request-id');
     const requestId = incoming !== undefined && REQUEST_ID.test(incoming) ? incoming : randomUUID();
     res.setHeader('X-Request-Id', requestId);
+    if (path.startsWith('/api/')) {
+      const store = createRequestStore(requestId, normalizeRoute(req.method, path));
+      enterRequest(store);
+      installServerTiming(res, store);
+    }
     next();
   });
   app.useGlobalPipes(

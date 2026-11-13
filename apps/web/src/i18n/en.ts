@@ -1,4 +1,4 @@
-import { extraEn } from './extra';
+import { extraEn } from './extra.en';
 import type { es } from './es';
 
 export const en = {
