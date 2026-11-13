@@ -10,6 +10,8 @@ Closes #
 ## Backlog
 
 - [ ] La issue cumplía la DoR (`docs/backlog/DOR.md`) cuando la reclamé.
+- [ ] Esta PR empieza por `Closes #N` y `#N` está abierta. Si ajusta una
+      issue ya cerrada, cierra una issue `ajuste` nueva y no reabre la original.
 - [ ] Agente y Rama de arriba están rellenados. Agente es `<ejecutor>-<rol>-N`.
 - [ ] Zona rellenada; ninguna otra tarjeta en curso, pausada o en revisión
       comparte mi Zona (y nada más en prisma-migrations).
