@@ -157,16 +157,19 @@ test -n "$RESEND_API_KEY" && echo resend || echo smtp
 
 En staging y producción, antes de migrar se guarda un `pg_dump` comprimido en
 `PRE_MIGRATE_BACKUP_DIR/<STAMP>/db.sql.gz`. Por defecto se usa
-`<raíz del entorno>/backups/pre-migrate/`, por ejemplo
+`<padre de DEPLOY_APP_DIR>/backups/pre-migrate/`, por ejemplo
 `/opt/todo-staging/backups/pre-migrate/` o `/opt/todo/backups/pre-migrate/`.
-La raíz se obtiene del release (`<raíz>/releases/<run>`); las rutas dentro de
-`releases/`, incluso mediante enlaces simbólicos, se rechazan. Puede configurarse
+Con `DEPLOY_APP_DIR=/opt/todo-staging/app` (producción: `/opt/todo/app`),
+las copias quedan junto a `app/`. Si `DEPLOY_APP_DIR` no está exportada en el VPS,
+se obtiene del release (`<DEPLOY_APP_DIR>/releases/<run>`) y se usa su padre.
+Las rutas dentro de `releases/`, incluso mediante enlaces simbólicos, se rechazan. Puede configurarse
 una ruta absoluta persistente con `PRE_MIGRATE_BACKUP_DIR` en el entorno.
 El usuario de deploy debe poder crear y escribir ese directorio.
 
 Los directorios tienen permisos 0700 y el dump 0600. El log muestra únicamente la
 ruta y el tamaño de la copia. Si falla la escritura, `pg_dump` o el dump está vacío,
-el deploy termina antes de migrar o reemplazar la API anterior.
+el deploy termina antes de migrar o reemplazar la API anterior y elimina el
+archivo parcial y el directorio del STAMP si queda vacío.
 `BACKUP_RETENTION_DAYS` fija la retención (30 días por defecto); se conservan siempre
 las tres copias completas más recientes, aunque excedan ese plazo. La limpieza se
 hace después de completar una copia nueva y solo afecta a este directorio.

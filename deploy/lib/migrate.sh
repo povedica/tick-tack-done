@@ -31,10 +31,11 @@ backup_before_migrate() (
   set +x
   set -euo pipefail
   umask 077
-  local config base destination archive stamp retention db_user db_name count candidate
+  local config base app_dir destination archive stamp retention db_user db_name count candidate
   config=$(compose config --format json)
   base=${PRE_MIGRATE_BACKUP_DIR:-$(jq -r --arg api "$api" '.services[$api].environment.PRE_MIGRATE_BACKUP_DIR // empty' <<< "$config")}
-  base=${base:-${root%%/releases/*}/backups/pre-migrate}
+  app_dir=${DEPLOY_APP_DIR:-${root%%/releases/*}}
+  base=${base:-$(dirname "${app_dir%/}")/backups/pre-migrate}
   retention=${BACKUP_RETENTION_DAYS:-$(jq -r --arg api "$api" '.services[$api].environment.BACKUP_RETENTION_DAYS // 30' <<< "$config")}
   [[ $retention =~ ^[0-9]+$ ]] || return 64
   # Reject release paths both before and after resolving symlinks and '..'.
@@ -47,7 +48,7 @@ backup_before_migrate() (
   destination="$base/$stamp"
   mkdir -m 700 "$destination"
   archive="$destination/db.sql.gz"
-  trap 'rm -f "$archive.partial"' EXIT
+  trap 'rm -f "$archive.partial"; rmdir "$destination" 2>/dev/null || :' EXIT
   db_user=$(jq -r '.services.postgres.environment.POSTGRES_USER // "reflexionia"' <<< "$config")
   db_name=$(jq -r '.services.postgres.environment.POSTGRES_DB // "reflexionia"' <<< "$config")
   compose exec -T postgres pg_dump -U "$db_user" "$db_name" | gzip > "$archive.partial"

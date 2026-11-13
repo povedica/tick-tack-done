@@ -90,8 +90,9 @@ class WorkflowContracts(unittest.TestCase):
 
 
 class PreMigrationBackupContracts(unittest.TestCase):
-    def backup(self, directory, override=''):
-        release=directory/'releases'/'run-1'
+    def backup(self, directory, override='', explicit_app_dir=False):
+        app_dir=directory/'app'
+        release=app_dir/'releases'/'run-1'
         release.mkdir(parents=True)
         script = r'''source "$SOURCE"
 root=$RELEASE
@@ -105,18 +106,24 @@ compose() {
 }
 backup_before_migrate
 '''
-        env={k:v for k,v in os.environ.items() if not k.startswith('GOOGLE_') and k not in ('BACKUP_REMOTE','PRE_MIGRATE_BACKUP_DIR','BACKUP_RETENTION_DAYS')}
+        env={k:v for k,v in os.environ.items() if not k.startswith('GOOGLE_') and k not in ('BACKUP_REMOTE','PRE_MIGRATE_BACKUP_DIR','BACKUP_RETENTION_DAYS','DEPLOY_APP_DIR')}
         env.update(SOURCE=str(ROOT/'deploy/lib/migrate.sh'),RELEASE=str(release))
+        if explicit_app_dir: env['DEPLOY_APP_DIR']=str(app_dir)
         if override: env['PRE_MIGRATE_BACKUP_DIR']=str(override)
         return subprocess.run(['bash','-euo','pipefail','-c',script],env=env,capture_output=True,text=True)
 
-    def test_default_is_persistent_outside_releases_without_remote_credentials(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            directory=Path(temporary)
-            result=self.backup(directory)
-            self.assertEqual(result.returncode,0,result.stderr)
-            self.assertEqual(len(list((directory/'backups/pre-migrate').glob('*/db.sql.gz'))),1)
-            self.assertFalse(list((directory/'releases').glob('**/db.sql.gz')))
+    def test_default_uses_parent_of_deploy_app_dir_in_staging_and_production(self):
+        for environment in ('todo-staging','todo'):
+            for explicit_app_dir in (False,True):
+                with self.subTest(environment=environment,explicit_app_dir=explicit_app_dir), tempfile.TemporaryDirectory() as temporary:
+                    directory=Path(temporary)/environment
+                    result=self.backup(directory,explicit_app_dir=explicit_app_dir)
+                    self.assertEqual(result.returncode,0,result.stderr)
+                    archives=list((directory/'backups/pre-migrate').glob('*/db.sql.gz'))
+                    self.assertEqual(len(archives),1)
+                    self.assertIn(str(archives[0]),result.stdout)
+                    self.assertFalse((directory/'app/backups').exists())
+                    self.assertFalse(list((directory/'app/releases').glob('**/db.sql.gz')))
 
     def test_release_paths_and_symlink_aliases_are_rejected(self):
         for kind in ('direct','symlink','parent'):

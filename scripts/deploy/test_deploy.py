@@ -142,7 +142,7 @@ class DeployTest(unittest.TestCase):
                 self.assertFalse(any('migrate' in c or 'up' in c for c in calls))
                 self.assertEqual(running['staging-api'],'api:old')
                 self.assertIn('API_IMAGE=api:old',state)
-                self.assertFalse(list((self.last_temp_root/'backups').glob('*/*')))
+                self.assertEqual(list((self.last_temp_root/'backups').iterdir()),[])
 
     def test_unwritable_destination_aborts_before_migration_and_keeps_previous_api(self):
         def setup(root):
