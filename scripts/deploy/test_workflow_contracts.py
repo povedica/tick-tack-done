@@ -191,6 +191,27 @@ class IssueLinkContracts(unittest.TestCase):
             ('app/dependabot', 'Bumps vite', {}, 1, 'no empieza por'),
             ('dependabot[bot]', '', {}, 0, 'queda exento'),
             ('dependabot[bot]', 'Closes #12', {'12': 'closed'}, 0, 'queda exento'),
+            (
+                'developer',
+                '<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\nCloses #12\n',
+                {'12': 'open'},
+                0,
+                'está abierta',
+            ),
+            (
+                'developer',
+                '<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\nFixes #12\n',
+                {'12': 'open'},
+                1,
+                'no empieza por',
+            ),
+            (
+                'developer',
+                '<!-- otro -->\nCloses #12\n',
+                {'12': 'open'},
+                1,
+                'no empieza por',
+            ),
         )
         for author, body, states, code, needle in cases:
             with self.subTest(author=author, body=body, states=states):

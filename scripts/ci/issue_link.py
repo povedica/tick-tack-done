@@ -16,6 +16,8 @@ import sys
 
 OPENING = re.compile(r'Closes #([0-9]+)\b')
 EXEMPT_AUTHOR = 'dependabot[bot]'
+# The PR tool stores this line above the body the agent wrote. It is not an author exemption.
+CURSOR_BODY_MARKER = '<!-- CURSOR_AGENT_PR_BODY_BEGIN -->'
 
 
 class LookupFailed(Exception):
@@ -27,8 +29,12 @@ class LookupFailed(Exception):
 def opening_issue(body: str) -> str | None:
     if not body:
         return None
-    first = body.splitlines()[0]
-    match = OPENING.match(first)
+    lines = body.splitlines()
+    if lines and lines[0].strip() == CURSOR_BODY_MARKER:
+        lines = lines[1:]
+    if not lines:
+        return None
+    match = OPENING.match(lines[0])
     return match.group(1) if match else None
 
 

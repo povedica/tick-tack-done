@@ -124,7 +124,10 @@ GitHub. Nunca.» Incluye los ajustes rápidos después de cerrar una issue y
 su PR: la traza en el tablero es la medida de eficiencia y eficacia.
 
 - La descripción de la PR de un agente empieza por `Closes #N`. `#N` existe
-  y está abierta. `issue-link` falla si no.
+  y está abierta. `issue-link` falla si no. Si la primera línea guardada es
+  exactamente `<!-- CURSOR_AGENT_PR_BODY_BEGIN -->` (la añade la herramienta
+  al crear la PR; el agente no la escribe), el check mira la línea siguiente.
+  Cualquier otro prefijo falla.
 - La única excepción es el autor `dependabot[bot]`. Un agente no usa
   `sin-backlog` para saltarse la issue.
 - Un cambio pedido en el chat que no tiene issue: primero se crea la issue
