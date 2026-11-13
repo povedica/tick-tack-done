@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extraEs } from '../../i18n/extra';
+import { extraEs } from '../../i18n/extra.es';
 import { es } from '../../i18n/es';
 import { filterMenuItems } from './filter-menu-items';
 

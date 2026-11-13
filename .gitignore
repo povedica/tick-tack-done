@@ -20,6 +20,8 @@ id_*
 playwright-report/
 test-results/
 data/
+!apps/web/src/features/calendar/data/
+!apps/web/src/features/calendar/data/**
 backups/
 .DS_Store
 *.log

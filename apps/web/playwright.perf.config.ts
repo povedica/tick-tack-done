@@ -4,7 +4,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4174';
 
 export default defineConfig({
   testDir: './e2e/perf',
-  testMatch: 'calendar.perf.spec.ts',
+  testMatch: ['calendar.perf.spec.ts', 'year-summary.perf.spec.ts'],
   timeout: 45 * 60_000,
   workers: 1,
   retries: 0,

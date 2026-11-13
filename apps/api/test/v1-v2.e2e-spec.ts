@@ -1,5 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { dayKey } from '@reflexionia/domain';
+import { resetDailyUseCache } from '../src/auth/api-auth.guard.js';
 import { newPersonalAccessToken } from '../src/auth/token-secret.js';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -69,6 +70,7 @@ describe('V1 and V2 product', () => {
 
   it('Control v3: concurrent session requests record one local daily_use without extra data or backfill', async () => {
     await prisma.activityLog.deleteMany({ where: { ownerId: userId, entityType: 'daily_use' } });
+    resetDailyUseCache();
     await prisma.user.update({ where: { id: userId }, data: { timeZone: 'Europe/Madrid' } });
     await Promise.all(Array.from({ length: 8 }, () => session().get('/api/v1/me').expect(200)));
     const logs = await prisma.activityLog.findMany({

@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import '../filters.css';
 import { useNavigate } from 'react-router';
 import { api } from '../../../api';
 import { DatePopover, type DateDraft } from '../../../components/DatePopover';

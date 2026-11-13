@@ -14,6 +14,7 @@ vi.mock('../../api', () => ({
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 it('visibilitychange without a day change does not re-render YearBoard', async () => {
@@ -55,4 +56,35 @@ it('visibilitychange without a day change does not re-render YearBoard', async (
     });
   });
   expect(renders).toBe(settled);
+});
+
+it('paints the focus month first and the rest of the year when the browser is idle', () => {
+  let idle: (() => void) | undefined;
+  vi.stubGlobal('requestIdleCallback', (callback: () => void) => {
+    idle = callback;
+    return 1;
+  });
+  vi.stubGlobal('cancelIdleCallback', () => undefined);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <YearBoard
+          year={2026}
+          focusMonth={10}
+          tasks={[]}
+          weekStart="monday"
+          colors={new Map()}
+          onOpen={() => undefined}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  const labels = () =>
+    [...document.querySelectorAll('.year-month')].map((node) => node.textContent);
+  expect(labels()).toEqual(['octubre', 'noviembre', 'diciembre']);
+  act(() => {
+    idle?.();
+  });
+  expect(document.querySelectorAll('.year-card')).toHaveLength(12);
 });

@@ -48,7 +48,10 @@ export function configureApp(app: INestApplication): void {
   app.use(cookieParser());
   app.use((req: Request, res: Response, next: NextFunction) => {
     const path = (req.originalUrl.length > 0 ? req.originalUrl : req.url).split('?')[0] ?? '';
-    if (path.startsWith('/api/') || path.startsWith('/mcp') || path.startsWith('/feeds/')) {
+    if (path.startsWith('/api/v1/calendar')) {
+      res.setHeader('Cache-Control', 'private, no-cache');
+      res.setHeader('Vary', 'Cookie, Authorization');
+    } else if (path.startsWith('/api/') || path.startsWith('/mcp') || path.startsWith('/feeds/')) {
       res.setHeader('Cache-Control', 'no-store');
     }
     const incoming = req.header('x-request-id');

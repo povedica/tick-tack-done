@@ -1,15 +1,8 @@
+import { messagesFor, type Messages } from './catalog';
 import { useLocale } from './locale';
-import { en } from './en';
-import { es } from './es';
 
-export type Messages = { [K in keyof typeof es]: string };
-
-export function messagesFor(locale: string): Messages {
-  if (locale.toLowerCase().startsWith('en')) {
-    return en;
-  }
-  return es;
-}
+export type { Messages };
+export { installMessages, languageOf, loadMessages, messagesFor } from './catalog';
 
 export function useMessages(): Messages {
   const choice = useLocale((state) => state.choice);

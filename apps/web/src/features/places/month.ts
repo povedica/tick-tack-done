@@ -165,6 +165,8 @@ export function isCalendarOverdue(
 
 /** dueAfter is exclusive (gt) and dueBefore is exclusive (lt). Covers every cell, including padding. */
 export function monthQueryRange(cells: readonly Date[]): {
+  readonly from: string;
+  readonly to: string;
   readonly dueAfter: string;
   readonly dueBefore: string;
 } {
@@ -172,22 +174,49 @@ export function monthQueryRange(cells: readonly Date[]): {
   const last = cells.at(-1);
   if (first === undefined || last === undefined) {
     const now = new Date().toISOString();
-    return { dueAfter: now, dueBefore: now };
+    const day = localDateParam(new Date());
+    return { from: day, to: day, dueAfter: now, dueBefore: now };
   }
   const before = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
   return {
+    from: localDateParam(first),
+    to: localDateParam(before),
     dueAfter: new Date(first.getTime() - 1).toISOString(),
     dueBefore: before.toISOString(),
   };
 }
 
+/** Inclusive civil window for GET /calendar/summary. A year is 1 Jan–31 Dec. */
+export function densityWindow(
+  view: 'year' | 'quarter',
+  cursor: Date,
+): { readonly from: string; readonly to: string } {
+  if (view === 'year') {
+    const year = cursor.getFullYear();
+    return { from: `${String(year)}-01-01`, to: `${String(year)}-12-31` };
+  }
+  const months = quarterMonths(cursor);
+  const start = months[0];
+  const last = months[months.length - 1];
+  if (start === undefined || last === undefined) {
+    const day = localDateParam(cursor);
+    return { from: day, to: day };
+  }
+  const end = new Date(last.getFullYear(), last.getMonth() + 1, 0);
+  return { from: localDateParam(start), to: localDateParam(end) };
+}
+
 export function yearQueryRange(now: Date): {
+  readonly from: string;
+  readonly to: string;
   readonly dueAfter: string;
   readonly dueBefore: string;
 } {
   const start = new Date(now.getFullYear(), 0, 1);
   const end = new Date(now.getFullYear() + 1, 0, 1);
   return {
+    from: localDateParam(start),
+    to: localDateParam(end),
     dueAfter: new Date(start.getTime() - 1).toISOString(),
     dueBefore: end.toISOString(),
   };

@@ -20,7 +20,6 @@ export function FocusSettingsPage() {
   const query = useQuery({
     queryKey: ['focus-settings'],
     queryFn: () => api.getFocusSettings(),
-    refetchInterval: 4000,
   });
   const [draft, setDraft] = useState<Record<string, string | number | boolean>>({});
   const [error, setError] = useState('');
@@ -81,6 +80,7 @@ export function FocusSettingsPage() {
         ambient_sound: String(value('ambientSound', 'none')),
       });
       cache.setQueryData(['focus-settings'], saved);
+      await cache.invalidateQueries({ queryKey: ['focus-settings'] });
       setDraft({});
     } catch (caught) {
       const message = failureMessage(caught, m.settingsFailed);

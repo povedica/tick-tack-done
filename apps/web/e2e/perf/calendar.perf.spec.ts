@@ -21,7 +21,17 @@ const VISIBLE_MS = profile === 'x100' ? 20 * 60_000 : 60_000;
 
 test.describe.configure({ mode: 'serial' });
 
-test.beforeEach(async ({ context, baseURL }) => {
+test.beforeEach(async ({ context, page, baseURL }) => {
+  const email = process.env.PERF_EMAIL;
+  const password = process.env.PERF_PASSWORD;
+  if (email !== undefined && email.length > 0 && password !== undefined && password.length > 0) {
+    await page.goto('/login');
+    await page.getByLabel('Correo').fill(email);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByRole('button', { name: 'Entrar' }).click();
+    await page.waitForURL(/\/today/);
+    return;
+  }
   await context.addCookies([
     {
       name: '__Host-rfx_session',
@@ -56,6 +66,13 @@ test('year, month and week: cold load, interaction and TBT', async ({ context })
     },
   };
   writeFileSync(resultPath, `${JSON.stringify(body, null, 2)}\n`);
+  if (profile !== 'x100') {
+    // §1 budgets with the §5.2 CI margin (30%, and the caps written there).
+    expect(body.views.year.coldMs).toBeLessThanOrEqual(1_300);
+    expect(body.views.year.maxLongTaskMs).toBeLessThanOrEqual(200);
+    expect(body.views.year.tbtMs).toBeLessThanOrEqual(260);
+    expect(body.views.year.interactionMs).toBeLessThanOrEqual(300);
+  }
 });
 
 async function repeat(
@@ -82,6 +99,7 @@ async function measureYear(page: Page): Promise<Sample> {
   const interactionMs = await gestureUntil(
     page,
     () => swipe(page, '.year-board', 'up'),
+    /date=2027-01-01/,
     async () => {
       await expect(page.getByRole('link', { name: NEXT_YEAR_MARK })).toBeVisible({
         timeout: VISIBLE_MS,
@@ -107,7 +125,7 @@ async function measureOpenMonth(page: Page): Promise<Sample> {
 
 async function measureMonth(page: Page): Promise<Sample> {
   const cold = await load(page, '/calendar/month?date=2026-01-05', async () => {
-    await expect(page.getByRole('button', { name: /enero de 2026/ })).toBeVisible({
+    await expect(page.getByRole('button', { name: /^enero de 2026/ })).toBeVisible({
       timeout: VISIBLE_MS,
     });
     await expect(page.getByRole('button', { name: MONTH_MARK })).toBeVisible({
@@ -117,8 +135,9 @@ async function measureMonth(page: Page): Promise<Sample> {
   const interactionMs = await gestureUntil(
     page,
     () => swipe(page, '.cal-month', 'up'),
+    /date=2026-02-01/,
     async () => {
-      await expect(page.getByRole('button', { name: /febrero de 2026/ })).toBeVisible({
+      await expect(page.getByRole('button', { name: /^febrero de 2026/ })).toBeVisible({
         timeout: VISIBLE_MS,
       });
       await expect(page.getByRole('button', { name: MONTH_MARK })).toHaveCount(0);
@@ -133,7 +152,8 @@ async function measureWeek(page: Page): Promise<Sample> {
   });
   const interactionMs = await gestureUntil(
     page,
-    () => swipe(page, '.mobile-week-board', 'left'),
+    () => swipe(page, '.mobile-week-day', 'left'),
+    /date=2026-01-12/,
     async () => {
       await expect(page.getByText('PERF-SENTINEL')).toHaveCount(0, { timeout: VISIBLE_MS });
       await expect(page).toHaveURL(/date=2026-01-1/);
@@ -176,33 +196,124 @@ async function load(
 async function gestureUntil(
   page: Page,
   act: () => Promise<void>,
+  period: RegExp,
   ready: () => Promise<void>,
 ): Promise<number> {
   const started = Date.now();
   await act();
+  const outcome = await periodOutcome(page, period);
+  const week = String(period) === String(/date=2026-01-12/);
+  if (outcome === 'missed' || (week && !period.test(page.url()))) {
+    throw new Error(
+      `Gesture missed ${period}. The page kept painting and the period did not change.`,
+    );
+  }
   await ready();
   return Date.now() - started;
 }
 
+/**
+ * `moved` — the URL already shows the next period.
+ * `busy` — the main thread did not paint; the long data wait is the resource budget.
+ * `missed` — the page painted for 3s and the period stayed put, so the swipe never landed.
+ */
+async function periodOutcome(page: Page, period: RegExp): Promise<'moved' | 'busy' | 'missed'> {
+  const deadline = Date.now() + 3_000;
+  while (Date.now() < deadline) {
+    if (period.test(page.url())) return 'moved';
+    const painted = await paintsWithin(page, deadline - Date.now());
+    if (!painted) return 'busy';
+  }
+  return period.test(page.url()) ? 'moved' : 'missed';
+}
+
+async function paintsWithin(page: Page, ms: number): Promise<boolean> {
+  if (ms <= 0) return false;
+  const painted = page.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve(true);
+        });
+      }),
+  );
+  const timeout = new Promise<boolean>((resolve) => {
+    setTimeout(() => {
+      resolve(false);
+    }, ms);
+  });
+  return Promise.race([painted, timeout]);
+}
+
 /** Pixel 7 hides the desktop arrows. Year and month move on a vertical touch; week moves sideways. */
 async function swipe(page: Page, selector: string, axis: 'up' | 'left'): Promise<void> {
-  const box = await page.locator(selector).boundingBox();
-  if (box === null) {
-    throw new Error(`No box for ${selector}`);
+  const segment = await page
+    .locator(selector)
+    .first()
+    .evaluate((element, direction: 'up' | 'left') => {
+      const rect = element.getBoundingClientRect();
+      const hits = (x: number, y: number) => {
+        const node = document.elementFromPoint(x, y);
+        return node !== null && (node === element || element.contains(node));
+      };
+      const span = (values: number[]) => {
+        for (let index = values.length - 1; index >= 0; index -= 1) {
+          const from = values[index] ?? 0;
+          const to = values.find((value) => from - value >= 90 && from - value <= 140);
+          if (to !== undefined) return { from, to };
+        }
+        return null;
+      };
+      // The board can be taller than the viewport. Only points on screen can receive the touch.
+      const top = Math.max(rect.top, 0) + 4;
+      const bottom = Math.min(rect.bottom, window.innerHeight) - 4;
+      const left = Math.max(rect.left, 0) + 4;
+      const right = Math.min(rect.right, window.innerWidth) - 4;
+      if (direction === 'up') {
+        for (let x = left; x <= right; x += 24) {
+          const ys: number[] = [];
+          for (let y = top; y <= bottom; y += 6) {
+            if (hits(x, y)) ys.push(y);
+          }
+          const pair = span(ys);
+          if (pair !== null) {
+            return { x: Math.round(x), y: pair.from, endX: Math.round(x), endY: pair.to };
+          }
+        }
+        return null;
+      }
+      for (let y = top; y <= bottom; y += 24) {
+        const xs: number[] = [];
+        for (let x = left; x <= right; x += 6) {
+          if (hits(x, y)) xs.push(x);
+        }
+        const pair = span(xs);
+        if (pair !== null)
+          return { x: pair.from, y: Math.round(y), endX: pair.to, endY: Math.round(y) };
+      }
+      return null;
+    }, axis);
+  if (segment === null) {
+    throw new Error(`No in-board swipe segment for ${selector}`);
   }
-  const x = box.x + Math.min(80, box.width / 2);
-  const y = Math.min(Math.max(box.y + 80, 160), 520);
-  const endX = axis === 'left' ? x - 160 : x;
-  const endY = axis === 'up' ? y - 160 : y;
   const client = await page.context().newCDPSession(page);
+  await client.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  const steps = 1;
   await client.send('Input.dispatchTouchEvent', {
     type: 'touchStart',
-    touchPoints: [{ x, y, id: 1 }],
+    touchPoints: [{ x: segment.x, y: segment.y }],
   });
-  await client.send('Input.dispatchTouchEvent', {
-    type: 'touchMove',
-    touchPoints: [{ x: endX, y: endY, id: 1 }],
-  });
+  for (let step = 1; step <= steps; step += 1) {
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [
+        {
+          x: segment.x + ((segment.endX - segment.x) * step) / steps,
+          y: segment.y + ((segment.endY - segment.y) * step) / steps,
+        },
+      ],
+    });
+  }
   await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await client.detach();
 }

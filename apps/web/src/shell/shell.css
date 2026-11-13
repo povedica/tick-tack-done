@@ -20,6 +20,24 @@
   grid-template-columns: var(--sidebar-rail) var(--sidebar-w) minmax(0, 1fr) var(--detail-w);
 }
 
+.nav-list-icon.nav-filter-icon,
+.nav-link.is-active .nav-list-icon.nav-filter-icon {
+  color: var(--list-tint, var(--ink-2));
+}
+
+.filter-live {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+}
+
 .shell[data-sidebar='collapsed'][data-detail='open'] {
   grid-template-columns: var(--sidebar-rail) 0 minmax(0, 1fr) var(--detail-w);
 }
