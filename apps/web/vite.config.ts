@@ -279,10 +279,11 @@ function deferRouteCss(): Plugin {
         }
         const key = Object.keys(bundle).find((candidate) => bundle[candidate]?.fileName === from);
         const asset = key === undefined ? undefined : bundle[key];
-        if (key !== undefined && asset !== undefined) {
-          asset.fileName = to;
+        if (key !== undefined && asset !== undefined && asset.type === 'asset') {
+          // Rolldown ignores `bundle[name] = asset`. emitFile is the supported way
+          // to publish the renamed stylesheet the chunk already references.
+          this.emitFile({ type: 'asset', fileName: to, source: asset.source });
           delete bundle[key];
-          bundle[to] = asset;
         }
       }
     },

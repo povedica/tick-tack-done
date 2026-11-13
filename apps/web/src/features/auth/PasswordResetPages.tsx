@@ -3,7 +3,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { ApiError, createApiClient } from '@reflexionia/sdk';
-import { messagesFor } from '../../i18n';
+import { languageOf, messagesFor } from '../../i18n';
 import { recaptchaToken } from './recaptcha';
 import { AuthCard } from './AuthPages';
 import './auth.css';
@@ -50,7 +50,7 @@ export function ForgotPasswordPage() {
       const captchaToken = await recaptchaToken('password_reset');
       await sessionApi.requestPasswordReset({
         email,
-        locale: messages === messagesFor('en') ? 'en' : 'es',
+        locale: languageOf(navigator.language),
         ...(captchaToken === undefined ? {} : { captcha_token: captchaToken }),
       });
       setSends((count) => count + 1);

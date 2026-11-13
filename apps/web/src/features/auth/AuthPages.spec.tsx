@@ -123,6 +123,10 @@ describe('RF-PR-02 forgot password copy', () => {
     expect(screen.getByDisplayValue('ada@example.test')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Enviar enlace' }));
     await waitFor(() => {
+      expect(api.requestPasswordReset).toHaveBeenCalledWith({
+        email: 'ada@example.test',
+        locale: 'es',
+      });
       expect(screen.getByText(/Si existe una cuenta con ada@example.test/)).toBeTruthy();
     });
     cleanup();

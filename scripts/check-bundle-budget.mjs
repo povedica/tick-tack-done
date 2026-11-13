@@ -6,7 +6,9 @@ import { gzipSync } from 'node:zlib';
 const dist = path.resolve(process.argv[2] ?? 'apps/web/dist');
 const manifestPath = path.join(dist, '.vite/manifest.json');
 const JS_LIMIT = 250 * 1024;
-const CSS_LIMIT = 35 * 1024;
+// The calendar sheet is 7.4 KB gzip. It was absent from the 29.0 KB total while
+// Rolldown dropped the renamed file. Emitting it brings CSS to 36.4 KB.
+const CSS_LIMIT = 38 * 1024;
 
 if (!existsSync(manifestPath)) {
   console.error(`Missing Vite manifest at ${manifestPath}. Build with build.manifest enabled.`);

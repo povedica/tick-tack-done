@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## Contratos del navegador
+
+- Recuperar contraseña vuelve a mandar el POST. El idioma sale de la etiqueta
+  del navegador, sin abrir el catálogo inglés que esa pantalla no tiene cargado.
+- Las hojas de las rutas diferidas se publican con `emitFile`. El chip de
+  enlace recupera los 24 px en escritorio y los 32 px en móvil. El CSS medido
+  del entry más el calendario pasa de 29,0 KB a 36,4 KB gzip; el tope queda
+  en 38 KB. El JS sigue en 247,2 KB, por debajo de 250.
+
 ## Vista anual y trimestral desde el resumen (R1)
 
 - El año y el trimestre pintan con `GET /api/v1/calendar/summary?granularity=day`.
