@@ -70,7 +70,9 @@ function walk(item, seen, js, css) {
   seen.add(item.file);
   if (typeof item.file === 'string' && item.file.endsWith('.js')) js.add(item.file);
   for (const file of item.css ?? []) css.add(file);
+  const dynamic = new Set(item.dynamicImports ?? []);
   for (const ref of item.imports ?? []) {
+    if (dynamic.has(ref)) continue;
     walk(resolveImport(ref), seen, js, css);
   }
 }
