@@ -7,9 +7,6 @@ import { fill } from '../../../i18n';
 
 export interface PickerChoice {
   readonly id: string;
-  readonly single?: boolean;
-  readonly onOpenChange?: (open: boolean) => void;
-  readonly status?: ReactNode;
   readonly label: string;
   readonly section: string;
   readonly sectionOrder: number;
@@ -41,6 +38,9 @@ export function MultiPicker({
   onOpenChange,
   status,
 }: {
+  readonly single?: boolean;
+  readonly onOpenChange?: (open: boolean) => void;
+  readonly status?: ReactNode;
   readonly label: string;
   readonly placeholder: string;
   readonly searchLabel: string;
@@ -210,7 +210,7 @@ export function MultiPicker({
           aria-label={label}
         >
           {groups.map((group) => (
-            <section key={group.order === -1 ? 'lead' : group.title}>
+            <section key={`${String(group.order)}:${group.title}`}>
               {group.title.length > 0 ? <h3>{group.title}</h3> : null}
               {group.choices.map((choice) => {
                 const on = selected.includes(choice.id);
@@ -230,6 +230,9 @@ export function MultiPicker({
                     <input
                       type={single ? 'radio' : 'checkbox'}
                       name={single ? label : undefined}
+                      aria-label={
+                        single ? `${choice.label} ${choice.detail ?? ''}`.trim() : undefined
+                      }
                       disabled={choice.unavailable === true}
                       checked={on}
                       onChange={() => {

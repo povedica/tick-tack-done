@@ -1,6 +1,7 @@
 export const assigneeMessages = {
   es: {
     me: 'Yo',
+    required: 'Elige una persona',
     choose: 'Elegir persona…',
     selected: 'Persona seleccionada',
     empty: 'Aún no compartes listas con nadie',
@@ -11,6 +12,7 @@ export const assigneeMessages = {
   },
   en: {
     me: 'Me',
+    required: 'Choose a person',
     choose: 'Choose a person…',
     selected: 'Selected person',
     empty: "You don't share lists with anyone yet",

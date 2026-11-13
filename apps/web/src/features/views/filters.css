@@ -1127,3 +1127,10 @@ body:has(.filter-editor) .date-popover {
   text-decoration: underline;
   cursor: pointer;
 }
+
+.filter-person-warning {
+  margin: 8px 0 0;
+  padding: 8px;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+}

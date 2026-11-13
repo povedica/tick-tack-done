@@ -30,6 +30,7 @@ export function peopleFromMembers(responses: readonly unknown[]): Person[] {
         row === null ||
         !('user_id' in row) ||
         typeof row.user_id !== 'string' ||
+        row.user_id.length === 0 ||
         !('status' in row) ||
         row.status !== 'accepted'
       )
@@ -140,9 +141,9 @@ export function AssigneePicker({
     });
 
   function retry(): void {
-    if (me.isError) void me.refetch();
-    if (projects.isError) void projects.refetch();
-    for (const query of members) if (query.isError) void query.refetch();
+    if (me.isError) me.refetch().catch(() => undefined);
+    if (projects.isError) projects.refetch().catch(() => undefined);
+    for (const query of members) if (query.isError) query.refetch().catch(() => undefined);
   }
 
   return (
@@ -162,7 +163,9 @@ export function AssigneePicker({
         invalid={invalid}
         describedBy={describedBy}
         onOpenChange={setOpen}
-        onChange={(ids) => onChange(ids[0] ?? '')}
+        onChange={(ids) => {
+          onChange(ids[0] ?? '');
+        }}
         status={
           failed ? (
             <p className="filter-person-status" role="alert">
