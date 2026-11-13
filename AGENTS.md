@@ -92,8 +92,16 @@ pnpm lint && pnpm typecheck
 - Pausar: pasa la tarjeta a «Pausada» **y** escribe en la issue un
   comentario con la plantilla de decisión, el motivo detallado,
   el estado de la rama y la condición para retomarla. Sin comentario no hay pausa.
-- No empieces trabajo sin issue `BKL-NNN`. La descripción de la PR empieza
-  por `Closes #N`. PR sin issue solo para dependencias o CI (`sin-backlog`).
+- No empieces trabajo sin issue `BKL-NNN` asignada en GitHub. Nunca.
+  La descripción de la PR empieza por `Closes #N` y `#N` tiene que existir
+  y estar abierta. La única PR sin issue es la de Dependabot
+  (`dependabot[bot]`). Un agente no usa `sin-backlog` para saltársela.
+- Si una issue está cerrada y falta algo, no se reabre ni se reutiliza.
+  Se crea `BKL-NNN · Ajuste de #N: <qué>` con la etiqueta `ajuste`,
+  enlazada a la original (comentario en las dos y sub-issue o referencia),
+  con su tarjeta y su PR. Aunque el cambio sea una línea.
+- Un cambio pedido en el chat que no tiene issue: primero se crea la issue
+  y después se trabaja.
 - Hecho = cumple `docs/backlog/DOD.md`. Si la entrega deja una mejora
   obvia para la DoR o la DoD, propónla a Pablo en ese momento (opcional,
   nunca bloquea).
@@ -118,4 +126,4 @@ pnpm lint && pnpm typecheck
 - Nunca imprimir valores de secretos, tampoco errores de 1Password ni config expandida de Compose.
 - Los agentes no crean ni editan Environments, secretos, reviewers ni protección de ramas.
 - Imágenes y deploy: [runbook](deploy/README.md). Producción siempre tras staging y aprobación de Pablo.
-- `ci-ok` agrega también integración, guard público, actionlint, shellcheck y pruebas de despliegue.
+- `ci-ok` agrega también integración, guard público, actionlint, shellcheck, pruebas de despliegue y el check `issue-link` (el cuerpo empieza por `Closes #N` de una issue abierta; solo se exime `dependabot[bot]`).

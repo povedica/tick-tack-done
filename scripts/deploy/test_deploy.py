@@ -1,8 +1,10 @@
+import gzip
 import json
 import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,9 +36,12 @@ if args[0]=='compose':
     for command in ['config','ps','pull','up','exec','run']:
         if command not in args: continue
         if command=='config' and 'json' in args:
-            print(json.dumps({'services':{'staging-api':{'environment':{'PUBLIC_URL':'https://staging-todo.reflexionia.com','BACKUP_DIR':os.environ['MOCK_BACKUPS'],'BACKUP_REMOTE':'mock','AGE_RECIPIENT':'mock'}},'api':{'environment':{'PUBLIC_URL':'https://todo.reflexionia.com'}},'postgres':{'environment':{'POSTGRES_DB':'production' if os.environ['DEPLOY_ENVIRONMENT']=='production' else 'ttd_staging'}}}}))
+            print(json.dumps({'services':{'staging-api':{'environment':{'PUBLIC_URL':'https://staging-todo.reflexionia.com','PRE_MIGRATE_BACKUP_DIR':os.environ['MOCK_BACKUPS'],'BACKUP_RETENTION_DAYS':'30'}},'api':{'environment':{'PUBLIC_URL':'https://todo.reflexionia.com','PRE_MIGRATE_BACKUP_DIR':os.environ['MOCK_BACKUPS']}},'postgres':{'environment':{'POSTGRES_DB':'production' if os.environ['DEPLOY_ENVIRONMENT']=='production' else 'ttd_staging'}}}}))
         if command=='run' and os.environ.get('FAIL_MIGRATE')=='1': sys.exit(1)
-        if command=='exec' and 'pg_dump' in args: print('-- synthetic backup')
+        if command=='exec' and 'pg_dump' in args:
+            if os.environ.get('FAIL_DUMP')=='1':
+                print('partial dump'); sys.exit(1)
+            if os.environ.get('EMPTY_DUMP')!='1': print('-- synthetic backup')
         if command=='ps': print(args[-1])
         if command=='up':
             for service in ['staging-api','staging-web','api','web']:
@@ -47,11 +52,12 @@ sys.exit(1)
 '''
 
 class DeployTest(unittest.TestCase):
-    def run_deploy(self, api='', web='', **extra):
+    def run_deploy(self, api='', web='', setup=None, **extra):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root=Path(temporary.name)
         self.last_temp_root=root
+        if setup: setup(root)
         binary=root/'bin'; binary.mkdir()
         for name in ['docker','curl','sleep','age','rclone']:
             path=binary/name; path.write_text(MOCK);path.chmod(0o755)
@@ -112,6 +118,57 @@ class DeployTest(unittest.TestCase):
         command = calls[migrate]
         tail = command[command.index('run'):]
         self.assertEqual(tail, ['run','--rm','--no-deps','--entrypoint','node','staging-api','node_modules/prisma/build/index.js','migrate','deploy','--schema','prisma/schema.prisma'])
+
+    def test_local_dump_permissions_content_and_private_log_in_both_environments(self):
+        for environment in ('staging', 'production'):
+            with self.subTest(environment=environment):
+                result,calls,_,_=self.run_deploy(api='api:new',NEW_MIGRATION='1',DEPLOY_ENVIRONMENT=environment)
+                self.assertEqual(result.returncode,0,result.stderr)
+                base=self.last_temp_root/'backups'
+                archive=next(base.glob('*/db.sql.gz'))
+                self.assertEqual(base.stat().st_mode & 0o777,0o700)
+                self.assertEqual(archive.parent.stat().st_mode & 0o777,0o700)
+                self.assertEqual(archive.stat().st_mode & 0o777,0o600)
+                self.assertIn(b'synthetic backup',gzip.decompress(archive.read_bytes()))
+                self.assertIn(str(archive),result.stdout)
+                self.assertNotIn('synthetic backup',result.stdout+result.stderr)
+                self.assertFalse(any('psql' in c or 'age' in c or 'rclone' in c for c in calls))
+
+    def test_failed_or_empty_dump_aborts_before_migration_and_keeps_previous_api(self):
+        for failure in ('FAIL_DUMP','EMPTY_DUMP'):
+            with self.subTest(failure=failure):
+                result,calls,state,running=self.run_deploy(api='api:new',NEW_MIGRATION='1',**{failure:'1'})
+                self.assertNotEqual(result.returncode,0)
+                self.assertFalse(any('migrate' in c or 'up' in c for c in calls))
+                self.assertEqual(running['staging-api'],'api:old')
+                self.assertIn('API_IMAGE=api:old',state)
+                self.assertEqual(list((self.last_temp_root/'backups').iterdir()),[])
+
+    def test_unwritable_destination_aborts_before_migration_and_keeps_previous_api(self):
+        def setup(root):
+            (root/'backups').write_text('a file cannot hold dumps')
+        result,calls,state,running=self.run_deploy(api='api:new',NEW_MIGRATION='1',setup=setup)
+        self.assertNotEqual(result.returncode,0)
+        self.assertFalse(any('migrate' in c or 'up' in c for c in calls))
+        self.assertEqual(running['staging-api'],'api:old')
+        self.assertIn('API_IMAGE=api:old',state)
+
+    def test_retention_removes_only_old_copies_beyond_latest_three(self):
+        def setup(root):
+            for day in range(1,6):
+                stamp=root/'backups'/f'2020010{day}T000000Z'
+                stamp.mkdir(parents=True)
+                (stamp/'db.sql.gz').write_bytes(b'fixture')
+                os.utime(stamp,(time.time()-40*86400,)*2)
+            recent=root/'backups'/'20200106T000000Z'
+            recent.mkdir(); (recent/'db.sql.gz').write_bytes(b'fixture')
+        result,_,_,_=self.run_deploy(api='api:new',NEW_MIGRATION='1',setup=setup)
+        self.assertEqual(result.returncode,0,result.stderr)
+        remaining={p.name for p in (self.last_temp_root/'backups').iterdir()}
+        self.assertIn('20200105T000000Z',remaining)
+        self.assertIn('20200106T000000Z',remaining)
+        self.assertNotIn('20200104T000000Z',remaining)
+        self.assertEqual(len(remaining),3)
 
     def test_failed_migration_keeps_running_api(self):
         result,calls,state,running=self.run_deploy(api='api:new',NEW_MIGRATION='1',FAIL_MIGRATE='1')

@@ -16,4 +16,4 @@ done < "$state"
 compose() { docker compose -p "$project" -f "$file" --env-file "$RUNTIME_ENV_FILE" "$@"; }
 # shellcheck source=deploy/lib/migrate.sh
 source "$root/deploy/lib/migrate.sh"
-backup_before_migrate
+backup_daily_external
