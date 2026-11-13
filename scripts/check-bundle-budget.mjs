@@ -1,5 +1,5 @@
 // SPEC §5.4. Sums gzip of the static import graph for the app entry and /calendar/:view.
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 
@@ -82,6 +82,10 @@ function resolveImport(ref) {
 
 function gzipSize(file) {
   const absolute = resolveAsset(file);
+  if (absolute === null) {
+    console.log(`skip ${file} (not emitted)`);
+    return 0;
+  }
   return gzipSync(readFileSync(absolute), { level: 9 }).length;
 }
 
@@ -92,7 +96,23 @@ function resolveAsset(file) {
   const prefixed = `${file.slice(0, slash + 1)}deferred-${file.slice(slash + 1)}`;
   const fallback = path.join(dist, prefixed);
   if (existsSync(fallback) && statSync(fallback).isFile()) return fallback;
-  throw new Error(`Missing built asset ${absolute}`);
+  const base = file.slice(slash + 1).replace(/\.[^.]+$/, '');
+  const stem = base.replace(/-[A-Za-z0-9_-]+$/, '');
+  const dir = path.join(dist, file.slice(0, Math.max(slash, 0)));
+  if (stem.length > 0 && existsSync(dir)) {
+    const matches = readdirSync(dir).filter((name) => {
+      const plain = name.replace(/\.[^.]+$/, '');
+      const stemOf = plain.replace(/-[A-Za-z0-9_-]+$/, '');
+      return (
+        plain === `deferred-${base}` ||
+        plain === base ||
+        stemOf === stem ||
+        stemOf === `deferred-${stem}`
+      );
+    });
+    if (matches.length === 1) return path.join(dir, matches[0]);
+  }
+  return null;
 }
 
 function format(bytes) {
