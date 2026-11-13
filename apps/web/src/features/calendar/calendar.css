@@ -11,8 +11,33 @@
   background: var(--surface);
 }
 .calendar-toolbar .ui-button {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0 10px;
+}
+.calendar-toolbar > .calendar-nav > .ui-button,
+.calendar-toolbar > .calendar-add.ui-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
   min-height: 32px;
-  padding: 4px 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.calendar-toolbar > .calendar-nav > .ui-button:not([aria-label]) {
+  width: auto;
+  padding: 0 10px;
+  font-weight: 400;
+  font-size: var(--fs-base);
+  color: var(--ink);
+}
+.calendar-toolbar > .calendar-nav > .ui-button:hover,
+.calendar-toolbar > .calendar-add.ui-button:hover {
+  background: var(--surface-2);
 }
 .calendar-nav {
   display: flex;
@@ -104,8 +129,10 @@
   font-size: 12px;
 }
 .calendar-week-number {
-  font-size: 11px;
-  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 .screen-page .calendar-mobile-view {
   display: none;
@@ -122,10 +149,11 @@
   overflow: visible;
   overflow-wrap: anywhere;
   min-width: 0;
-  line-height: 1.4;
-  padding: 3px 5px;
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
+  line-height: 1.35;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  font-size: 12px;
 }
 .calendar-cell-task {
   display: flex;
@@ -211,23 +239,27 @@
   text-align: left;
 }
 .calendar-page .hour-allday-label {
-  font-size: 10px;
+  font-size: 12px;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+.calendar-page .hour-col {
+  overflow: visible;
 }
 .calendar-page .hour-block {
   display: flex;
   align-items: flex-start;
-  gap: 3px;
-  border-left: 3px solid var(--accent);
+  gap: 4px;
+  border: 1px solid var(--border-strong);
+  border-left-width: 2px;
   height: auto;
   overflow: visible;
   white-space: normal;
   text-overflow: clip;
   overflow-wrap: anywhere;
-  padding: 4px;
-  background: var(--accent-soft);
-  font-size: 12px;
+  padding: 4px 6px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  font-size: 13px;
   line-height: 1.35;
 }
 .calendar-page .hour-block a {
@@ -238,8 +270,16 @@
 }
 .calendar-page .hour-block small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ink-2);
+}
+@media (max-width: 700px) {
+  .calendar-toolbar .ui-button {
+    min-height: var(--tap);
+  }
+  .calendar-page .calendar-overflow {
+    min-height: var(--tap);
+  }
 }
 .calendar-page .hour-now {
   background: var(--danger);
@@ -630,6 +670,9 @@
 }
 .calendar-page .calendar-cell-items {
   overflow: hidden;
+}
+.calendar-page .cal-cell:has(.calendar-overflow) .calendar-cell-items {
+  padding-bottom: 28px;
 }
 .calendar-page .calendar-cell-items > * {
   margin-top: 3px;
@@ -1166,8 +1209,8 @@
 @media (max-width: 700px) {
   .screen-page.calendar-page > .calendar-toolbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
-    grid-template-rows: var(--calendar-mobile-header-h) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    grid-template-rows: var(--calendar-mobile-header-h);
     gap: var(--sp-1);
     padding-block: 0;
     flex-shrink: 0;
@@ -1190,15 +1233,15 @@
   }
   .calendar-mobile-views {
     display: block;
-    grid-column: 4;
+    grid-column: 5;
     grid-row: 1;
   }
   .calendar-filter-menu {
-    grid-column: 3;
+    grid-column: 4;
     grid-row: 1;
   }
   .calendar-options {
-    grid-column: 4;
+    grid-column: 5;
     grid-row: 1;
   }
   .calendar-options > button {
@@ -1209,11 +1252,9 @@
     display: none;
   }
   .calendar-toolbar > .calendar-sync {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-self: start;
-    min-height: var(--tap);
-    min-width: var(--tap);
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: center;
   }
   .calendar-page.calendar-week {
     height: 100%;
@@ -1301,6 +1342,23 @@
 }
 .calendar-toolbar :is(.calendar-filter-menu, .calendar-mobile-views) > button:hover {
   background: var(--surface-2);
+}
+@media (min-width: 701px) {
+  .calendar-toolbar > .calendar-filter-menu > button {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink);
+    transition: background-color var(--dur-fast) var(--ease);
+  }
+  .calendar-toolbar > .calendar-filter-menu > button:hover {
+    background: var(--surface-2);
+  }
 }
 .calendar-toolbar
   :is(.calendar-filter-menu, .calendar-mobile-views)

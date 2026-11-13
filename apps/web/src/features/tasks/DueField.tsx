@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAppLocale } from '../../i18n/locale';
+import { formatMonthYear } from '../../components/period/period-date';
 import { usePreferences } from '../../theme/preferences';
 
 export function DueField({
@@ -69,8 +70,8 @@ export function DueField({
             >
               ‹
             </button>
-            <strong className="cal-title">
-              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor)}
+            <strong className="cal-title" aria-label={formatMonthYear(cursor, locale, 'long')}>
+              {formatMonthYear(cursor, locale, 'short')}
             </strong>
             <button
               type="button"

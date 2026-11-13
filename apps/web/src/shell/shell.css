@@ -1005,9 +1005,17 @@
 
 .calendar-mini-nav {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
+}
+
+.calendar-mini-nav > strong {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .calendar-mini-nav button {
@@ -1552,16 +1560,22 @@
 
 /* 75.2/75.9: selected tasks outside Tasks float over the full-width section. */
 .task-detail-dialog {
-  width: min(var(--content-max), calc(100vw - var(--sp-8)));
-  height: calc(100dvh - var(--sp-8));
+  width: min(36rem, calc(100vw - var(--sp-8)));
+  height: auto;
   max-height: calc(100dvh - var(--sp-8));
-  overflow: hidden;
+  overflow: auto;
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-lg);
+  outline: none;
+}
+.task-detail-dialog:focus,
+.task-detail-dialog:focus-visible {
+  outline: none;
 }
 .task-detail-dialog > .detail-panel {
-  height: 100%;
+  height: auto;
+  max-height: calc(100dvh - var(--sp-8));
   border-left: 0;
 }
 

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { AssignmentDto } from '../tasks/tasks.dto.js';
 import { Type } from 'class-transformer';
 import {
   Allow,
@@ -245,6 +246,9 @@ export class ViewTaskDto {
   @ApiProperty({ nullable: true, type: String })
   assignee_id!: string | null;
 
+  @ApiProperty({ nullable: true, required: false, type: AssignmentDto })
+  assignment?: AssignmentDto | null;
+
   @ApiProperty()
   created_at!: string;
 
@@ -268,6 +272,13 @@ export class ViewGroupDto {
   @ApiProperty()
   label!: string;
 
+  @ApiProperty({
+    required: false,
+    description:
+      'Present when group_by=assignee. Active tasks in the group whose deadline has passed.',
+  })
+  overdue_count?: number;
+
   @ApiProperty({ type: [ViewTaskDto] })
   tasks!: ViewTaskDto[];
 }
@@ -276,7 +287,7 @@ export class ViewPageDto {
   @ApiProperty()
   count!: number;
 
-  @ApiProperty({ enum: ['none', 'section', 'date', 'tag', 'priority'] })
+  @ApiProperty({ enum: ['none', 'section', 'date', 'tag', 'priority', 'assignee'] })
   group_by!: string;
 
   @ApiProperty({ enum: ['manual', 'date', 'priority', 'title', 'created'] })
@@ -366,6 +377,7 @@ export class SmartListItemDto {
       'all',
       'inbox',
       'assigned_to_me',
+      'assigned_by_me',
       'completed',
       'trash',
       'no_date',
@@ -380,6 +392,7 @@ export class SmartListItemDto {
     'all',
     'inbox',
     'assigned_to_me',
+    'assigned_by_me',
     'completed',
     'trash',
     'no_date',

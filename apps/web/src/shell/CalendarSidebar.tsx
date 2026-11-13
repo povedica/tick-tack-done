@@ -1,4 +1,4 @@
-import { dateTimeFormat } from '../lib/dates/formatters';
+import { formatMonthYear } from '../components/period/period-date';
 import { TodayMark } from '../components/period/TodayMark';
 import { useCalendarToday } from '../components/period/useCalendarToday';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -32,8 +32,9 @@ export function CalendarSidebar({
   });
   const cells = useMemo(() => monthCells(cursor, weekStart), [cursor, weekStart]);
   const todayKey = useCalendarToday();
-  const monthLabel = dateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor);
-  const weekday = dateTimeFormat(locale, { weekday: 'narrow' });
+  const monthLabel = formatMonthYear(cursor, locale, 'long');
+  const monthShort = formatMonthYear(cursor, locale, 'short');
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
   const heads = Array.from({ length: 7 }, (_, index) => {
     const sample = cells[index] ?? cursor;
     return weekday.format(sample);
@@ -59,7 +60,7 @@ export function CalendarSidebar({
           >
             <ChevronLeft size={16} aria-hidden="true" />
           </button>
-          <strong>{monthLabel}</strong>
+          <strong aria-label={monthLabel}>{monthShort}</strong>
           <button
             type="button"
             aria-label={messages.calNext}

@@ -1,6 +1,7 @@
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Link } from 'react-router';
 import { api } from '../../api';
 import { Button } from '../../components/ui';
@@ -63,27 +64,34 @@ export function GoogleCalendarHealthBanner() {
 
 export function CalendarSyncButton() {
   const messages = useMessages();
+  const locale = useAppLocale();
   const queryClient = useQueryClient();
-  const [phase, setPhase] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
-  const label =
-    phase === 'syncing'
-      ? messages.calendarSyncing
-      : phase === 'done'
-        ? messages.calendarSyncedJustNow
-        : phase === 'error'
-          ? messages.calendarSyncFailedQuiet
-          : messages.syncNow;
+  const status = useQuery({
+    queryKey: ['calendar-sync-status'],
+    queryFn: () => api.getCalendarSyncStatus(),
+    staleTime: 30_000,
+  });
+  const [phase, setPhase] = useState<'idle' | 'syncing' | 'error'>('idle');
+  const compact = useCompactCalendarBar();
+  const when = syncWhen(latestSync(status.data), locale, messages.calendarSyncNever);
+  const statusTitle =
+    phase === 'error'
+      ? messages.calendarSyncFailedQuiet
+      : messages.lastSync.replace('{when}', when);
+  const label = phase === 'syncing' ? messages.calendarSyncing : messages.syncNow;
+  const title = compact ? messages.syncNow : statusTitle;
   return (
     <Button
       type="button"
       className="calendar-sync"
-      aria-label={label}
+      aria-label={compact ? messages.syncNow : `${label}. ${statusTitle}`}
+      title={title}
       loading={phase === 'syncing'}
       onClick={() => {
         setPhase('syncing');
         runAction(syncCalendarsNow(queryClient), {
           success: () => {
-            setPhase('done');
+            setPhase('idle');
           },
           rollback: () => {
             setPhase('error');
@@ -91,9 +99,65 @@ export function CalendarSyncButton() {
         });
       }}
     >
-      {label}
+      <RefreshCw
+        className={phase === 'syncing' ? 'is-spinning' : undefined}
+        size={18}
+        aria-hidden="true"
+      />
+      <span>{label}</span>
     </Button>
   );
+}
+
+function useCompactCalendarBar(): boolean {
+  const query = '(max-width: 700px)';
+  const [compact, setCompact] = useState(() =>
+    typeof window.matchMedia === 'function' ? window.matchMedia(query).matches : false,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const media = window.matchMedia(query);
+    const apply = (): void => {
+      setCompact(media.matches);
+    };
+    apply();
+    media.addEventListener('change', apply);
+    return () => {
+      media.removeEventListener('change', apply);
+    };
+  }, []);
+  return compact;
+}
+
+function latestSync(value: unknown): string | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+  const rows = (value as { subscriptions?: unknown }).subscriptions;
+  if (!Array.isArray(rows)) {
+    return null;
+  }
+  let latest: string | null = null;
+  for (const item of rows) {
+    if (typeof item !== 'object' || item === null) {
+      continue;
+    }
+    const stamp = (item as { last_synced_at?: unknown }).last_synced_at;
+    if (typeof stamp === 'string' && (latest === null || stamp > latest)) {
+      latest = stamp;
+    }
+  }
+  return latest;
+}
+
+function syncWhen(stamp: string | null, locale: string, never: string): string {
+  if (stamp === null) {
+    return never;
+  }
+  const minutes = Math.round((Date.now() - new Date(stamp).getTime()) / 60000);
+  return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(-minutes, 'minute');
 }
 
 function readSync(value: unknown): SyncView | null {

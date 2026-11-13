@@ -2,7 +2,7 @@ import { comparePriority, isPriority } from '../priority/priority';
 import type { Priority } from '../types';
 import { calendarDateKey } from './clause';
 
-export type TaskGroupBy = 'none' | 'section' | 'date' | 'tag' | 'priority';
+export type TaskGroupBy = 'none' | 'section' | 'date' | 'tag' | 'priority' | 'assignee';
 export type TaskSort = 'manual' | 'date' | 'priority' | 'title' | 'created';
 
 export interface ArrangedTask {
@@ -16,6 +16,8 @@ export interface ArrangedTask {
   readonly columnName: string | null;
   readonly columnSortOrder: string | null;
   readonly tagNames: readonly string[];
+  readonly assigneeId?: string | null;
+  readonly assigneeName?: string | null;
 }
 
 export interface TaskGroup<T> {
@@ -30,7 +32,7 @@ export interface TaskViewOptions {
   readonly timeZone: string;
 }
 
-const GROUP_BY: readonly TaskGroupBy[] = ['none', 'section', 'date', 'tag', 'priority'];
+const GROUP_BY: readonly TaskGroupBy[] = ['none', 'section', 'date', 'tag', 'priority', 'assignee'];
 const SORTS: readonly TaskSort[] = ['manual', 'date', 'priority', 'title', 'created'];
 const PRIORITY_ORDER: readonly Priority[] = ['high', 'medium', 'low', 'none'];
 
@@ -51,6 +53,8 @@ export function arrangeTasks<T extends ArrangedTask>(
       return tagGroups(sorted);
     case 'priority':
       return priorityGroups(sorted);
+    case 'assignee':
+      return assigneeGroups(sorted);
     default: {
       const unreachable: never = options.groupBy;
       return unreachable;
@@ -145,6 +149,40 @@ function tagGroups<T extends ArrangedTask>(tasks: readonly T[]): TaskGroup<T>[] 
   return [...buckets.entries()]
     .sort((left, right) => compareNamed(left[1].label, right[1].label))
     .map(([key, bucket]) => ({ key, label: bucket.label, tasks: bucket.tasks }));
+}
+
+function assigneeGroups<T extends ArrangedTask>(tasks: readonly T[]): TaskGroup<T>[] {
+  const buckets = new Map<string, { label: string; tasks: T[] }>();
+  for (const task of tasks) {
+    const id = task.assigneeId ?? null;
+    const key = id === null || id.length === 0 ? 'none' : id;
+    const label = key === 'none' ? 'none' : (task.assigneeName ?? key);
+    const current = buckets.get(key);
+    if (current === undefined) {
+      buckets.set(key, { label, tasks: [task] });
+    } else {
+      current.tasks.push(task);
+    }
+  }
+  return [...buckets.entries()]
+    .sort((left, right) => compareAssignee(left[1].label, left[0], right[1].label, right[0]))
+    .map(([key, bucket]) => ({ key, label: bucket.label, tasks: bucket.tasks }));
+}
+
+function compareAssignee(
+  leftLabel: string,
+  leftKey: string,
+  rightLabel: string,
+  rightKey: string,
+): number {
+  if (leftKey === 'none') {
+    return 1;
+  }
+  if (rightKey === 'none') {
+    return -1;
+  }
+  const byName = leftLabel.localeCompare(rightLabel, 'es', { sensitivity: 'accent' });
+  return byName === 0 ? leftKey.localeCompare(rightKey) : byName;
 }
 
 function priorityGroups<T extends ArrangedTask>(tasks: readonly T[]): TaskGroup<T>[] {

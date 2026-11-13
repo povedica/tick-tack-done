@@ -52,6 +52,8 @@ export function whereFromClause(clause: FilterClause, clock?: FilterClock): Pris
       return { status: clause.status };
     case 'assignee':
       return { assigneeId: clause.id };
+    case 'assignee_self_or_none':
+      return { OR: [{ assigneeId: null }, { assigneeId: clause.id }] };
     case 'deleted':
       return clause.deleted ? { deletedAt: { not: null } } : { deletedAt: null };
     case 'exclude_status':

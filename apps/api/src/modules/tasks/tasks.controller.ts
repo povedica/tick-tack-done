@@ -30,6 +30,7 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
 import { pageLimit } from '../../http/cursor.js';
 import { DomainException } from '../../http/domain.exception.js';
+import { assignedByActor, assigneeFilter } from '../../reading/assignment.js';
 import { optionalUuid } from '../../http/uuid-query.js';
 import { respondJson } from '../../http/respond.js';
 import { parseWorkContext } from '../../work/work-context.js';
@@ -179,6 +180,17 @@ export class TasksController {
     enum: ['all', 'work', 'personal', 'auto'],
     description: 'Default all. auto hides work outside the configured hours.',
   })
+  @ApiQuery({
+    name: 'assignee',
+    required: false,
+    description: 'me, none, or a user uuid.',
+  })
+  @ApiQuery({
+    name: 'assigned_by',
+    required: false,
+    description:
+      'me or a user uuid. Latest assignment is theirs and the current assignee is someone else.',
+  })
   async list(
     @CurrentUser() user: AuthUser,
     @Query('limit') limit: string | undefined,
@@ -200,6 +212,8 @@ export class TasksController {
     @Query('overdue') overdue: string | undefined,
     @Query('someday') someday: string | undefined,
     @Query('context') context: string | undefined,
+    @Query('assignee') assignee: string | undefined,
+    @Query('assigned_by') assignedBy: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
@@ -229,6 +243,7 @@ export class TasksController {
         overdue: overdue === 'true',
         ...(someday === 'true' ? { someday: true } : someday === 'false' ? { someday: false } : {}),
         context: parseWorkContext(context),
+        ...this.assigneeQuery(user.id, assignee, assignedBy),
       }),
     );
     respondJson(req, res, 200, page, true);
@@ -265,6 +280,21 @@ export class TasksController {
     @Res() res: Response,
   ): Promise<void> {
     respondJson(req, res, 200, await this.tasks.get(user, id), false);
+  }
+
+  @Post(':id/seen')
+  @Scopes('tasks:read')
+  @ApiOperation({
+    summary:
+      'Mark a task as seen by its assignee. No effect for anyone else. Hidden from task history.',
+  })
+  async seen(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.tasks.markSeen(user, id);
+    res.status(204).end();
   }
 
   @Get(':id/links')
@@ -597,6 +627,19 @@ export class TasksController {
       return raw;
     }
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'status is invalid');
+  }
+
+  private assigneeQuery(
+    userId: string,
+    assignee: string | undefined,
+    assignedBy: string | undefined,
+  ): Pick<TaskListQuery, 'filterAssignee' | 'assignedByActorId'> {
+    const filterAssignee = assigneeFilter(assignee, userId);
+    const actorId = assignedByActor(assignedBy, userId);
+    return {
+      ...(filterAssignee === undefined ? {} : { filterAssignee }),
+      ...(actorId === undefined ? {} : { assignedByActorId: actorId }),
+    };
   }
 
   private priority(raw: string): Priority {

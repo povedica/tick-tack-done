@@ -311,6 +311,15 @@ const CATALOG: readonly McpTool[] = [
         type: 'string',
         enum: ['active', 'completed', 'archived', 'cancelled', 'all'],
       },
+      assignee: {
+        type: 'string',
+        description: 'me, none, or a user uuid.',
+      },
+      assigned_by: {
+        type: 'string',
+        description:
+          'me or a user uuid. The latest assignment is theirs and the current assignee is someone else.',
+      },
     }),
   },
   {
@@ -612,6 +621,13 @@ const CATALOG: readonly McpTool[] = [
     description: 'Delete a reminder from a task.',
     scopes: ['reminders:write'],
     inputSchema: objectSchema({ task_id: id, reminder_id: id }, ['task_id', 'reminder_id']),
+  },
+  {
+    name: 'mark_task_seen',
+    description:
+      'Mark a task as seen by its assignee. No effect for anyone else. The access is not shown in the task history.',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({ id }, ['id']),
   },
   {
     name: 'assign_task',
@@ -1169,7 +1185,10 @@ const CATALOG: readonly McpTool[] = [
     inputSchema: objectSchema(
       {
         id,
-        group_by: { type: 'string', enum: ['none', 'section', 'date', 'tag', 'priority'] },
+        group_by: {
+          type: 'string',
+          enum: ['none', 'section', 'date', 'tag', 'priority', 'assignee'],
+        },
         sort: { type: 'string', enum: ['manual', 'date', 'priority', 'title', 'created'] },
         limit,
         cursor,
@@ -1185,10 +1204,21 @@ const CATALOG: readonly McpTool[] = [
   },
   {
     name: 'list_smart_list_tasks',
-    description: 'List tasks in one smart list.',
+    description:
+      'List tasks in one smart list. key=assigned_by_me is virtual: tasks the caller assigned that still belong to someone else, including completions from the last 7 days.',
     scopes: ['filters:read'],
     inputSchema: objectSchema(
-      { key: { type: 'string', minLength: 1 }, limit, cursor, context: workContext },
+      {
+        key: { type: 'string', minLength: 1 },
+        group_by: {
+          type: 'string',
+          enum: ['none', 'section', 'date', 'tag', 'priority', 'assignee'],
+        },
+        sort: { type: 'string', enum: ['manual', 'date', 'priority', 'title', 'created'] },
+        limit,
+        cursor,
+        context: workContext,
+      },
       ['key'],
     ),
   },

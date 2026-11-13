@@ -29,6 +29,8 @@ import {
 import { useCalendarSyncOnOpen } from '../calendar/sync-calendars';
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   Plus,
   Columns3,
@@ -260,6 +262,7 @@ export function CalendarPage() {
   const rangedTasks = useQuery<Task[]>({
     enabled: current !== 'agenda' && !densityFromSummary,
     queryKey: ['calendar-tasks', 'auto', 'any', range.from, range.to],
+    placeholderData: (previous) => previous,
     queryFn: () =>
       collectTasks((query) => api.listTasks(query), calendarTaskQuery(range.from, range.to)),
   });
@@ -270,6 +273,7 @@ export function CalendarPage() {
   const rangedEvents = useQuery<Awaited<ReturnType<typeof api.calendarEvents>>>({
     enabled: current !== 'agenda' && !densityFromSummary,
     queryKey: ['calendar-events', 'auto', range.dueAfter, range.dueBefore],
+    placeholderData: (previous) => previous,
     queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore, 'auto', 'external'),
   });
   const summary = useQuery({
@@ -427,7 +431,7 @@ export function CalendarPage() {
                   move(-1);
                 }}
               >
-                ‹
+                <ChevronLeft size={18} aria-hidden="true" />
               </Button>
               <Button
                 onClick={() => {
@@ -446,7 +450,7 @@ export function CalendarPage() {
                   move(1);
                 }}
               >
-                ›
+                <ChevronRight size={18} aria-hidden="true" />
               </Button>
             </div>
             <CalendarPeriod
@@ -479,7 +483,7 @@ export function CalendarPage() {
               openTaskComposer(composerContextFor(window.location, { cache: composerClient }));
             }}
           >
-            <Plus size={17} aria-hidden="true" />
+            <Plus size={18} aria-hidden="true" />
           </Button>
         ) : null}
         <CalendarSyncButton />
@@ -488,7 +492,7 @@ export function CalendarPage() {
           label={messages.calendarFilterTitle}
           trigger={
             <span className="calendar-filter-indicator" data-active={activeFilterCount > 0}>
-              <ListFilter size={22} aria-hidden="true" />
+              <ListFilter size={18} aria-hidden="true" />
               {activeFilterCount > 0 ? (
                 <sup
                   className="calendar-filter-count"

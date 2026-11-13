@@ -77,12 +77,27 @@ it('RF-2564: the banner asks to reconnect and keeps the rest of the page free to
 });
 
 it('RF-2565: the calendar button posts /calendar/sync', async () => {
-  syncCalendars.mockResolvedValue({ subscriptions: [] });
+  let finish: (value: { subscriptions: never[] }) => void = () => undefined;
+  syncCalendars.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
   const client = new QueryClient();
   render(createElement(QueryClientProvider, { client }, createElement(CalendarSyncButton)));
-  fireEvent.click(screen.getByRole('button', { name: 'Sincronizar ahora' }));
+  fireEvent.click(screen.getByRole('button', { name: /Sincronizar ahora/ }));
+  await vi.waitFor(() => {
+    expect(document.querySelector('.calendar-sync svg')?.classList.contains('is-spinning')).toBe(
+      true,
+    );
+  });
+  finish({ subscriptions: [] });
   await vi.waitFor(() => {
     expect(syncCalendars).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('.calendar-sync svg')?.classList.contains('is-spinning')).toBe(
+      false,
+    );
   });
   client.clear();
 });

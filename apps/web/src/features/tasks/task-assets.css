@@ -1,3 +1,54 @@
+.detail-assets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.detail-assets > h3,
+.detail-assets .asset-help,
+.detail-assets .asset-connect,
+.detail-assets .attachment-chips,
+.detail-assets .link-form,
+.detail-assets .link-error,
+.detail-assets [role='alert'] {
+  flex: 1 0 100%;
+  order: 1;
+}
+.detail-assets > .task-assets,
+.detail-assets > .task-links,
+.detail-assets .detail-asset-actions {
+  display: contents;
+}
+.task-assets-heading {
+  order: -1;
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+.detail-attach-btn.detail-asset-btn,
+.detail-asset-btn.ui-button {
+  order: 0;
+  box-sizing: border-box;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+}
+@media (max-width: 700px) {
+  .detail-attach-btn.detail-asset-btn,
+  .detail-asset-btn.ui-button {
+    height: var(--tap);
+    min-height: var(--tap);
+  }
+}
 .task-assets {
   position: relative;
 }

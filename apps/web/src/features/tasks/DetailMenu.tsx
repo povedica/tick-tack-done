@@ -15,7 +15,7 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Popover } from '../../components/Popover';
 import type { Messages } from '../../i18n';
 
@@ -42,6 +42,7 @@ export function DetailMenu({
   onPrint,
   onWontDo,
   onDelete,
+  afterTags,
 }: {
   readonly open: boolean;
   readonly messages: Messages;
@@ -65,6 +66,7 @@ export function DetailMenu({
   readonly onPrint: () => void;
   readonly onWontDo: () => void;
   readonly onDelete: () => void;
+  readonly afterTags?: ReactNode;
 }) {
   const groups: readonly (readonly MenuItem[])[] = [
     [
@@ -170,27 +172,29 @@ export function DetailMenu({
       {groups.map((group) => (
         <div key={group[0]?.id} className="menu-group">
           {group.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="popover-row"
-              role="menuitem"
-              disabled={item.disabled}
-              title={item.description}
-              aria-describedby={item.description ? 'detail-menu-upload-reason' : undefined}
-              onClick={() => {
-                item.run();
-                onClose();
-              }}
-            >
-              {item.icon}
-              <span>
-                {item.label}
-                {item.description ? (
-                  <small id="detail-menu-upload-reason">{item.description}</small>
-                ) : null}
-              </span>
-            </button>
+            <Fragment key={item.id}>
+              <button
+                type="button"
+                className="popover-row"
+                role="menuitem"
+                disabled={item.disabled}
+                title={item.description}
+                aria-describedby={item.description ? 'detail-menu-upload-reason' : undefined}
+                onClick={() => {
+                  item.run();
+                  onClose();
+                }}
+              >
+                {item.icon}
+                <span>
+                  {item.label}
+                  {item.description ? (
+                    <small id="detail-menu-upload-reason">{item.description}</small>
+                  ) : null}
+                </span>
+              </button>
+              {item.id === 'tags' ? afterTags : null}
+            </Fragment>
           ))}
         </div>
       ))}

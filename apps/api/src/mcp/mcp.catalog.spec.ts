@@ -124,6 +124,12 @@ describe('MCP tool catalog', () => {
   it('RF-2001: read scopes do not include write tools', () => {
     const names = visibleTools(['tasks:read']).map((tool) => tool.name);
     expect(names).toContain('list_tasks');
+    expect(names).toContain('mark_task_seen');
+    const listed = MCP_TOOLS.find((tool) => tool.name === 'list_tasks');
+    expect(listed?.inputSchema.properties).toHaveProperty('assignee');
+    expect(listed?.inputSchema.properties).toHaveProperty('assigned_by');
+    const smart = MCP_TOOLS.find((tool) => tool.name === 'list_smart_list_tasks');
+    expect(smart?.inputSchema.properties).toHaveProperty('group_by');
     expect(names).toContain('list_task_comments');
     expect(names).toContain('list_task_attachments');
     expect(names).not.toContain('create_task');
