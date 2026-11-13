@@ -25,6 +25,8 @@ import { DatePopover, type DateDraft } from '../../../components/DatePopover';
 import { Segmented } from '../../../components/Segmented';
 import { Button, Modal } from '../../../components/ui';
 import { fill, useMessages, type Messages } from '../../../i18n';
+import { useAppLocale } from '../../../i18n/locale';
+import { assigneeMessages } from '../assignee-messages';
 import { LIST_COLORS } from '../../../shell/ListModal';
 import { calendarDay, zonedWallTime } from '../../today/groups';
 import { rowsFromView } from '../../tasks/model';
@@ -822,9 +824,15 @@ function ConditionRow({
   readonly onChange: (next: ConditionDraft) => void;
   readonly onRemove: () => void;
 }) {
+  const locale = useAppLocale();
+  const assigneeText = assigneeMessages[locale.toLowerCase().startsWith('en') ? 'en' : 'es'];
   const fieldLabel = fieldName(messages, condition.field);
   const errorId = `filter-error-${condition.id}`;
-  const error = invalid ? valueError(condition, messages) : null;
+  const error = invalid
+    ? condition.field === 'assignee'
+      ? assigneeText.required
+      : valueError(condition, messages)
+    : null;
   return (
     <div className="filter-condition" onBlur={onTouch}>
       <FieldPicker
@@ -908,7 +916,9 @@ function ValueField({
         label={valueLabel}
         invalid={invalid}
         describedBy={describedBy}
-        onChange={(value) => onChange({ ...condition, value })}
+        onChange={(value) => {
+          onChange({ ...condition, value });
+        }}
       />
     );
   }
@@ -1379,8 +1389,6 @@ function valueError(condition: ConditionDraft, messages: Messages): string {
   switch (condition.field) {
     case 'keyword':
       return messages.filterWriteWord;
-    case 'assignee':
-      return messages.filterWriteAssignee;
     case 'list':
       return messages.filterChooseList;
     case 'folder':

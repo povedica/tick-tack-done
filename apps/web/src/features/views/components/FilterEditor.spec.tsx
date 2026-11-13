@@ -22,13 +22,16 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { FilterEditor } from './FilterEditor';
+import { peopleFromMembers } from './AssigneePicker';
+import { loadMessages } from '../../../i18n';
+import { useLocale } from '../../../i18n/locale';
 
 const previewFilter = vi.hoisted(() => vi.fn());
 const listFilters = vi.hoisted(() => vi.fn());
 const listProjects = vi.hoisted(() => vi.fn());
 const listTags = vi.hoisted(() => vi.fn());
 const listFolders = vi.hoisted(() => vi.fn());
-const listMembers = vi.hoisted(() => vi.fn());
+const listMembers = vi.hoisted(() => vi.fn<(id: string) => Promise<{ items: unknown[] }>>());
 const getMe = vi.hoisted(() => vi.fn());
 const createFilter = vi.hoisted(() => vi.fn());
 
@@ -89,6 +92,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   previewFilter.mockReset();
+  useLocale.setState({ choice: 'es' });
 });
 
 function renderEditor(): void {
@@ -238,15 +242,17 @@ describe('FilterEditor assignee picker (DR-0006)', () => {
         { id: 'private', name: 'Privada', shared: false },
       ],
     });
-    listMembers.mockImplementation(async (id: string) => ({
-      items: [
-        member('me', 'Marta', 'me@example.test'),
-        member('ana', 'Ana', 'ana@example.test'),
-        ...(id === 'two' ? [member('bea', 'Bea', 'bea@example.test')] : []),
-        member('declined', 'Declined', 'no@example.test', 'declined'),
-        { user_id: null, email: 'pending@example.test', status: 'pending' },
-      ],
-    }));
+    listMembers.mockImplementation((id: string) =>
+      Promise.resolve({
+        items: [
+          member('me', 'Marta', 'me@example.test'),
+          member('ana', 'Ana', 'ana@example.test'),
+          ...(id === 'two' ? [member('bea', 'Bea', 'bea@example.test')] : []),
+          member('declined', 'Declined', 'no@example.test', 'declined'),
+          { user_id: null, email: 'pending@example.test', status: 'pending' },
+        ],
+      }),
+    );
     renderEditor();
     await openAssignee();
     await screen.findByRole('radio', { name: /Bea/ });
@@ -266,9 +272,16 @@ describe('FilterEditor assignee picker (DR-0006)', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Bea/ }));
     expect(screen.queryByRole('button', { name: 'Quitar Ana' })).toBeNull();
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Asignadas' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Guardar filtro' })[0] as HTMLElement);
-    await vi.waitFor(() => expect(createFilter).toHaveBeenCalled());
-    expect(createFilter.mock.calls[0]?.[0].rules.groups[0].conditions).toEqual([
+    const save = screen.getAllByRole('button', { name: 'Guardar filtro' })[0];
+    if (save === undefined) throw new Error('missing save button');
+    fireEvent.click(save);
+    await vi.waitFor(() => {
+      expect(createFilter).toHaveBeenCalled();
+    });
+    const saved = createFilter.mock.calls[0]?.[0] as {
+      rules: { groups: { conditions: unknown[] }[] };
+    };
+    expect(saved.rules.groups[0]?.conditions).toEqual([
       { field: 'assignee', op: 'eq', value: 'bea' },
     ]);
   });
@@ -321,13 +334,16 @@ describe('FilterEditor assignee picker (DR-0006)', () => {
       'Persona no disponible',
     );
     expect(
-      (screen.getByRole('radio', { name: 'Persona no disponible' }) as HTMLInputElement).disabled,
+      screen.getByRole<HTMLInputElement>('radio', { name: 'Persona no disponible' }).disabled,
     ).toBe(true);
     fireEvent.click(previewSwitch());
-    await vi.waitFor(() => expect(previewFilter).toHaveBeenCalled());
-    expect(previewFilter.mock.calls.at(-1)?.[0].rules.groups[0].conditions[0].value).toBe(
-      'former-member',
-    );
+    await vi.waitFor(() => {
+      expect(previewFilter).toHaveBeenCalled();
+    });
+    const preview = previewFilter.mock.calls.at(-1)?.[0] as {
+      rules: { groups: { conditions: { value: string }[] }[] };
+    };
+    expect(preview.rules.groups[0]?.conditions[0]?.value).toBe('former-member');
   });
 
   it('announces loading, reports errors and retries without losing the selection', async () => {
@@ -343,7 +359,9 @@ describe('FilterEditor assignee picker (DR-0006)', () => {
     renderEditor();
     await openAssignee();
     expect(screen.getByText('Cargando personas…')).toBeTruthy();
-    await vi.waitFor(() => expect(rejectMembers).toBeDefined());
+    await vi.waitFor(() => {
+      expect(rejectMembers).toBeDefined();
+    });
     rejectMembers?.(new Error('offline'));
     await screen.findByText('No se han podido cargar las personas.');
     listMembers.mockResolvedValue({ items: [member('ana', 'Ana', 'ana@example.test')] });
@@ -351,5 +369,40 @@ describe('FilterEditor assignee picker (DR-0006)', () => {
     await screen.findByRole('radio', { name: /Ana/ });
     expect(screen.queryByText('Cargando personas…')).toBeNull();
     expect(screen.queryByText('No se han podido cargar las personas.')).toBeNull();
+  });
+});
+
+describe('assignee membership parsing', () => {
+  it('merges user ids across lists, keeps usable profile details and ignores invitations', () => {
+    expect(
+      peopleFromMembers([
+        { items: [member('owner', 'Owner', ''), member('ana', 'Ana', 'ana@example.test')] },
+        {
+          items: [
+            member('owner', '', 'owner@example.test'),
+            member('ana', 'Ana', 'ana@example.test'),
+            member('invited', 'Invited', 'invited@example.test', 'pending'),
+            member('', 'Invalid', ''),
+          ],
+        },
+        null,
+        { items: [null, { id: 'membership-only' }] },
+      ]),
+    ).toEqual([
+      { id: 'ana', name: 'Ana', email: 'ana@example.test' },
+      { id: 'owner', name: 'Owner', email: 'owner@example.test' },
+    ]);
+  });
+
+  it('localizes the empty selector and me in English', async () => {
+    vi.useRealTimers();
+    await loadMessages('en');
+    useLocale.setState({ choice: 'en' });
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Field: Keyword' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Assignee' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a person…' }));
+    await screen.findByText("You don't share lists with anyone yet");
+    expect(screen.getByRole('radio', { name: /Me me@example.test/ })).toBeTruthy();
   });
 });
