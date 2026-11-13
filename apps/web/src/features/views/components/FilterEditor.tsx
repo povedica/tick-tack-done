@@ -25,6 +25,8 @@ import { DatePopover, type DateDraft } from '../../../components/DatePopover';
 import { Segmented } from '../../../components/Segmented';
 import { Button, Modal } from '../../../components/ui';
 import { fill, useMessages, type Messages } from '../../../i18n';
+import { useAppLocale } from '../../../i18n/locale';
+import { assigneeMessages } from '../assignee-messages';
 import { LIST_COLORS } from '../../../shell/ListModal';
 import { calendarDay, zonedWallTime } from '../../today/groups';
 import { rowsFromView } from '../../tasks/model';
@@ -50,6 +52,7 @@ import type { FilterEditorRequest } from '../filter-ui';
 import { filterFolderLabels, filterTagLabels } from '../summarize';
 import { FieldPicker, type FieldOption } from './FieldPicker';
 import { MultiPicker, type PickerChoice } from './MultiPicker';
+import { AssigneePicker } from './AssigneePicker';
 
 const DATE_OPS = ['today', 'tomorrow', 'next_7_days', 'overdue', 'no_date', 'between'] as const;
 
@@ -821,9 +824,15 @@ function ConditionRow({
   readonly onChange: (next: ConditionDraft) => void;
   readonly onRemove: () => void;
 }) {
+  const locale = useAppLocale();
+  const assigneeText = assigneeMessages[locale.toLowerCase().startsWith('en') ? 'en' : 'es'];
   const fieldLabel = fieldName(messages, condition.field);
   const errorId = `filter-error-${condition.id}`;
-  const error = invalid ? valueError(condition, messages) : null;
+  const error = invalid
+    ? condition.field === 'assignee'
+      ? assigneeText.required
+      : valueError(condition, messages)
+    : null;
   return (
     <div className="filter-condition" onBlur={onTouch}>
       <FieldPicker
@@ -900,18 +909,27 @@ function ValueField({
   readonly onChange: (next: ConditionDraft) => void;
 }) {
   const valueLabel = fill(messages.filterValueOf, fieldName(messages, condition.field));
-  if (condition.field === 'keyword' || condition.field === 'assignee') {
+  if (condition.field === 'assignee') {
+    return (
+      <AssigneePicker
+        value={condition.value}
+        label={valueLabel}
+        invalid={invalid}
+        describedBy={describedBy}
+        onChange={(value) => {
+          onChange({ ...condition, value });
+        }}
+      />
+    );
+  }
+  if (condition.field === 'keyword') {
     return (
       <input
         className="ui-input"
         aria-label={valueLabel}
         aria-invalid={invalid}
         aria-describedby={describedBy}
-        placeholder={
-          condition.field === 'keyword'
-            ? messages.filterKeywordPlaceholder
-            : messages.filterAssigneePlaceholder
-        }
+        placeholder={messages.filterKeywordPlaceholder}
         value={condition.value}
         onFocus={centerOnMobile}
         onChange={(event) => {
@@ -1371,8 +1389,6 @@ function valueError(condition: ConditionDraft, messages: Messages): string {
   switch (condition.field) {
     case 'keyword':
       return messages.filterWriteWord;
-    case 'assignee':
-      return messages.filterWriteAssignee;
     case 'list':
       return messages.filterChooseList;
     case 'folder':
