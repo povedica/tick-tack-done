@@ -4,6 +4,9 @@ import os
 from pathlib import Path
 import re
 import subprocess
+
+
+import sys
 import tempfile
 import unittest
 
@@ -147,3 +150,203 @@ backup_before_migrate
         self.assertIn('backup_daily_external', (ROOT/'deploy/production/cron-backup.sh').read_text())
         external=source.split('backup_daily_external() (',1)[1].split('# Local safety',1)[0]
         self.assertIn('bash "$root/scripts/backup.sh"',external)
+
+
+GH_STUB = r'''#!/usr/bin/env python3
+import os, sys
+open(os.environ["GH_LOG"], "a").write(" ".join(sys.argv[1:]) + "\n")
+if os.environ.get("GH_REJECT") == "1":
+    sys.stderr.write("gh should not have been called\n")
+    sys.exit(9)
+target = next((arg for arg in sys.argv[1:] if arg.startswith("repos/")), "")
+number = target.rsplit("/", 1)[-1]
+if os.environ.get("ISSUE_HTTP") == "500":
+    sys.stderr.write("HTTP 500: server error\n")
+    sys.exit(1)
+if os.environ.get("ISSUE_HTTP") == "404" or number == "404":
+    sys.stderr.write("gh: Not Found (HTTP 404)\n")
+    sys.exit(1)
+print(os.environ.get("ISSUE_STATE", "open"))
+'''
+
+
+class IssueLinkContracts(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = Path(self.tmp.name)
+        bindir = root / 'bin'
+        bindir.mkdir()
+        stub = bindir / 'gh'
+        stub.write_text(GH_STUB)
+        stub.chmod(0o755)
+        self.event = root / 'event.json'
+        self.log = root / 'gh.log'
+        self.log.write_text('')
+        self.env = os.environ.copy()
+        self.env.pop('ISSUE_STATES', None)
+        self.env['PATH'] = str(bindir) + os.pathsep + self.env.get('PATH', '')
+        self.env['GH_LOG'] = str(self.log)
+        self.env['GITHUB_EVENT_PATH'] = str(self.event)
+        self.env['GITHUB_REPOSITORY'] = 'povedica/tick-tack-done'
+        self.env['ISSUE_STATE'] = 'open'
+
+    def write_event(self, author, body, **extra):
+        pull = {'user': {'login': author}, 'body': body}
+        pull.update(extra)
+        self.event.write_text(json.dumps({'pull_request': pull}))
+
+    def run_check(self):
+        return subprocess.run(
+            [sys.executable, '-B', str(ROOT / 'scripts/ci/issue_link.py')],
+            env=self.env,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_ci_ok_needs_issue_link_on_description_edits(self):
+        text = workflow('ci.yml')
+        triggers = text.split('\njobs:', 1)[0]
+        pull = re.search(r'^  pull_request:\n((?:    .*\n)+)', triggers, re.MULTILINE).group(1)
+        for action in ('opened', 'edited', 'synchronize', 'reopened'):
+            self.assertIn(action, pull)
+        link = job(text, 'issue-link')
+        for action in ('opened', 'edited', 'synchronize', 'reopened'):
+            self.assertIn("github.event.action == '%s'" % action, link)
+        self.assertIn("github.event_name == 'pull_request'", link)
+        self.assertIn('python3 scripts/ci/issue_link.py', link)
+        self.assertIn('issues: read', link)
+        self.assertIn('GH_TOKEN: ${{ github.token }}', link)
+        self.assertNotIn('continue-on-error', link)
+        self.assertNotIn('sin-backlog', link)
+        ok = job(text, 'ci-ok')
+        self.assertIn('issue-link', ok)
+        self.assertIn('if: always()', ok)
+
+    def test_only_dependabot_bot_is_named_exempt(self):
+        source = (ROOT / 'scripts/ci/issue_link.py').read_text()
+        self.assertEqual(source.count("EXEMPT_AUTHOR = 'dependabot[bot]'"), 1)
+        self.assertNotIn('sin-backlog', source)
+        self.assertNotIn('github-actions', source)
+        self.assertNotIn("== 'app/dependabot'", source)
+
+    def test_open_issue_on_the_first_line_passes(self):
+        self.write_event('developer', 'Closes #12\n\n- Agente: cursor-harness-1\n')
+        self.env['ISSUE_STATES'] = json.dumps({'12': 'open'})
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Closes #12 está abierta', result.stdout)
+        self.assertEqual(self.log.read_text(), '')
+
+    def test_body_must_start_with_closes_and_the_issue_must_be_open(self):
+        cases = (
+            ('developer', 'Fixes #12', {'12': 'open'}, 1, 'no empieza por'),
+            ('developer', 'closes #12', {'12': 'open'}, 1, 'no empieza por'),
+            ('developer', 'Nota\nCloses #12', {'12': 'open'}, 1, 'no empieza por'),
+            ('developer', '  Closes #12', {'12': 'open'}, 1, 'no empieza por'),
+            ('developer', '', {'12': 'open'}, 1, 'no empieza por'),
+            ('developer', 'Closes #12.', {'12': 'open'}, 0, 'está abierta'),
+            ('developer', 'Closes #12', {'12': 'closed'}, 1, 'está cerrada'),
+            ('developer', 'Closes #12', {'12': 'closed'}, 1, 'no se reabre'),
+            ('developer', 'Closes #99', {}, 1, 'no existe'),
+            ('github-actions[bot]', '', {}, 1, 'no empieza por'),
+            ('app/dependabot', 'Bumps vite', {}, 1, 'no empieza por'),
+            ('dependabot[bot]', '', {}, 0, 'queda exento'),
+            ('dependabot[bot]', 'Closes #12', {'12': 'closed'}, 0, 'queda exento'),
+            (
+                'developer',
+                '<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\nCloses #12\n',
+                {'12': 'open'},
+                0,
+                'está abierta',
+            ),
+            (
+                'developer',
+                '<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\nFixes #12\n',
+                {'12': 'open'},
+                1,
+                'no empieza por',
+            ),
+            (
+                'developer',
+                '<!-- otro -->\n\nCloses #12\n',
+                {'12': 'open'},
+                0,
+                'está abierta',
+            ),
+            (
+                'developer',
+                '<!-- Closes #99 -->\nNota\n',
+                {'99': 'open'},
+                1,
+                'no empieza por',
+            ),
+        )
+        for author, body, states, code, needle in cases:
+            with self.subTest(author=author, body=body, states=states):
+                self.write_event(author, body, labels=[{'name': 'sin-backlog'}])
+                self.env['ISSUE_STATES'] = json.dumps(states)
+                result = self.run_check()
+                self.assertEqual(result.returncode, code, result.stdout + result.stderr)
+                self.assertIn(needle, result.stdout)
+
+    def test_lookup_uses_rest_issue_state_and_fails_closed(self):
+        self.write_event('developer', 'Closes #12')
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('repos/povedica/tick-tack-done/issues/12', self.log.read_text())
+        self.assertIn('--jq .state', self.log.read_text())
+
+        self.log.write_text('')
+        self.env['ISSUE_HTTP'] = '404'
+        self.write_event('developer', 'Closes #12')
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('no existe', result.stdout)
+
+        self.env['ISSUE_HTTP'] = '500'
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('No pude leer la issue #12', result.stdout)
+        self.assertNotIn('no existe', result.stdout)
+
+    def test_leading_html_comments_and_blank_lines_are_ignored(self):
+        preamble = (
+            '<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n'
+            '\n'
+            '<!--\n'
+            'nota que no cierra nada\n'
+            '-->\n'
+            '\n'
+            ' \n'
+            'Closes #170\n'
+        )
+        self.write_event('developer', preamble)
+        self.env['ISSUE_STATES'] = json.dumps({'170': 'open', '99': 'open'})
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Closes #170 está abierta', result.stdout)
+
+        hidden = '<!-- Closes #99 -->\n\nCloses #170\n'
+        self.write_event('developer', hidden)
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Closes #170 está abierta', result.stdout)
+        self.assertNotIn('#99', result.stdout)
+
+        self.write_event('developer', '<!-- sin cerrar\nCloses #170\n')
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('no empieza por', result.stdout)
+
+        self.write_event('developer', '  \n\t\nCloses #170\n')
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_dependabot_does_not_call_github(self):
+        self.env['GH_REJECT'] = '1'
+        self.write_event('dependabot[bot]', '')
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('queda exento', result.stdout)
+        self.assertFalse(self.log.exists() and self.log.read_text())

@@ -3,7 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # edited so a body change cannot leave a stale ci-ok. The other jobs rerun
+  # on that same SHA: a green edit must not replace a red test run.
   pull_request:
+    types: [opened, edited, synchronize, reopened]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -296,6 +299,21 @@ jobs:
           python3 -B -m unittest discover -s scripts/deploy -v
           python3 -B -m unittest discover -s scripts/ci -v
 
+  issue-link:
+    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'edited' || github.event.action == 'synchronize' || github.event.action == 'reopened')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Require Closes #N of an open issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/issue_link.py
+
   ci-ok:
     if: always()
     needs:
@@ -310,6 +328,7 @@ jobs:
         public-tree-guard,
         docs-format,
         infra-check,
+        issue-link,
       ]
     runs-on: ubuntu-24.04
     timeout-minutes: 1

@@ -6,5 +6,7 @@
 4. `pnpm test` antes de abrir la PR. Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/) en inglés.
 5. Una issue, una PR, desde `main`, en un worktree propio. Antes de empezar,
    reclama la tarjeta en el Project «ttd · backlog» (véase `AGENTS.md`).
+   Una PR sin issue solo la abre Dependabot. Un ajuste de una issue cerrada
+   es una issue nueva con la etiqueta `ajuste`, no una reapertura.
 
 Los secretos de ejemplo deben fallar si `NODE_ENV=production`. Genera los reales con `openssl rand -hex 32` y déjalos fuera del repositorio.

@@ -37,6 +37,8 @@ Este procedimiento lo comparten Cursor y Codex. La entrada para ambos está en `
   ya esté ocupada en «En curso», «Pausada» o «En revisión».
 - Si hay tarjetas en Pausada, pregunta a Pablo si se retoman antes de coger algo nuevo.
 - Si tu token no tiene el scope `project`, no fuerces: deja los comandos en la PR.
+- No trabajes sin una issue asignada. Si el pedido llega por el chat, crea la issue antes de tocar código.
+- No reabras una issue cerrada para un ajuste. Crea `BKL-NNN · Ajuste de #N: <qué>` con la etiqueta `ajuste`, comentario en las dos, sub-issue o `Refs #N`, tarjeta y PR propias. Aunque sea una línea.
 
 ## Valores válidos
 
@@ -122,6 +124,17 @@ Adoptar una PR que ya existía: añadir `Closes #N` como primera línea y
 rellenar Agente y Rama. El check escribe la Rama con la rama de la PR y
 avisa si Agente sigue vacío. No se toca la PR de otro agente.
 
+`#N` tiene que existir y estar abierta. La única PR sin issue es la de
+`dependabot[bot]` (`issue-link` en `ci-ok`). Un agente no usa `sin-backlog`.
+
+### Ajuste post-cierre
+
+Si la issue está cerrada y falta algo, no se reabre. Issue nueva
+`BKL-NNN · Ajuste de #N: <qué>`, etiqueta `ajuste` (créala si no existe:
+color `fbca04`, descripción «Ajuste posterior al cierre. Issue nueva enlazada
+a la original; no reabre ni reutiliza la cerrada.»), comentario en las dos,
+sub-issue o `Refs #N`, y su propia PR.
+
 ## Comentar una decisión
 
 Tras cada avance relevante, publica un comentario de decisión en la issue con
@@ -181,14 +194,15 @@ Actualiza la fila de `DECISIONES.md` (estado «Decidida», fecha, decisión, qui
 
 ### 9. Regenerar el espejo
 
-`scripts/backlog/generar-backlog.sh` y PR con la etiqueta `sin-backlog` (o deja que lo haga backlog-sync).
+`scripts/backlog/generar-backlog.sh`. Lo ejecuta backlog-sync. Una PR de agente no lleva `sin-backlog` para saltarse la issue: `issue-link` solo exime a `dependabot[bot]`.
 
 ## Checklist al cerrar una tarea
 
 - [ ] Pregunté por las pausadas antes de reclamar.
 - [ ] Zona libre (y nada más en prisma-migrations).
 - [ ] Agente `<ejecutor>-<rol>-N` y Rama rellenados.
-- [ ] La descripción de la PR empieza por `Closes #N`.
+- [ ] La descripción de la PR empieza por `Closes #N` y esa issue está abierta.
+- [ ] Si es un ajuste post-cierre, la issue es nueva, con etiqueta `ajuste`, enlazada a la original. No se reabrió la cerrada.
 - [ ] Si pausé: comentario con motivo, estado y condición para retomar.
 - [ ] Comentarios de decisión publicados; el último resume el estado al pasar a En revisión.
 - [ ] Al retomar: comentario «Retomada», vuelta a En curso y Agente actualizado si cambia.

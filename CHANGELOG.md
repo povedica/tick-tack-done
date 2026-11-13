@@ -12,6 +12,7 @@
 - BKL-059 (#169): copia local persistente antes de migrar en staging y producción, con permisos privados y retención de 30 días conservando las tres últimas; el backup diario externo de RF-1704 mantiene su comportamiento.
 
 - BKL-046: 1Password Environments, runtime env restaurable y plan de imágenes independiente del último push.
+- Harness: una PR de agente empieza por `Closes #N` de una issue abierta. Solo Dependabot queda exento. El check ignora comentarios HTML y líneas en blanco al principio. Un ajuste posterior al cierre abre una issue `ajuste` nueva y no reabre la original (BKL-060, #170).
 - Cuenta atrás: filas legibles en móvil, tarjetas cuadradas en escritorio/tablet, colores saturados y menú con el estilo de la app. Alta y edición con bandeja de emojis y calendario de fecha civil; cadenas en español e inglés. MCP permite actualizar todos los campos editables, restaurar y paginar (BKL-058, #162; RF-2401–2405, RF-2431, RF-2440–2442, RF-2451–2455).
 
 ## 0.2.0 (10 de noviembre de 2026)
