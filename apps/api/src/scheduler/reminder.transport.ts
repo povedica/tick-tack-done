@@ -7,7 +7,7 @@ import {
 } from '../integrations/telegram-configuration.js';
 import { sendEmail, type EmailResult } from '../mail/send-email.js';
 
-import webpush from 'web-push';
+import { sendNotification, setVapidDetails } from 'web-push';
 
 export interface PushTarget {
   readonly endpoint: string;
@@ -133,7 +133,7 @@ export class ReminderTransport {
       if (subject.length === 0) {
         return 'skipped';
       }
-      webpush.setVapidDetails(subject, publicKey, privateKey);
+      setVapidDetails(subject, publicKey, privateKey);
       const payload = JSON.stringify({
         title: message.title,
         body: message.body,
@@ -149,7 +149,7 @@ export class ReminderTransport {
           : {}),
       });
       for (const subscription of message.subscriptions) {
-        await webpush.sendNotification(
+        await sendNotification(
           {
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },

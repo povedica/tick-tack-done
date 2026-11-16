@@ -17,7 +17,7 @@ let email = '';
 let rejectMail = true;
 const mail: { key: string; body: string }[] = [];
 const push = vi.hoisted(() => ({ send: vi.fn(() => Promise.resolve({})) }));
-vi.mock('web-push', () => ({ default: { setVapidDetails: vi.fn(), sendNotification: push.send } }));
+vi.mock('web-push', () => ({ setVapidDetails: vi.fn(), sendNotification: push.send }));
 
 describe('RF-802 RF-808: Resend reminder delivery', () => {
   beforeAll(async () => {
