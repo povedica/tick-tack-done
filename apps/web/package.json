@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node ../../integrations/raycast/scripts/pack.mjs",
     "dev": "vite",
+    "prebuild": "node ../../integrations/raycast/scripts/pack.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint src --no-error-on-unmatched-pattern",

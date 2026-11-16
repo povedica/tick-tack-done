@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { CalendarDays, Ellipsis, Info, Mail, Send, type LucideIcon } from 'lucide-react';
+import { CalendarDays, Command, Ellipsis, Info, Mail, Send, type LucideIcon } from 'lucide-react';
 import { Popover } from '../../components/Popover';
 import { useMessages } from '../../i18n';
 import './integrations.css';
@@ -48,8 +48,19 @@ function shownInMenu(action: ServiceAction, desktop: boolean) {
   return action.link !== true;
 }
 
-export function ServiceMark({ name }: { readonly name: 'google' | 'telegram' | 'mail' }) {
-  const Icon = name === 'telegram' ? Send : name === 'mail' ? Mail : CalendarDays;
+export function ServiceMark({
+  name,
+}: {
+  readonly name: 'google' | 'telegram' | 'mail' | 'raycast';
+}) {
+  const Icon =
+    name === 'telegram'
+      ? Send
+      : name === 'mail'
+        ? Mail
+        : name === 'raycast'
+          ? Command
+          : CalendarDays;
   return (
     <span className={`integration-mark is-${name}`} aria-hidden="true">
       <Icon size={18} strokeWidth={2} />

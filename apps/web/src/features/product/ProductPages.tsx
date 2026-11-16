@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Button, ErrorState, SkeletonRows } from '../../components/ui';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
+import { RaycastCard } from '../settings/RaycastCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
 import { useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
@@ -296,6 +297,7 @@ export function IntegrationSettings() {
         <GoogleIntegrationCards />
         <TelegramCard />
         <InboundEmailCard />
+        <RaycastCard />
       </div>
     </section>
   );

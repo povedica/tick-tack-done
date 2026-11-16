@@ -14,7 +14,7 @@ def plan():
     return {'sha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
             'api': True, 'web': True,
             'api_sha': revision(COMMON + ['apps/api']),
-            'web_sha': revision(COMMON + ['apps/web', 'packages/sdk'])}
+            'web_sha': revision(COMMON + ['apps/web', 'packages/sdk', 'integrations/raycast'])}
 
 
 if __name__ == '__main__':

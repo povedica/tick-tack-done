@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## Extensión de Raycast
+
+- Un comando «Nueva tarea TTD» en `integrations/raycast/` envía el texto a
+  `POST /api/v1/tasks` sin interpretarlo. El token vive en las preferencias
+  de Raycast y no se escribe en el repositorio.
+- Ajustes → Integraciones muestra la tarjeta «Raycast (Mac)» con la descarga
+  del código fuente, los tres pasos y el aviso de que es solo para Mac.
+
 ## Permisos del token en tabla
 
 - Al crear un token personal, los permisos se eligen en una tabla siempre visible

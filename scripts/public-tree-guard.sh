@@ -63,7 +63,7 @@ forbidden_image() {
       ;;
   esac
   case "$1" in
-    apps/web/public/* | apps/web/e2e/__screenshots__/* | docs/backlog/bocetos/*)
+    apps/web/public/* | apps/web/e2e/__screenshots__/* | docs/backlog/bocetos/* | integrations/raycast/assets/*)
       return 1
       ;;
     *)
@@ -266,10 +266,11 @@ self_test() {
   dir="$(new_repo)"
   printf '%s\n' "$ALLOWED_GMAIL" "ada@Gmail.com" "ada@GMAIL.COM" "ada@example.com" "test@example.test" >"$dir/calendar.txt"
   git -C "$dir" add calendar.txt
-  mkdir -p "$dir/apps/web/public" "$dir/docs/backlog/bocetos/bkl-054"
+  mkdir -p "$dir/apps/web/public" "$dir/docs/backlog/bocetos/bkl-054" "$dir/integrations/raycast/assets"
   printf 'x\n' >"$dir/apps/web/public/icon.PNG"
   printf 'x\n' >"$dir/docs/backlog/bocetos/bkl-054/shot.png"
-  git -C "$dir" add apps/web/public/icon.PNG docs/backlog/bocetos/bkl-054/shot.png
+  printf 'x\n' >"$dir/integrations/raycast/assets/icon.png"
+  git -C "$dir" add apps/web/public/icon.PNG docs/backlog/bocetos/bkl-054/shot.png integrations/raycast/assets/icon.png
   expect_pass "$dir" "case 4"
   rm -rf "$dir"
 
