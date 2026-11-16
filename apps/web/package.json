@@ -20,7 +20,7 @@
     "@reflexionia/domain": "workspace:*",
     "@reflexionia/sdk": "workspace:*",
     "@tanstack/react-query": "^5.107.1",
-    "lucide-react": "1.70.0",
+    "lucide-react": "1.72.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -36,7 +36,7 @@
   "devDependencies": {
     "@playwright/test": "^1.65.0",
     "@testing-library/react": "16.3.3",
-    "@testing-library/user-event": "14.6.8",
+    "@testing-library/user-event": "14.6.10",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -44,7 +44,7 @@
     "eslint": "9.17.0",
     "jsdom": "30.1.3",
     "typescript": "^5.7.0",
-    "vite": "^8.3.7",
+    "vite": "^8.3.8",
     "vite-plugin-pwa": "^0.21.0",
     "vitest": "^3.0.0"
   }
