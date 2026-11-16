@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Fail unless a pull request body starts with Closes #N for an open issue.
 
-The issue-link job in CI reads the workflow event. pull_request.user.login for
-Dependabot is dependabot[bot]. gh pr view --json author returns app/dependabot
-and must not be used for the exemption.
+Exenciones: scripts/backlog/exemptions.json, las reglas que nombran
+issue-link. El evento trae user.login (dependabot[bot]) y user.type Bot.
+gh pr view devuelve app/dependabot e is_bot; el mismo normalizador casa
+los dos. Una etiqueta no exime de este check.
 """
 
 from __future__ import annotations
@@ -13,9 +14,15 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
+
+_BACKLOG = Path(__file__).resolve().parents[1] / 'backlog'
+if str(_BACKLOG) not in sys.path:
+    sys.path.insert(0, str(_BACKLOG))
+
+from exemptions import PolicyError, find_exemption
 
 OPENING = re.compile(r'Closes #([0-9]+)\b')
-EXEMPT_AUTHOR = 'dependabot[bot]'
 
 
 class LookupFailed(Exception):
@@ -79,9 +86,7 @@ def issue_state(repo: str, number: str) -> str:
     raise LookupFailed(f'::error::Respuesta inesperada al leer la issue #{number}.')
 
 
-def evaluate(author: str, body: str, repo: str) -> tuple[int, str]:
-    if author == EXEMPT_AUTHOR:
-        return 0, 'issue-link: dependabot[bot] queda exento.'
+def evaluate(body: str, repo: str) -> tuple[int, str]:
     number = opening_issue(body or '')
     if number is None:
         return 1, '::error::El cuerpo de la PR no empieza por «Closes #N».'
@@ -108,13 +113,20 @@ def main() -> int:
     with open(event_path, encoding='utf-8') as handle:
         event = json.load(handle)
     pull = event.get('pull_request') or {}
-    author = ((pull.get('user') or {}).get('login')) or ''
     body = pull.get('body') or ''
     repo = os.environ.get('GITHUB_REPOSITORY') or ''
     if not repo:
         print('::error::Falta GITHUB_REPOSITORY.')
         return 1
-    code, message = evaluate(author, body, repo)
+    try:
+        exemption = find_exemption('issue-link', pull)
+    except PolicyError as error:
+        print(f'::error::{error.message}')
+        return 1
+    if exemption is not None:
+        print(f'issue-link: queda exento por la regla {exemption.id}. {exemption.reason}')
+        return 0
+    code, message = evaluate(body, repo)
     print(message)
     return code
 

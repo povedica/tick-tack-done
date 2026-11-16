@@ -95,7 +95,7 @@ pnpm lint && pnpm typecheck
 - No empieces trabajo sin issue `BKL-NNN` asignada en GitHub. Nunca.
   La descripción de la PR empieza por `Closes #N` y `#N` tiene que existir
   y estar abierta. La única PR sin issue es la de Dependabot
-  (`dependabot[bot]`). Un agente no usa `sin-backlog` para saltársela.
+  (la regla `dependabot` de `scripts/backlog/exemptions.json`). Un agente no usa `sin-backlog` para saltársela.
 - Si una issue está cerrada y falta algo, no se reabre ni se reutiliza.
   Se crea `BKL-NNN · Ajuste de #N: <qué>` con la etiqueta `ajuste`,
   enlazada a la original (comentario en las dos y sub-issue o referencia),
@@ -126,4 +126,4 @@ pnpm lint && pnpm typecheck
 - Nunca imprimir valores de secretos, tampoco errores de 1Password ni config expandida de Compose.
 - Los agentes no crean ni editan Environments, secretos, reviewers ni protección de ramas.
 - Imágenes y deploy: [runbook](deploy/README.md). Producción siempre tras staging y aprobación de Pablo.
-- `ci-ok` agrega también integración, guard público, actionlint, shellcheck, pruebas de despliegue y el check `issue-link` (el cuerpo empieza por `Closes #N` de una issue abierta; solo se exime `dependabot[bot]`).
+- `ci-ok` agrega también integración, guard público, actionlint, shellcheck, pruebas de despliegue y el check `issue-link` (el cuerpo empieza por `Closes #N` de una issue abierta; solo se exime la regla `dependabot` de `scripts/backlog/exemptions.json`).
