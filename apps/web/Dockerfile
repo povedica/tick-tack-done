@@ -13,6 +13,7 @@ COPY tsconfig.base.json ./
 COPY packages/domain packages/domain
 COPY packages/sdk packages/sdk
 COPY apps/web apps/web
+COPY integrations/raycast integrations/raycast
 ARG GIT_COMMIT=unknown
 ARG BUILD_TIME
 ENV GIT_COMMIT=$GIT_COMMIT
