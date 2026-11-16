@@ -4,12 +4,14 @@ import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tansta
 import { ApiError } from '@reflexionia/sdk';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
+import { Segmented } from '../../../components/Segmented';
 import { Button, SkeletonRows } from '../../../components/ui';
 import { fill, useMessages, type Messages } from '../../../i18n';
 import { useAppLocale } from '../../../i18n/locale';
 import { tokensApi } from '../api';
 import { groupTokens, tokenExpired } from '../token-groups';
-import { GROUPS, groupedScopes, isSensitiveScope, type Scope } from '../scopes';
+import { groupedScopes, isSensitiveScope, type Scope } from '../scopes';
+import { TokenPermissionSummary, TokenPermissions } from './TokenPermissions';
 
 function useTokenOnline() {
   const [online, setOnline] = useState(navigator.onLine);
@@ -546,76 +548,37 @@ export function TokensPage() {
                 setError(null);
               }}
             />
-            <fieldset className="token-expiry" role="radiogroup">
-              <legend>{messages.tokenExpiresIn}</legend>
-              {([30, 90, 365, null] as const).map((days) => (
-                <label key={String(days)}>
-                  <input
-                    type="radio"
-                    name="expiry"
-                    checked={expiry === days}
-                    onChange={() => {
-                      setExpiry(days);
-                    }}
-                  />
-                  {days === null
-                    ? messages.tokenExpiresNever
-                    : `${String(days)} ${messages.tokenExpiryDays}`}
-                </label>
-              ))}
-            </fieldset>
-            <div className="token-resources" role="group" aria-label={messages.tokenScopes}>
-              {GROUPS.map((group) => (
-                <details
-                  key={group.name}
-                  name="token-permissions"
-                  open={window.innerWidth >= 1024}
-                  className="token-resource"
-                >
-                  <summary>{messages[group.name]}</summary>
-                  <span className="token-choices">
-                    {group.choices.map((choice) => {
-                      const on = scopes.includes(choice.id);
-                      return (
-                        <button
-                          key={choice.id}
-                          type="button"
-                          className={on ? 'token-scope is-on' : 'token-scope'}
-                          aria-pressed={on}
-                          onClick={() => {
-                            setScopes((current) =>
-                              current.includes(choice.id)
-                                ? current.filter((item) => item !== choice.id)
-                                : [...current, choice.id],
-                            );
-                          }}
-                        >
-                          {messages[choice.label]}
-                          {isSensitiveScope(choice.id) ? (
-                            <span
-                              title={messages.scopeSensitive}
-                              aria-label={messages.scopeSensitive}
-                            >
-                              {' '}
-                              ⚠
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </span>
-                </details>
-              ))}
-            </div>
+            <p className="token-label" id="token-expiry-label">
+              {messages.tokenExpiresIn}
+            </p>
+            <Segmented
+              labelledBy="token-expiry-label"
+              variant="pill"
+              className="is-wrap token-expiry-seg"
+              value={expiry === null ? 'never' : String(expiry)}
+              options={[
+                { value: '30', label: `30 ${messages.tokenExpiryDays}` },
+                { value: '90', label: `90 ${messages.tokenExpiryDays}` },
+                { value: '365', label: `365 ${messages.tokenExpiryDays}` },
+                { value: 'never', label: messages.tokenExpiresNeverOption },
+              ]}
+              onChange={(value) => {
+                setExpiry(expiryFromSegment(value));
+              }}
+            />
+            <TokenPermissions scopes={scopes} onChange={setScopes} />
             {error !== null ? <p role="alert">{error}</p> : null}
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={!online || name.trim().length === 0 || scopes.length === 0}
-              loading={create.isPending}
-            >
-              {create.isPending ? messages.tokenSaving : messages.tokenCreate}
-            </Button>
+            <div className="token-perm-foot">
+              <TokenPermissionSummary scopes={scopes} />
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!online || name.trim().length === 0 || scopes.length === 0}
+                loading={create.isPending}
+              >
+                {create.isPending ? messages.tokenSaving : messages.tokenCreate}
+              </Button>
+            </div>
           </form>
         ) : null}
       </section>
@@ -881,6 +844,13 @@ export function TokensPage() {
       </section>
     </section>
   );
+}
+
+function expiryFromSegment(value: string): 30 | 90 | 365 | null {
+  if (value === '30') return 30;
+  if (value === '90') return 90;
+  if (value === '365') return 365;
+  return null;
 }
 
 function mcpSnippet(url: string): string {
