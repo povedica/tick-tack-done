@@ -779,8 +779,58 @@ async function expectMenuKeyboard(page: Page, trigger: Locator): Promise<void> {
 
 async function expectNamedControls(root: Locator): Promise<void> {
   const controls = root.locator('button, input, [role="radiogroup"], [role="group"]');
-  for (const control of await controls.all()) {
-    if (await control.isVisible()) await expect(control).toHaveAccessibleName(/\S/);
+  // Re-query each attempt. A one-shot isVisible() check races a remount: the
+  // hidden file input and the disabled composer button can report an empty
+  // accessible name for a frame even when aria-label is already set.
+  await expect
+    .poll(async () => {
+      const missing: string[] = [];
+      for (const control of await controls.all()) {
+        if (await isNotExposed(control)) continue;
+        const name = await readAccessibleName(control);
+        if (name === null || !/\S/.test(name)) missing.push(await describeControl(control));
+      }
+      return missing;
+    })
+    .toEqual([]);
+}
+
+async function isNotExposed(control: Locator): Promise<boolean> {
+  try {
+    if (!(await control.isVisible())) return true;
+    return await control.evaluate((node) => {
+      if (!(node instanceof Element)) return true;
+      if (node.closest('[hidden], [aria-hidden="true"]') !== null) return true;
+      if (node.getAttribute('type') === 'hidden') return true;
+      const style = getComputedStyle(node);
+      return style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0';
+    });
+  } catch {
+    return true;
+  }
+}
+
+async function readAccessibleName(control: Locator): Promise<string | null> {
+  try {
+    const snapshot = await control.ariaSnapshot({ timeout: 1_000 });
+    const line = snapshot.split('\n')[0] ?? '';
+    const match = /"((?:\\"|[^"])*)"/.exec(line);
+    return match?.[1]?.replaceAll('\\"', '"') ?? '';
+  } catch {
+    return null;
+  }
+}
+
+async function describeControl(control: Locator): Promise<string> {
+  try {
+    return await control.evaluate((node) => {
+      if (!(node instanceof Element)) return node.nodeName;
+      const type = node.getAttribute('type');
+      const label = node.getAttribute('aria-label');
+      return `${node.tagName.toLowerCase()}${type === null ? '' : `[type=${type}]`} aria-label=${label ?? ''}`;
+    });
+  } catch {
+    return 'detached control';
   }
 }
 
