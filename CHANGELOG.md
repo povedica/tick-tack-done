@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## Vitest 4
+
+- `@vitest/coverage-v8` sube a la 4.1.12, la misma mayor que Vitest. Sin eso
+  la cobertura revienta (`fetchCache`) y el job `quality` queda en rojo. Los
+  umbrales siguen en 80 %.
+
 ## Contratos del navegador
 
 - Recuperar contraseña vuelve a mandar el POST. El idioma sale de la etiqueta
