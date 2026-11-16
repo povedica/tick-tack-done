@@ -14,7 +14,7 @@ for (const theme of ['light', 'dark'] as const) {
         const narrow = viewport.width < 1024;
         await boot(page);
         await page.goto('/filters');
-        await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Filtros', exact: true })).toBeVisible();
         await expectContrast(page.locator('h1'));
         if (phone) {
           const create = page.locator('#content').getByRole('button', { name: 'Nuevo filtro' });
@@ -54,15 +54,8 @@ for (const theme of ['light', 'dark'] as const) {
           await expect(dialog.locator('.filter-preview strong')).toHaveText('1 tarea coincide');
         }
         if (phone) {
-          const swatch = await dialog.getByRole('radio', { name: 'Verde' }).boundingBox();
-          expect(swatch?.width ?? 0).toBeLessThanOrEqual(24);
-          expect(swatch?.height ?? 0).toBeLessThanOrEqual(24);
-          const match = await dialog.getByRole('radio', { name: 'Alguna' }).boundingBox();
-          expect(match?.height ?? 0).toBeLessThanOrEqual(36);
-          const remove = await dialog
-            .getByRole('button', { name: 'Quitar condición Fecha' })
-            .boundingBox();
-          expect(remove?.height ?? 0).toBeLessThanOrEqual(36);
+          await expectTap(dialog.getByRole('radio', { name: 'Verde' }));
+          await expectTap(dialog.getByRole('button', { name: 'Quitar condición Fecha' }));
         }
         await expectContrast(dialog.locator('.filter-editor-head h2'));
         await page.screenshot({
@@ -75,6 +68,7 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(page.getByText('casa', { exact: true }).first()).toBeVisible();
         await expect(page.getByText('Hoy', { exact: true }).first()).toBeVisible();
         await expectContrast(page.locator('h1'));
+        await expectContrast(page.locator('.filter-view-rules .ui-tag').first());
         await page.screenshot({
           path: `e2e/__screenshots__/filters-view-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
@@ -169,6 +163,9 @@ for (const theme of ['light', 'dark'] as const) {
         await deleteFilter(page, 'Casa · hoy (copia)', theme, viewport.width, false);
         await deleteFilter(page, 'Casa · hoy', theme, viewport.width, false);
         await expect(page.getByRole('heading', { name: 'Aún no tienes filtros' })).toBeVisible();
+        await expect(
+          page.locator('#content').getByRole('button', { name: 'Nuevo filtro' }),
+        ).toBeFocused();
         await page.screenshot({
           path: `e2e/__screenshots__/filters-empty-${theme}-${String(viewport.width)}.png`,
           fullPage: true,
@@ -176,6 +173,157 @@ for (const theme of ['light', 'dark'] as const) {
         await page.goto('/filter/no-existe');
         await expect(page.getByRole('link', { name: 'Ver filtros' })).toBeVisible();
         await expectContrast(page.locator('h1'));
+      });
+
+      test('CA-101-2/3 RF-903: layout and keyboard menus on every filter surface', async ({
+        page,
+      }) => {
+        await boot(page, 24);
+        await page.goto('/filters');
+        await expect(page.locator('.filter-row')).toHaveCount(24);
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await expectNoOverflow(page);
+        await expectContrast(page.locator('.filter-row').first().locator('.filter-summary-chip'));
+        const listTrigger = page
+          .locator('.filter-row')
+          .first()
+          .getByRole('button', { name: 'Acciones de Filtro 1', exact: true });
+        await expectMenuKeyboard(page, listTrigger);
+        const last = page.locator('.filter-row').last();
+        await last.scrollIntoViewIfNeeded();
+        if (viewport.width === 390) {
+          const bottom = await page.locator('.bottom-bar').boundingBox();
+          const row = await last.boundingBox();
+          expect(row).not.toBeNull();
+          expect(bottom).not.toBeNull();
+          expect(row!.y + row!.height).toBeLessThanOrEqual(bottom!.y);
+          const padding = await page.locator('.filters-page').evaluate((node) => {
+            const style = getComputedStyle(node);
+            return {
+              actual: Number.parseFloat(style.paddingBottom),
+              required: Number.parseFloat(style.getPropertyValue('--bottombar-h')),
+            };
+          });
+          expect(padding.actual).toBeGreaterThanOrEqual(padding.required);
+        }
+        const link = page.locator('.filter-row').first().getByRole('link');
+        await link.focus();
+        await link.press('Shift+F10');
+        await expect(page.getByRole('menu')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(listTrigger).toBeFocused();
+        await link.press('Enter');
+        await expect(page).toHaveURL(/\/filter\/seed-1$/);
+        await expectNoOverflow(page);
+        await expectNamedControls(page.locator('#content'));
+        await expectMenuKeyboard(
+          page,
+          page.locator('#content').getByRole('button', { name: 'Acciones', exact: true }),
+        );
+        if (viewport.width === 390) await listsButton(page).click();
+        const side = page
+          .locator('.sidebar .nav-row')
+          .filter({ has: page.locator('a[href="/filter/seed-1"]') });
+        await side.hover();
+        const sideTrigger = side.getByRole('button', { name: 'Acciones de Filtro 1', exact: true });
+        await expectMenuKeyboard(page, sideTrigger);
+      });
+
+      test('CA-101-1 RF-902/1902: editor labels, focus, live preview and mobile targets', async ({
+        page,
+      }) => {
+        await boot(page);
+        await page.goto('/filters');
+        const create = page.locator('#content').getByRole('button', { name: 'Nuevo filtro' });
+        await create.click();
+        const dialog = page.getByRole('dialog', { name: 'Nuevo filtro' });
+        const name = dialog.getByRole('textbox', { name: 'Nombre', exact: true });
+        await expect(name).toBeFocused();
+        await name.press('Tab');
+        await expect(dialog.getByRole('radio', { name: 'Sin color', exact: true })).toBeFocused();
+        await expectNoOverflow(page);
+        await expect(dialog.getByRole('group', { name: 'Condiciones', exact: true })).toBeVisible();
+        await expectNamedControls(dialog);
+        // Tab traverses the actual controls and wraps without reaching the page behind the modal.
+        const first = dialog.getByRole('button', { name: 'Cerrar', exact: true });
+        await first.focus();
+        await page.keyboard.press('Shift+Tab');
+        await expect(dialog.locator(':focus')).toHaveCount(1);
+        await page.keyboard.press('Tab');
+        await expect(first).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(dialog).toBeHidden();
+        await create.click();
+        await name.fill('Accesible');
+        await dialog.getByLabel('Valor de Palabra').fill('solo-alguna');
+        const narrow = viewport.width === 390;
+        await enablePreview(dialog, narrow);
+        const live = dialog.locator('[aria-live="polite"]');
+        await expect(live).toHaveText('0 tareas coinciden');
+        const previewRequests: string[] = [];
+        page.on('request', (request) => {
+          if (request.url().includes('/filters/preview'))
+            previewRequests.push(request.postData() ?? '');
+        });
+        const word = dialog.getByLabel('Valor de Palabra');
+        await word.fill('intermedio');
+        await word.fill('solo-alguna final');
+        await expect.poll(() => previewRequests.length).toBe(1);
+        expect(previewRequests[0]).toContain('solo-alguna final');
+        await expect(live).toHaveText('0 tareas coinciden');
+        await dialog.getByRole('radio', { name: 'Alguna', exact: true }).click();
+        await expect(live).toHaveText('2 tareas coinciden');
+        await expectContrast(name);
+        await dialog.getByRole('button', { name: 'Campo: Palabra' }).click();
+        await page.getByRole('option', { name: 'Etiqueta', exact: true }).click();
+        await dialog.getByRole('button', { name: 'Añadir etiqueta…' }).click();
+        await page.getByRole('checkbox', { name: 'casa', exact: true }).check();
+        await page.keyboard.press('Escape');
+        await expectNamedControls(dialog);
+        if (narrow) {
+          await expectTap(dialog.getByRole('button', { name: 'Quitar condición Etiqueta' }));
+          await expectTap(dialog.getByRole('button', { name: 'Quitar casa' }));
+          for (const color of await dialog.locator('.list-color').all()) await expectTap(color);
+        }
+        await page.keyboard.press('Escape');
+        const discard = page.getByRole('alertdialog');
+        await expect(discard).toBeVisible();
+        await discard.getByRole('button', { name: 'Seguir editando', exact: true }).click();
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('button', { name: 'Guardar filtro' }).first().click();
+        await expect(page.getByRole('heading', { name: 'Accesible', exact: true })).toBeFocused();
+      });
+
+      test('CA-101-1 RF-903: deletion focus, announcements and reduced motion', async ({
+        page,
+      }) => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await boot(page, 2);
+        await page.goto('/filters');
+        const live = page.locator('.filter-live');
+        await expect(live).toHaveAttribute('aria-live', 'polite');
+        const trigger = page
+          .locator('#content')
+          .getByRole('button', { name: 'Acciones de Filtro 1', exact: true });
+        await trigger.click();
+        await expectNoMotion(page.getByRole('dialog'));
+        await page.getByRole('menuitem', { name: 'Fijar arriba', exact: true }).click();
+        await expect(live).toHaveText('Filtro fijado');
+        await trigger.click();
+        await page.getByRole('menuitem', { name: 'Desfijar', exact: true }).click();
+        await expect(live).toHaveText('Filtro desfijado');
+        await trigger.click();
+        await page.getByRole('menuitem', { name: 'Eliminar', exact: true }).click();
+        const confirm = page.getByRole('alertdialog');
+        await expect(confirm.getByRole('button', { name: 'Cancelar', exact: true })).toBeFocused();
+        await confirm.getByRole('button', { name: 'Eliminar', exact: true }).click();
+        await expect(page.locator('[data-filter-id="seed-2"] .filter-link')).toBeFocused();
+        await expectNoMotion(page.locator('.toast'));
+        await page.getByRole('button', { name: 'Deshacer', exact: true }).click();
+        await expect(live).toHaveText('Filtro restaurado');
+        await trigger.click();
+        await page.getByRole('menuitem', { name: 'Duplicar', exact: true }).click();
+        await expect(live).toHaveText('Filtro duplicado');
       });
 
       test('polishes the field picker, match and groups', async ({ page }) => {
@@ -220,6 +368,7 @@ for (const theme of ['light', 'dark'] as const) {
         await dialog.getByRole('button', { name: 'Campo: Lista' }).click();
         await page.getByRole('option', { name: 'Fecha' }).click();
         await dialog.getByRole('radio', { name: 'Entre fechas' }).click();
+        await expect(dialog.getByRole('button', { name: 'Hasta', exact: true })).toBeVisible();
         await dialog.getByRole('button', { name: 'Desde' }).click();
         await expect(page.getByRole('dialog', { name: 'Fecha' })).toBeVisible();
         await page.keyboard.press('Escape');
@@ -231,6 +380,8 @@ for (const theme of ['light', 'dark'] as const) {
         );
         await dialog.getByRole('button', { name: 'Modo avanzado: grupos Y/O' }).click();
         await dialog.getByRole('button', { name: 'Añadir grupo' }).click();
+        await expectNoOverflow(page);
+        await expectNamedControls(dialog);
         const join = dialog.getByRole('radiogroup', { name: 'Combinar grupos' });
         await expect(join.getByRole('radio', { name: 'Y' })).toHaveAttribute(
           'aria-checked',
@@ -309,8 +460,21 @@ async function expectContrast(locator: Locator): Promise<void> {
   expect(await locator.evaluate(renderedContrast)).toBeGreaterThanOrEqual(4.5);
 }
 
-async function boot(page: Page): Promise<void> {
-  const filters: Array<Record<string, unknown>> = [];
+async function boot(page: Page, count = 0): Promise<void> {
+  const filters: Array<Record<string, unknown>> = Array.from({ length: count }, (_, index) => ({
+    id: `seed-${String(index + 1)}`,
+    name: `Filtro ${String(index + 1)}`,
+    color: null,
+    pinned: false,
+    mode: 'normal',
+    rules: {
+      combinator: 'AND',
+      groups: [
+        { combinator: 'AND', conditions: [{ field: 'keyword', op: 'contains', value: 'casa' }] },
+      ],
+    },
+    task_count: 0,
+  }));
   const trash = new Map<string, Record<string, unknown>>();
   await page.addInitScript(() => {
     localStorage.setItem('tick-tack-done.locale', 'es');
@@ -514,4 +678,65 @@ function ordered(filters: readonly Record<string, unknown>[]): Record<string, un
     }
     return String(left.name).localeCompare(String(right.name));
   });
+}
+
+async function expectNoOverflow(page: Page): Promise<void> {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+}
+
+async function expectMenuKeyboard(page: Page, trigger: Locator): Promise<void> {
+  await trigger.focus();
+  await trigger.press('Enter');
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  await expect(
+    menu.locator(':focus'),
+    `Initial focus: ${await trigger.getAttribute('aria-label')} at ${page.url()}`,
+  ).toHaveCount(1);
+  const items = menu.locator('[role="menuitem"]');
+  await expectNamedControls(menu);
+  if (page.viewportSize()?.width === 390) {
+    await expectTap(trigger);
+    for (const item of await items.all()) await expectTap(item);
+  }
+  // The view menu starts with view-mode radios; exercise the action list from its first item.
+  await items.first().focus();
+  await page.keyboard.press('End');
+  await expect(items.last()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(items.first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(items.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(items.first()).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(items.last()).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(items.first()).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(trigger).toBeFocused();
+}
+
+async function expectNamedControls(root: Locator): Promise<void> {
+  const controls = root.locator('button, input, [role="radiogroup"], [role="group"]');
+  for (const control of await controls.all()) {
+    if (await control.isVisible()) await expect(control).toHaveAccessibleName(/\S/);
+  }
+}
+
+async function expectNoMotion(root: Locator): Promise<void> {
+  const moving = await root.evaluate(
+    (node) =>
+      [node, ...node.querySelectorAll('*')].filter((item) => {
+        const style = getComputedStyle(item);
+        return (
+          style.animationName !== 'none' &&
+          style.animationDuration.split(',').some((duration) => Number.parseFloat(duration) > 0)
+        );
+      }).length,
+  );
+  expect(moving).toBe(0);
 }

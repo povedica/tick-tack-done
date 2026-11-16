@@ -72,6 +72,8 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 
 ## Sin publicar
 
+- BKL-003 (#101): verificación de accesibilidad y móvil de filtros en claro y oscuro; objetivos táctiles del editor y del menú lateral, foco de menús y del borrado.
+
 - BKL-059 (#169): copia local persistente antes de migrar en staging y producción, con permisos privados y retención de 30 días conservando las tres últimas; el backup diario externo de RF-1704 mantiene su comportamiento.
 
 - BKL-046: 1Password Environments, runtime env restaurable y plan de imágenes independiente del último push.

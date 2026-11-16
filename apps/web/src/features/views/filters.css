@@ -1078,6 +1078,79 @@ body:has(.filter-editor) .date-popover {
   }
 }
 
+/* §5: keep compact glyphs inside non-overlapping mobile touch targets. */
+@media (max-width: 1023px) {
+  .sidebar .nav-row:has(a[href^='/filter/']) .nav-more-btn {
+    min-width: var(--tap);
+    min-height: var(--tap);
+  }
+
+  .filter-editor .list-colors {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .filter-editor .list-color {
+    box-sizing: border-box;
+    width: var(--tap);
+    height: var(--tap);
+    position: relative;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .filter-editor .list-color::before {
+    content: '';
+    position: absolute;
+    inset: 14px;
+    border-radius: var(--radius-full);
+    background: var(--swatch, var(--surface));
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+
+  .filter-editor .list-color.is-none::before {
+    background:
+      linear-gradient(
+        135deg,
+        transparent 46%,
+        var(--border-strong) 46%,
+        var(--border-strong) 54%,
+        transparent 54%
+      ),
+      var(--surface);
+  }
+
+  .filter-editor .list-color[aria-checked='true']::before {
+    box-shadow:
+      0 0 0 2px var(--surface),
+      0 0 0 3px var(--accent);
+  }
+
+  .filter-editor .filter-remove,
+  .filter-editor .filter-group-remove,
+  .filter-editor .filter-group .filter-remove,
+  .filter-editor .filter-group .filter-group-remove {
+    width: var(--tap);
+    min-width: var(--tap);
+    height: var(--tap);
+    min-height: var(--tap);
+  }
+
+  .filter-condition,
+  .filter-editor .filter-group .filter-condition {
+    grid-template-columns: minmax(0, 1fr) var(--tap);
+  }
+
+  .filter-editor button.ui-tag,
+  .filter-editor .filter-toggle-chip,
+  .filter-editor .filter-group .filter-toggle-chip {
+    height: auto;
+    min-height: var(--tap);
+    min-width: var(--tap);
+  }
+}
+
 @media (min-width: 1024px) {
   .filter-editor {
     width: min(680px, 100%);
