@@ -23,13 +23,9 @@ export class BullMqEventBus extends EventBus implements OnModuleDestroy {
     if (url === undefined || url.length === 0) {
       throw new Error('REDIS_URL is required to publish domain events');
     }
-    const connection = new Redis(url, {
-      maxRetriesPerRequest: null,
-      connectTimeout: 2_000,
-      retryStrategy: (times: number) =>
-        process.env.NODE_ENV === 'test' && times > 2 ? null : Math.min(times * 200, 2_000),
-    });
-    this.queue = new Queue(QUEUE, { connection });
+    // BullMQ 6 wraps the ioredis instance it is given and does not duplicate it.
+    // The worker blocks on that connection, so the queue needs its own.
+    this.queue = new Queue(QUEUE, { connection: redisConnection(url) });
     this.worker = new Worker(
       QUEUE,
       (job) => {
@@ -40,7 +36,7 @@ export class BullMqEventBus extends EventBus implements OnModuleDestroy {
           ownerId: data.ownerId ?? '',
         });
       },
-      { connection, concurrency: 4 },
+      { connection: redisConnection(url), concurrency: 4 },
     );
   }
 
@@ -69,6 +65,15 @@ export class BullMqEventBus extends EventBus implements OnModuleDestroy {
   async onModuleDestroy(): Promise<void> {
     await this.close();
   }
+}
+
+function redisConnection(url: string): Redis {
+  return new Redis(url, {
+    maxRetriesPerRequest: null,
+    connectTimeout: 2_000,
+    retryStrategy: (times: number) =>
+      process.env.NODE_ENV === 'test' && times > 2 ? null : Math.min(times * 200, 2_000),
+  });
 }
 
 export function busAutostart(): boolean {

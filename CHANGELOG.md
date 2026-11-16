@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## BullMQ 6
+
+- El bus de eventos abre una conexión Redis para la cola y otra para el
+  worker. BullMQ 6 no duplica el cliente que se le pasa, y el worker
+  bloquea el suyo. La aplicación no usa trabajos repetibles de BullMQ.
+
 ## Contratos del navegador
 
 - Recuperar contraseña vuelve a mandar el POST. El idioma sale de la etiqueta
