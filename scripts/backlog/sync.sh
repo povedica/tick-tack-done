@@ -2,12 +2,16 @@
 # Sincroniza issues y Project «ttd · backlog» con el ciclo de vida de las PR y del despliegue.
 # Lo usa .github/workflows/backlog-sync.yml; también se puede ejecutar a mano.
 #
-#   sync.sh pr-check     <pr>   Falla solo si la descripción no tiene «Closes #N»
-#                               (sin-backlog, dependabot* y github-actions* siguen
-#                               exentos de ESTE script). Esa exención no vale para
-#                               issue-link en ci-ok: allí solo se salva dependabot[bot],
-#                               la issue tiene que existir y estar abierta, y el
-#                               cuerpo tiene que empezar por «Closes #N».
+#   sync.sh pr-check     <pr>   Falla solo si la descripción no tiene «Closes #N»,
+#                               salvo las reglas de scripts/backlog/exemptions.json.
+#                               Cada exención deja en el log la regla y el motivo.
+#                               Esa lista no abre la puerta a un agente: issue-link
+#                               en ci-ok solo aplica las reglas que lo nombran
+#                               (hoy, Dependabot), la issue tiene que existir y
+#                               estar abierta, y el cuerpo tiene que empezar por
+#                               «Closes #N».
+#                               Si el token no puede escribir (Dependabot, fork),
+#                               no se comenta y el check no falla por eso.
 #                               Si hay Closes/Fixes/Resolves, rellena Rama con la rama
 #                               de la PR, avisa si Agente está vacío y, si la tarjeta
 #                               estaba en «Listo para hacer», la pasa a «En curso».
@@ -25,6 +29,7 @@
 #   DRY_RUN=1 para solo imprimir.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${REPO:-povedica/tick-tack-done}"
 OWNER="${OWNER:-povedica}"
 TITLE="${PROJECT_TITLE:-ttd · backlog}"
@@ -62,8 +67,33 @@ edit_labels() {
   return 1
 }
 
+COMMENT_PERMISSION=""
+
+# write: se puede comentar. read: el token es de solo lectura y no se intenta.
+# unknown: las cabeceras no lo dicen; se intenta, como antes.
+comment_permission() {
+  if [ -n "$COMMENT_PERMISSION" ]; then
+    printf '%s\n' "$COMMENT_PERMISSION"
+    return
+  fi
+  local headers verdict
+  headers="$(gh api --include "repos/${REPO}" 2>/dev/null || true)"
+  verdict="$(printf '%s\n' "$headers" | python3 -B "$SCRIPT_DIR/exemptions.py" permissions)"
+  case "$verdict" in
+    write|read|unknown) ;;
+    *) verdict=unknown ;;
+  esac
+  COMMENT_PERMISSION="$verdict"
+  printf '%s\n' "$COMMENT_PERMISSION"
+}
+
 comment_once() {
-  local num="$1" body="$2" comments
+  local num="$1" body="$2" comments permission
+  permission="$(comment_permission)"
+  if [ "$permission" = read ]; then
+    say "::warning::Token sin permiso de escritura: no se comenta en #$num."
+    return 0
+  fi
   comments="$(gh api --paginate "repos/$REPO/issues/$num/comments?per_page=100" --jq '.[].body')"
   if ! grep -Fqx -- "$body" <<<"$comments"; then
     run gh issue comment "$num" --repo "$REPO" --body "$body"
@@ -220,15 +250,15 @@ cmd_pr_check() {
     say "::warning::Sin PROJECT_NUMBER: check de backlog pendiente de configurar."
     return 0
   fi
-  local pr="$1" data body labels author closing files branch trimmed
+  local pr="$1" data body closing files branch trimmed rule id reason
   data="$(gh pr view "$pr" --repo "$REPO" --json body,labels,author,closingIssuesReferences,files,headRefName,isDraft)"
   body="$(jq -r '.body // ""' <<<"$data")"
-  labels="$(jq -r '.labels[].name' <<<"$data")"
-  author="$(jq -r '.author.login' <<<"$data")"
   branch="$(jq -r '.headRefName // empty' <<<"$data")"
-  # Solo este script. issue-link (ci-ok) no perdona sin-backlog ni github-actions.
-  if grep -qx 'sin-backlog' <<<"$labels" || [[ "$author" == dependabot* ]] || [[ "$author" == "github-actions"* ]]; then
-    say "PR #$pr exenta del check de backlog (sin-backlog o bot)."
+  rule="$(printf '%s\n' "$data" | python3 -B "$SCRIPT_DIR/exemptions.py" match --check pr-check)"
+  if [ -n "$rule" ]; then
+    id="${rule%%$'\t'*}"
+    reason="${rule#*$'\t'}"
+    say "PR #$pr exenta del check de backlog. Regla: ${id}. Motivo: ${reason}"
     return 0
   fi
   if ! has_closes "$body"; then

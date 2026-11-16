@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "dependabot",
+      "checks": ["pr-check", "issue-link"],
+      "reason": "Las actualizaciones de Dependabot no cierran una issue del backlog.",
+      "when": {
+        "author": { "login": "dependabot", "bot": true }
+      }
+    },
+    {
+      "id": "github-actions",
+      "checks": ["pr-check"],
+      "reason": "La regeneración del espejo la abre github-actions y no cierra una issue.",
+      "when": {
+        "author": { "login": "github-actions", "bot": true }
+      }
+    },
+    {
+      "id": "etiqueta-sin-backlog",
+      "checks": ["pr-check"],
+      "reason": "La etiqueta sin-backlog exime del check del Project. No vale para issue-link.",
+      "when": {
+        "labels_any": ["sin-backlog"]
+      }
+    },
+    {
+      "id": "etiqueta-dependencies",
+      "checks": ["pr-check"],
+      "reason": "La etiqueta dependencies marca una actualización que no cierra una issue.",
+      "when": {
+        "labels_any": ["dependencies"]
+      }
+    }
+  ]
+}

@@ -113,9 +113,15 @@ en la issue es solo un aviso si está en En revisión o la PR ya no es
 borrador. No mueve a En revisión. Una PR antigua queda cubierta en cuanto se
 edita la descripción.
 
-`backlog-sync` sigue eximiendo a `sin-backlog`, a `dependabot*` y a
-`github-actions*` de ese script. Esa exención no abre la puerta a un agente:
-el check `issue-link`, que forma parte de `ci-ok`, es el que corta el merge.
+Las exenciones viven en `scripts/backlog/exemptions.json`. El script no
+tiene un condicional por bot: casa el login normalizado (`app/x`, `x[bot]`
+y `x` son el mismo) y, si la regla lo pide, `is_bot`. Cada exención deja
+en el log la regla y el motivo. `sin-backlog`, `dependencies` y
+`github-actions` aplican solo a `pr-check`. Esa exención no abre la puerta
+a un agente: `issue-link`, que forma parte de `ci-ok`, es el que corta el
+merge y solo aplica las reglas que lo nombran (hoy, Dependabot). Si el
+token no puede escribir, el script no comenta y no falla por eso. Cómo
+añadir una regla: `scripts/backlog/LEEME.md`.
 
 ### 4.1. Ninguna PR de agente sin issue
 
@@ -128,7 +134,8 @@ su PR: la traza en el tablero es la medida de eficiencia y eficacia.
   líneas en blanco del principio, el primer texto no es `Closes #N`. Así
   no estorba el marcador que la herramienta guarda al crear la PR. Un
   comentario HTML no es una exención de autor.
-- La única excepción es el autor `dependabot[bot]`. Un agente no usa
+- La única excepción es la regla `dependabot` de
+  `scripts/backlog/exemptions.json` (login normalizado y bot). Un agente no usa
   `sin-backlog` para saltarse la issue.
 - Un cambio pedido en el chat que no tiene issue: primero se crea la issue
   y después se trabaja.
@@ -192,7 +199,8 @@ original permanece cerrada.
   decisión nunca bloquea. `issue-link` (en los `needs` de `ci-ok`) corre en
   `pull_request` opened, edited, synchronize y reopened, y falla si el cuerpo
   no empieza por `Closes #N` o si `#N` no existe o está cerrada. La única
-  excepción es el autor `dependabot[bot]`. Al fusionar una PR que cierra la
+  excepción es la regla `dependabot` de `scripts/backlog/exemptions.json`
+  (login normalizado y bot). Al fusionar una PR que cierra la
   issue, Status = Hecho.
 
 ## 7. Higiene

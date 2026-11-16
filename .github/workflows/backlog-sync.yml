@@ -53,7 +53,7 @@ jobs:
         run: |
           for script in scripts/backlog/*.sh; do bash -n "$script"; done
           python3 -B -m unittest discover -s scripts/backlog -v
-      - name: La descripción lleva Closes #N; Rama y aviso si Agente está vacío
+      - name: La descripción lleva Closes #N, salvo exemptions.json; Rama y aviso si Agente está vacío
         env:
           GH_TOKEN: ${{ github.token }}
           PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}

@@ -191,8 +191,11 @@ class IssueLinkContracts(unittest.TestCase):
         self.env['GITHUB_REPOSITORY'] = 'povedica/tick-tack-done'
         self.env['ISSUE_STATE'] = 'open'
 
-    def write_event(self, author, body, **extra):
-        pull = {'user': {'login': author}, 'body': body}
+    def write_event(self, author, body, *, bot=False, **extra):
+        user = {'login': author}
+        if bot:
+            user['type'] = 'Bot'
+        pull = {'user': user, 'body': body}
         pull.update(extra)
         self.event.write_text(json.dumps({'pull_request': pull}))
 
@@ -223,12 +226,19 @@ class IssueLinkContracts(unittest.TestCase):
         self.assertIn('issue-link', ok)
         self.assertIn('if: always()', ok)
 
-    def test_only_dependabot_bot_is_named_exempt(self):
+    def test_issue_link_uses_the_shared_exemption_policy(self):
         source = (ROOT / 'scripts/ci/issue_link.py').read_text()
-        self.assertEqual(source.count("EXEMPT_AUTHOR = 'dependabot[bot]'"), 1)
+        policy = json.loads((ROOT / 'scripts/backlog/exemptions.json').read_text())
+        self.assertIn('find_exemption', source)
+        self.assertNotIn('EXEMPT_AUTHOR', source)
         self.assertNotIn('sin-backlog', source)
         self.assertNotIn('github-actions', source)
         self.assertNotIn("== 'app/dependabot'", source)
+        named = [rule['id'] for rule in policy['rules'] if 'issue-link' in rule['checks']]
+        self.assertEqual(named, ['dependabot'])
+        for rule in policy['rules']:
+            if rule['id'] != 'dependabot':
+                self.assertNotIn('issue-link', rule['checks'])
 
     def test_open_issue_on_the_first_line_passes(self):
         self.write_event('developer', 'Closes #12\n\n- Agente: cursor-harness-1\n')
@@ -284,7 +294,9 @@ class IssueLinkContracts(unittest.TestCase):
         )
         for author, body, states, code, needle in cases:
             with self.subTest(author=author, body=body, states=states):
-                self.write_event(author, body, labels=[{'name': 'sin-backlog'}])
+                self.write_event(
+                    author, body, bot=author == 'dependabot[bot]', labels=[{'name': 'sin-backlog'}],
+                )
                 self.env['ISSUE_STATES'] = json.dumps(states)
                 result = self.run_check()
                 self.assertEqual(result.returncode, code, result.stdout + result.stderr)
@@ -345,8 +357,24 @@ class IssueLinkContracts(unittest.TestCase):
 
     def test_dependabot_does_not_call_github(self):
         self.env['GH_REJECT'] = '1'
-        self.write_event('dependabot[bot]', '')
+        self.write_event('dependabot[bot]', '', bot=True)
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('queda exento', result.stdout)
+        self.assertIn('regla dependabot', result.stdout)
         self.assertFalse(self.log.exists() and self.log.read_text())
+
+        self.write_event('app/dependabot', 'Bumps vite', bot=True, labels=[{'name': 'dependencies'}])
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('regla dependabot', result.stdout)
+
+        self.write_event('dependabot', 'Bumps vite')
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('no empieza por', result.stdout)
+
+        self.write_event('github-actions[bot]', '', bot=True, labels=[{'name': 'dependencies'}])
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('no empieza por', result.stdout)
