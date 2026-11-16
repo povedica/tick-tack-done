@@ -221,7 +221,7 @@ export const extraEs = {
   tokenExpiresOn: 'Caduca el',
   tokenScopesSummary: 'permisos',
   tokenPermNone: 'Ninguno',
-  tokenPermTasks: 'Solo crear tareas',
+  tokenPermTasks: 'Solo tareas',
   tokenPermReadAll: 'Solo leer todo',
   tokenPermFull: '⚠️ Acceso total…',
   tokenPermSection: 'Sección',

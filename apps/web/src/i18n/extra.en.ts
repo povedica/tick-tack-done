@@ -213,7 +213,7 @@ export const extraEn = {
   tokenExpiresOn: 'Expires on',
   tokenScopesSummary: 'permissions',
   tokenPermNone: 'None',
-  tokenPermTasks: 'Create tasks only',
+  tokenPermTasks: 'Tasks only',
   tokenPermReadAll: 'Read everything',
   tokenPermFull: '⚠️ Full access…',
   tokenPermSection: 'Section',

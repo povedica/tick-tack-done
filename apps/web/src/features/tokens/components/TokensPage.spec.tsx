@@ -209,7 +209,7 @@ describe('token permission table', () => {
 
   it('CA-07: presets apply exactly, stay editable, and full access uses the same confirmation', async () => {
     openComposer();
-    fireEvent.click(screen.getByRole('button', { name: 'Solo crear tareas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Solo tareas' }));
     expect(screen.getByRole('switch', { name: 'Tareas, Leer' }).getAttribute('aria-checked')).toBe(
       'true',
     );
@@ -222,7 +222,7 @@ describe('token permission table', () => {
     expect(summary()).toContain('crear, editar y borrar tareas');
     fireEvent.click(screen.getByRole('switch', { name: 'Listas, Leer' }));
     expect(
-      screen.getByRole('button', { name: 'Solo crear tareas' }).getAttribute('aria-pressed'),
+      screen.getByRole('button', { name: 'Solo tareas' }).getAttribute('aria-pressed'),
     ).toBe('false');
     expect(screen.getByRole('switch', { name: 'Listas, Leer' }).getAttribute('aria-checked')).toBe(
       'true',
@@ -258,7 +258,7 @@ describe('token permission table', () => {
 
     const user = userEvent.setup();
     fireEvent.change(screen.getByLabelText('Agente'), { target: { value: 'raycast' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Solo crear tareas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Solo tareas' }));
     await user.click(screen.getByRole('button', { name: 'Crear token' }));
     expect(createToken).toHaveBeenCalledWith({
       name: 'raycast',
@@ -274,7 +274,7 @@ describe('token permission table', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Write (create, edit and delete)' }),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Create tasks only' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tasks only' }));
     expect(summary()).toContain('create, edit and delete tasks');
     fireEvent.click(screen.getByRole('button', { name: /Full access/ }));
     expect(screen.getByRole('alertdialog').textContent).toContain('Grant full access');
