@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## Web Push 4
+
+- El transporte de recordatorios importa `setVapidDetails` y
+  `sendNotification` por nombre. web-push 4 es solo ESM y ya no tiene
+  export por defecto: el proceso de la API no arrancaba.
+
 ## Contratos del navegador
 
 - Recuperar contraseña vuelve a mandar el POST. El idioma sale de la etiqueta
