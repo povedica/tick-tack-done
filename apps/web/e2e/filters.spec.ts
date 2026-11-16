@@ -90,7 +90,7 @@ for (const theme of ['light', 'dark'] as const) {
           console.log(
             `chip-contrast ${theme} ${String(viewport.width)} ${name} ${ratio.toFixed(2)}`,
           );
-          expect(ratio, `${name} on ${theme}`).toBeGreaterThanOrEqual(99);
+          expect(ratio, `${name} on ${theme}`).toBeGreaterThanOrEqual(3);
         }
         await page.screenshot({
           path: `e2e/__screenshots__/filters-view-chips-${theme}-${String(viewport.width)}.png`,
