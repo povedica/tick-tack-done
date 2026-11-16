@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## Permisos del token en tabla
+
+- Al crear un token personal, los permisos se eligen en una tabla siempre visible
+  con interruptores de Leer y Escribir, plantillas y confirmación de acceso total.
+  Escribir incluye el permiso de lectura, porque la API no lo deduce, y la columna
+  avisa de que permite crear, editar y borrar.
+
 ## Contratos del navegador
 
 - Recuperar contraseña vuelve a mandar el POST. El idioma sale de la etiqueta
