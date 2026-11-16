@@ -221,9 +221,9 @@ describe('token permission table', () => {
     );
     expect(summary()).toContain('crear, editar y borrar tareas');
     fireEvent.click(screen.getByRole('switch', { name: 'Listas, Leer' }));
-    expect(
-      screen.getByRole('button', { name: 'Solo tareas' }).getAttribute('aria-pressed'),
-    ).toBe('false');
+    expect(screen.getByRole('button', { name: 'Solo tareas' }).getAttribute('aria-pressed')).toBe(
+      'false',
+    );
     expect(screen.getByRole('switch', { name: 'Listas, Leer' }).getAttribute('aria-checked')).toBe(
       'true',
     );
