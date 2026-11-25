@@ -8,8 +8,14 @@ const BEARER = /\bBearer\s+[^\s,;]+/gi;
 const SESSION = /__Host-rfx_session=[^\s;,]+/g;
 // Single quotes stay: engines quote property names that way ("reading 'title'").
 const QUOTED = /"[^"\n]*"|«[^»\n]*»|“[^”\n]*”/g;
-// Fallback for paths the router template does not match, including /s/<token>/x.
-const TOKEN_PATHS = /\/(feeds|public\/lists|s)\/[^/?#\s]+/g;
+// Fallback for paths the router template does not match, including /s/<token>/<segment>.
+// Case-insensitive: /S/<token> is the same public link.
+const TOKEN_PATHS = /\/(feeds|public\/lists|s)\/[^/?#\s]+/gi;
+
+/** Masks one secret segment. A following segment stays, without the token. */
+function maskTokenPaths(text: string): string {
+  return text.replace(TOKEN_PATHS, (_match, kind: string) => `/${kind.toLowerCase()}/:token`);
+}
 const NUMERIC = /\/\d{2,}(?=\/|$)/g;
 
 export const ALLOWED_TAGS = new Set(['component', 'route', 'source', 'deploy_sha', 'smoke']);
@@ -18,7 +24,7 @@ const KEPT_CRUMBS = new Set(['navigation', 'fetch', 'xhr']);
 
 /** Removes literals, secrets and identifiers from free text a user may have typed. */
 export function scrubText(text: string, max = 300): string {
-  const clean = text
+  const clean = maskTokenPaths(text)
     .replace(QUOTED, '"…"')
     .replace(SESSION, '[token]')
     .replace(BEARER, 'Bearer [token]')
@@ -41,8 +47,7 @@ export function safePath(raw: string, origin = currentOrigin()): string {
   }
   return (
     routeTemplate(url.pathname) ??
-    url.pathname
-      .replace(TOKEN_PATHS, '/$1/:token')
+    maskTokenPaths(url.pathname)
       .replace(UUID, ':id')
       .replace(NUMERIC, '/:n')
       .replace(EMAIL, '[email]')
@@ -67,7 +72,9 @@ export function scrubBreadcrumb(crumb: Breadcrumb): Breadcrumb | null {
   if (crumb.category === 'navigation') {
     const from = typeof data.from === 'string' ? safePath(data.from) : '?';
     const to = typeof data.to === 'string' ? safePath(data.to) : '?';
-    return { ...base, type: 'navigation', message: `${from} -> ${to}` };
+    const line = `${from} -> ${to}`;
+    const note = typeof crumb.message === 'string' ? scrubText(crumb.message, 160) : '';
+    return { ...base, type: 'navigation', message: note.length > 0 ? `${line} ${note}` : line };
   }
   if (crumb.category === 'fetch' || crumb.category === 'xhr') {
     const url = typeof data.url === 'string' ? data.url : '';

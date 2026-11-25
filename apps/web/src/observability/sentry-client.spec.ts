@@ -155,6 +155,62 @@ describe('web Sentry client (#209)', () => {
     expect(extraCrumbs.map((crumb) => crumb.message)).toContain('/s/:token/x -> /today');
   });
 
+  it('masks /s/<token>/<segment> so the token is absent from the event', async () => {
+    const token = 'TRAMPASEGMENT';
+    window.history.replaceState(null, '', `/s/${token}/items`);
+    const { reporter, raw } = start();
+    addBreadcrumb({
+      category: 'navigation',
+      data: { from: `/s/${token}/items`, to: '/today' },
+    });
+    reporter.capture(new Error('segment'), 'react');
+    await settle();
+    expect(raw.join('\n')).not.toContain(token);
+    const [event] = events(raw);
+    expect(event?.tags).toMatchObject({ route: '/s/:token/items' });
+    const crumbs = event?.breadcrumbs as { message: string }[];
+    expect(crumbs.map((crumb) => crumb.message)).toContain('/s/:token/items -> /today');
+  });
+
+  it('masks /S/<token> regardless of case', async () => {
+    const token = 'TRAMPAUPPER';
+    window.history.replaceState(null, '', `/S/${token}/items`);
+    const { reporter, raw } = start();
+    addBreadcrumb({
+      category: 'navigation',
+      data: { from: `/S/${token}`, to: `/S/${token}/items` },
+    });
+    reporter.capture(new Error('case'), 'react');
+    await settle();
+    expect(raw.join('\n')).not.toContain(token);
+    const [event] = events(raw);
+    expect(event?.tags).toMatchObject({ route: '/s/:token/items' });
+    const crumbs = event?.breadcrumbs as { message: string }[];
+    expect(crumbs.map((crumb) => crumb.message)).toContain('/s/:token -> /s/:token/items');
+  });
+
+  it('masks a token URL inside the message, a breadcrumb and extra', async () => {
+    const token = 'TRAMPATEXT';
+    const url = `https://todo.reflexionia.com/s/${token}/items`;
+    const { reporter, raw } = start();
+    setExtra('note', `open ${url}`);
+    addBreadcrumb({
+      category: 'navigation',
+      message: `landed via ${url}`,
+      data: { from: '/today', to: '/inbox' },
+    });
+    reporter.capture(new Error(`failed at ${url}`), 'react');
+    await settle();
+    const serialized = raw.join('\n');
+    expect(serialized).not.toContain(token);
+    const [event] = events(raw);
+    const value = (event?.exception as { values: { value: string }[] }).values[0]?.value;
+    expect(value).toContain('/s/:token/items');
+    const crumbs = event?.breadcrumbs as { message: string }[];
+    expect(crumbs.some((crumb) => crumb.message.includes('/s/:token/items'))).toBe(true);
+    expect(event?.extra).toBeUndefined();
+  });
+
   it('throttle: 3 per fingerprint and 10 per session', async () => {
     const { reporter, raw } = start();
     for (let index = 0; index < 5; index += 1) reporter.capture(new Error('same bug'), 'action');
