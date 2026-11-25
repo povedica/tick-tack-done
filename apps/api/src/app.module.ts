@@ -4,6 +4,7 @@ import { EventsModule } from './events/events.module.js';
 import { HealthModule } from './health/health.module.js';
 import { IdempotencyModule } from './idempotency/idempotency.module.js';
 import { McpModule } from './mcp/mcp.module.js';
+import { SentryTunnelModule } from './observability/sentry/tunnel.controller.js';
 import { AccountExtraModule } from './modules/account-extra/account-extra.module.js';
 import { AutomationsModule } from './modules/automations/automations.module.js';
 import { CalendarModule } from './modules/calendar/calendar.module.js';
@@ -45,6 +46,7 @@ import { SchedulerModule } from './scheduler/scheduler.module.js';
     IdempotencyModule,
     AuthModule,
     HealthModule,
+    SentryTunnelModule,
     CountdownsModule,
     HabitsModule,
     ListsModule,

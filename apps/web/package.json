@@ -21,6 +21,7 @@
     "@floating-ui/react": "0.27.20",
     "@reflexionia/domain": "workspace:*",
     "@reflexionia/sdk": "workspace:*",
+    "@sentry/react": "11.17.0",
     "@tanstack/react-query": "^5.107.1",
     "lucide-react": "1.70.0",
     "qrcode": "^1.5.4",

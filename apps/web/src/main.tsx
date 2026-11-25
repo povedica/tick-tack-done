@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './app';
 import { loadMessages } from './i18n/catalog';
+import { installErrorReporting } from './observability/report';
 import { readLocaleChoice, resolveLocale } from './i18n/locale';
 import { ScreenBoundary } from './shell/ErrorBoundary';
 import { applyTheme, readThemePreference } from './theme/preference';
@@ -26,6 +27,7 @@ registerSW({ immediate: true });
 
 const queryClient = createAppQueryClient();
 installActionErrorFallback();
+installErrorReporting();
 const rootElement = document.getElementById('root');
 if (rootElement === null) {
   throw new Error('root is missing');

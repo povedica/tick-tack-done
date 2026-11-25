@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   readonly VITE_AUTH_MODE?: string;
   readonly VITE_RECAPTCHA_SITE_KEY?: string;
+  readonly VITE_SENTRY_DSN?: string;
+  readonly VITE_SENTRY_ENVIRONMENT?: string;
 }
 
 interface ImportMeta {
@@ -10,4 +12,5 @@ interface ImportMeta {
 }
 
 declare const __APP_COMMIT__: string;
+declare const __APP_VERSION__: string;
 declare const __BUILD_TIME__: string;

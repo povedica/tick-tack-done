@@ -1,5 +1,6 @@
 import { messagesFor } from '../i18n';
 import { useLocale } from '../i18n/locale';
+import { reportError } from '../observability/report';
 import { useActionToast } from './action-toast';
 
 export interface ActionOptions<T> {
@@ -8,7 +9,8 @@ export interface ActionOptions<T> {
 }
 
 /** A single visible, localized error path; server details and secrets never enter the toast. */
-export function reportActionError(_cause: unknown): void {
+export function reportActionError(cause: unknown): void {
+  reportError(cause, 'action').catch(() => null);
   const choice = useLocale.getState().choice;
   const locale =
     choice === 'auto' && typeof navigator !== 'undefined' ? navigator.language : choice;

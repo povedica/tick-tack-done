@@ -1712,6 +1712,42 @@
         "security": []
       }
     },
+    "/api/v1/sentry-tunnel": {
+      "post": {
+        "operationId": "SentryTunnelController_relay",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "description": "Sentry envelope"
+              }
+            },
+            "application/x-sentry-envelope": {
+              "schema": {
+                "type": "string",
+                "description": "Sentry envelope"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sentry answer, passed through"
+          },
+          "204": {
+            "description": "Tunnel off: envelope dropped"
+          }
+        },
+        "summary": "Relay one PWA error envelope to Sentry (#209). Only the ttd-web DSN is accepted, 64 KiB max, 30 per minute per IP. Client IP, cookies and referer are never forwarded. Answers 204 and drops the envelope while SENTRY_TUNNEL_ENABLED is not true.",
+        "tags": [
+          "observability"
+        ],
+        "security": []
+      }
+    },
     "/api/v1/countdowns": {
       "get": {
         "operationId": "CountdownsController_list",
