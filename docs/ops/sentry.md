@@ -102,7 +102,7 @@ los campos nuevos tienen que existir en 1Password aunque estén vacíos.
 ## Rollback por PII
 
 1. Apagar los dos interruptores, el de la API y el de la web.
-2. En Sentry, borrar los eventos o issues afectados («Delete and discard») y comprobar que el data scrubber de la organización está activo.
+2. En el plan gratuito no existe «Delete and discard». Borrar la issue y sus eventos (si llega otro evento igual, la issue puede crearse de nuevo) y endurecer el data scrubber de la organización.
 3. Rotar lo expuesto: PATs, sesiones (cerrar sesiones) o tokens de feeds.
 4. Añadir el caso al test trampa, corregir el saneador y volver a encender.
 5. Registrar el incidente. Pablo decide si hay que comunicarlo (RGPD).
@@ -121,24 +121,47 @@ Revertir las PRs es seguro: no hay migraciones.
 - Un tick fallido envía `error`.
 - El **uptime monitor** de `/api/v1/health` lo crea Pablo en la UI: el plan incluye 1.
 
-## Smoke (solo staging)
+## Smoke
 
-- **API**: el hook `after_success` de `deploy/staging/deploy.sh` ejecuta `node dist/scripts/sentry-smoke.js` en el contenedor.
-  - Envía un evento `smoke=true`.
+- **Staging, API**: el hook `after_success` de `deploy/staging/deploy.sh` ejecuta `node dist/scripts/sentry-smoke.js` en el contenedor.
+  - Envía una excepción de prueba con `smoke=true` y nivel info.
   - Si no termina, el deploy sigue.
-  - Fuera de `SENTRY_ENVIRONMENT=staging` no hace nada.
-- **Web**: abrir cualquier página de staging con `?sentry-smoke` envía un evento `smoke=true` por el túnel.
-- En producción no hay smoke.
+  - El deploy de producción no lo ejecuta.
+- **Staging, web**: abrir cualquier página con `?sentry-smoke` envía un evento `smoke=true` por el túnel. Solo corre si `VITE_SENTRY_ENVIRONMENT` es `staging`.
+- **Producción**: un mensaje de nivel **info**, nunca un error provocado. A mano, una sola vez, en el contenedor de la API:
+  `docker compose exec -T api node dist/scripts/sentry-smoke.js`
+  Con `SENTRY_ENVIRONMENT=production` el script manda `Sentry smoke (production)` (`captureMessage`, nivel info, `smoke=true`). No abre una issue de error.
 - Para comprobarlo: en Sentry, filtrar por `smoke:true` y el `release` desplegado.
+
+## Validación y evidencias
+
+Guardar en la issue #209 el id del evento, el entorno, el `release`, el tag `deploy_sha` y el nivel. No pegar el cuerpo si pudiera incluir datos de una cuenta.
+
+### Staging
+
+1. Tras el deploy, el evento del smoke de la API (`smoke:true`, `environment:staging`, `release` `ttd-api@…`).
+2. El evento del smoke web (`?sentry-smoke`, `environment:staging`), llegado por el túnel.
+3. Una traza de la web desminificada con el release `ttd-web@…`.
+4. Un check-in `ok` de `scheduler-tick`.
+5. El marcador de deploy de los dos componentes.
+6. El tag `deploy_sha` de la API y el de la web son el mismo valor: los 7 primeros hex del SHA desplegado, no el commit de una imagen reutilizada.
+
+### Producción
+
+1. El mensaje info del smoke manual (nivel `info`, `environment:production`, `smoke:true`, sin excepción). Anotar el id.
+2. El mismo `deploy_sha` en ese evento y en la web (el `deploy-sha.js` del contenedor).
+3. Un check-in `ok` de `scheduler-tick` y el marcador de deploy.
+4. Confirmar en Stats que el evento info no cuenta como error de la cuota de issues, y que no quedó una issue de error creada por el humo.
 
 ## Releases y source maps
 
 - Las releases son `ttd-api@<versión>+<sha7>` y `ttd-web@<versión>+<sha7>`, con la etiqueta `deploy_sha`.
-- `DEPLOY_SHA` llega al contenedor de la API desde `remote.sh`. Si llega vacío, se usa el `GIT_COMMIT` de la imagen.
+- `DEPLOY_SHA` es el SHA del despliegue. La API y la web lo publican con el mismo nombre de tag, `deploy_sha`, y el mismo valor (7 hex). Si llega vacío, los dos usan el `GIT_COMMIT` de su imagen.
+- Web: el contenedor recibe `DEPLOY_SHA`. Al arrancar, `40-deploy-sha.sh` escribe `/tmp/deploy-sha.js` (`window.__DEPLOY_SHA__`, solo hex) y nginx lo sirve en `/deploy-sha.js`. El cliente recorta a 7 hex igual que la API.
 - Web:
   - Con token, la imagen se construye con mapas `hidden`.
   - `apps/web/scripts/split-sourcemaps.mjs` los saca a la etapa `sourcemaps` y rompe el build si queda un `.map` o un `sourceMappingURL` servible. nginx también devuelve 404 a los `.map`.
-  - Un paso aislado de `images.yml` exporta esa etapa y la sube con `sentry-cli`.
+  - `images.yml` construye la imagen y los mapas en el mismo `docker buildx bake`, así que los `.map` son los de ese build. Si la subida falla, el job avisa y termina en rojo. Si falta `SENTRY_AUTH_TOKEN`, lo dice en el resumen y sigue.
 - Tras un deploy sano, `deploy/lib/sentry-release.sh` marca el deploy de cada componente. Sin token no hace nada.
 - La API no sube mapas: arranca con `node --enable-source-maps` y las trazas ya llegan mapeadas.
 
@@ -155,10 +178,6 @@ Revertir las PRs es seguro: no hay migraciones.
 - [ ] Crear el uptime monitor de `/api/v1/health`.
 - [ ] Activar los inbound filters (extensiones, localhost, navegadores antiguos, crawlers) y spike protection si aparece en Settings.
 - [ ] Revisar el texto legal de la política de privacidad (marcado PENDIENTE) antes del merge.
-- [ ] Hacer el primer deploy en staging y comprobar en Sentry:
-  - El smoke de la API y el de la web (`smoke:true`).
-  - Una traza web desminificada.
-  - El check-in de `scheduler-tick`.
-  - Los marcadores de deploy.
+- [ ] Hacer el primer deploy en staging y el smoke info en producción, y guardar las evidencias de la sección «Validación y evidencias».
 - [ ] Revisar _Stats_ cada semana.
 - [ ] No configurar nada que solo exista en Business o trial.
