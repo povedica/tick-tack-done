@@ -77,7 +77,11 @@
   overflow: hidden;
   border: 0;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--tag, var(--accent)) 22%, transparent);
+  /* WCAG 1.4.11: a 22% tint of a light tag stays under 3:1 on white.
+     Pin lightness (and cap chroma) so the fill clears 3:1 against the page
+     and the label clears 4.5:1, in both themes. */
+  --chip: var(--tag, var(--accent));
+  background: oklch(from var(--chip) 0.63 min(c, 0.09) h);
   color: var(--ink);
   font-size: 12px;
   text-overflow: ellipsis;
@@ -85,7 +89,7 @@
 }
 
 [data-theme='dark'] .ui-tag {
-  background: color-mix(in srgb, var(--tag, var(--accent)) 32%, var(--surface));
+  background: oklch(from var(--chip) 0.555 min(c, 0.045) h);
   color: var(--ink);
 }
 
