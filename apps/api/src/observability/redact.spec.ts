@@ -81,4 +81,12 @@ describe('redact', () => {
   it('non-Error values never serialize objects', () => {
     expect(describeError({ title: TRAP.title })).toEqual({ name: 'NonError', message: 'Unknown' });
   });
+
+  it('email scrubbing of 40000 characters without @ stays under 50ms', () => {
+    const text = 'a'.repeat(40_000);
+    const started = performance.now();
+    const clean = scrubText(text, 40_000);
+    expect(performance.now() - started).toBeLessThan(50);
+    expect(clean.startsWith('aaa')).toBe(true);
+  });
 });

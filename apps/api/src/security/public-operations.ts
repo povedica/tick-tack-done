@@ -1,6 +1,7 @@
 /** Routes that stay anonymous. Anything else in the OpenAPI document requires a bearer (S-17). */
 export const PUBLIC_OPERATIONS = [
   'get /api/v1/health',
+  'post /api/v1/sentry-tunnel',
   'get /api/v1/auth/registration',
   'post /api/v1/auth/register',
   'post /api/v1/auth/login',

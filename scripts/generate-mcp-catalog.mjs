@@ -28,6 +28,8 @@ const operations = Object.entries(spec.paths).flatMap(([path, methods]) => {
     }));
 });
 function agentVisible(path, method) {
+  // Browser-only relay for Sentry envelopes; agents have nothing to send there.
+  if (path === '/api/v1/sentry-tunnel') return false;
   if (!path.startsWith('/api/v1/auth/')) return true;
   return path === '/api/v1/auth/session' && method === 'get';
 }
