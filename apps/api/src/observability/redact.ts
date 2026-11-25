@@ -56,6 +56,11 @@ export function describeError(error: unknown): SafeError {
   return { name, message: scrubText(error.message) };
 }
 
+/** Same rules as describeError, for an exception already flattened to type and message. */
+export function describeParts(name: string, message: string, code?: string): SafeError {
+  return describeError(Object.assign(new Error(message), { name, ...(code ? { code } : {}) }));
+}
+
 /** Header line plus stack frames. The original message never appears. */
 export function safeStack(error: unknown): string {
   const head = describeError(error);
@@ -71,7 +76,11 @@ export function safeStack(error: unknown): string {
 }
 
 export function isPrismaError(error: Error): boolean {
-  return error.name.startsWith('PrismaClient') || /^P\d{4}$/.test(codeOf(error) ?? '');
+  return (
+    error.name.startsWith('PrismaClient') ||
+    /^P\d{4}$/.test(codeOf(error) ?? '') ||
+    PRISMA_CALL.test(error.message)
+  );
 }
 
 function prismaSummary(error: Error): string {

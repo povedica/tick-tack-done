@@ -34,4 +34,4 @@ COPY --from=build --chown=node:node /runtime ./
 USER node
 # The entrypoint applies `prisma migrate deploy` before the process listens.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s CMD node -e "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma && node dist/main.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma && node --enable-source-maps --import ./dist/instrument.js dist/main.js"]
