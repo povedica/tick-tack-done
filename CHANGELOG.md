@@ -79,6 +79,8 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 
 ## Sin publicar
 
+- MCP `create_countdown` acepta `target_date` en `YYYY-MM-DD`. Antes rechazaba cualquier alta con `date must be YYYY-MM-DD` (#203).
+
 - BKL-003 (#101): verificación de accesibilidad y móvil de filtros en claro y oscuro; objetivos táctiles del editor y del menú lateral, foco de menús y del borrado.
 
 - BKL-059 (#169): copia local persistente antes de migrar en staging y producción, con permisos privados y retención de 30 días conservando las tres últimas; el backup diario externo de RF-1704 mantiene su comportamiento.
