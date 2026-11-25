@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -28,6 +29,10 @@ class BacklogTests(unittest.TestCase):
         })
         self.env["MOCK_COMMENTS"] = ""
         self.env["MOCK_EDIT_STATUS"] = "0"
+        self.env["MOCK_PERMISSIONS"] = (
+            "HTTP/2 200\n"
+            "x-accepted-github-permissions: contents=read, issues=write, pull_requests=write\n"
+        )
         self.stub("gh", r'''#!/usr/bin/env bash
 set -eu
 printf '%s\n' "$*" >> "$CALLS"
@@ -40,6 +45,7 @@ case "$1 $2" in
       exit "$MOCK_EDIT_STATUS"
     fi ;;
   "api --paginate") printf '%s\n' "$MOCK_COMMENTS" ;;
+  "api --include") printf '%s\n' "$MOCK_PERMISSIONS" ;;
   "issue comment") ;;
   *) echo "Unexpected gh call: $*" >&2; exit 99 ;;
 esac
@@ -475,18 +481,96 @@ esac
 
     def test_decision_warning_keeps_bot_and_no_backlog_exemptions(self):
         self.env["PROJECT_NUMBER"] = "2"
-        for author, labels in (("dependabot[bot]", []), ("github-actions[bot]", []),
-                               ("developer", [{"name": "sin-backlog"}])):
-            with self.subTest(author=author, labels=labels):
+        cases = (
+            ("dependabot[bot]", [], True),
+            ("app/dependabot", [], True),
+            ("dependabot", [], True),
+            ("github-actions[bot]", [], True),
+            ("developer", [{"name": "sin-backlog"}], False),
+            ("developer", [{"name": "dependencies"}], False),
+        )
+        for author, labels, bot in cases:
+            with self.subTest(author=author, labels=labels, bot=bot):
                 self.env["MOCK_PR"] = json.dumps({
                     "body": "Closes #12", "labels": labels,
-                    "author": {"login": author}, "isDraft": False,
+                    "author": {"login": author, "is_bot": bot}, "isDraft": False,
                 })
                 self.log.write_text("")
                 result = self.run_script("sync.sh", "pr-check", "95")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertNotIn("no hay comentario de decisión", result.stdout)
                 self.assertNotIn("comments?", self.log.read_text())
+
+    def test_real_dependabot_login_is_exempt_and_names_the_rule(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        # gh pr view --json author devuelve app/dependabot e is_bot, no dependabot[bot].
+        # El glob dependabot* no casa con ese login.
+        for login in ("app/dependabot", "dependabot[bot]", "Dependabot"):
+            with self.subTest(login=login):
+                self.env["MOCK_PR"] = json.dumps({
+                    "body": "Bumps vite",
+                    "labels": [{"name": "dependencies"}],
+                    "author": {"login": login, "is_bot": True},
+                    "files": [{"path": "pnpm-lock.yaml"}],
+                })
+                self.log.write_text("")
+                result = self.run_script("sync.sh", "pr-check", "183")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("Regla: dependabot.", result.stdout)
+                self.assertIn("Motivo:", result.stdout)
+                self.assertNotIn("issue comment", self.log.read_text())
+
+    def test_human_named_dependabot_is_not_exempt(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.env["MOCK_PR"] = json.dumps({
+            "body": "Sin referencia",
+            "labels": [],
+            "author": {"login": "dependabot", "is_bot": False},
+            "files": [],
+        })
+        result = self.run_script("sync.sh", "pr-check", "95")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("no tiene «Closes #N»", result.stdout)
+        self.assertNotIn("Regla:", result.stdout)
+
+    def test_read_only_token_does_not_comment_and_still_rejects_a_human(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        self.env["MOCK_PERMISSIONS"] = (
+            "HTTP/2 200\n"
+            "x-accepted-github-permissions: contents=read, metadata=read, pull_requests=read\n"
+        )
+        self.env["MOCK_PR"] = json.dumps({
+            "body": "Sin referencia",
+            "labels": [],
+            "author": {"login": "developer", "is_bot": False},
+            "files": [],
+        })
+        result = self.run_script("sync.sh", "pr-check", "183")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("no tiene «Closes #N»", result.stdout)
+        self.assertIn("sin permiso de escritura", result.stdout)
+        calls = self.log.read_text()
+        self.assertIn("api --include", calls)
+        self.assertNotIn("issue comment", calls)
+
+    def test_github_actions_and_labels_name_their_rule(self):
+        self.env["PROJECT_NUMBER"] = "1"
+        cases = (
+            ("github-actions[bot]", True, [], "github-actions"),
+            ("developer", False, [{"name": "sin-backlog"}], "etiqueta-sin-backlog"),
+            ("developer", False, [{"name": "dependencies"}], "etiqueta-dependencies"),
+        )
+        for login, bot, labels, rule in cases:
+            with self.subTest(rule=rule):
+                self.env["MOCK_PR"] = json.dumps({
+                    "body": "",
+                    "labels": labels,
+                    "author": {"login": login, "is_bot": bot},
+                    "files": [],
+                })
+                result = self.run_script("sync.sh", "pr-check", "95")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn(f"Regla: {rule}.", result.stdout)
 
     def _project_pr_stub(self):
         return r'''#!/usr/bin/env bash
@@ -510,6 +594,68 @@ esac
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("SHA válido", result.stdout)
         self.assertFalse(self.log.exists())
+
+
+class ExemptionPolicyTests(unittest.TestCase):
+    def test_app_login_does_not_match_the_old_glob(self):
+        import fnmatch
+
+        self.assertFalse(fnmatch.fnmatch("app/dependabot", "dependabot*"))
+        self.assertFalse(fnmatch.fnmatch("app/dependabot", "dependabot[bot]"))
+
+    def test_permissions_distinguish_app_tokens_and_classic_pats(self):
+        from exemptions import permission_verdict
+
+        read_only = (
+            "HTTP/2 200\n"
+            "x-accepted-github-permissions: contents=read, metadata=read, pull_requests=read\n"
+        )
+        writable = "x-accepted-github-permissions: issues=write, pull_requests=read\n"
+        classic = "x-oauth-scopes: repo, read:org\n"
+        self.assertEqual(permission_verdict(read_only), "read")
+        self.assertEqual(permission_verdict(writable), "write")
+        self.assertEqual(permission_verdict(classic), "write")
+        self.assertEqual(permission_verdict(""), "unknown")
+        self.assertEqual(permission_verdict("HTTP/2 403\n"), "unknown")
+
+    def test_path_rule_matches_only_when_every_file_fits(self):
+        from exemptions import find_exemption
+
+        config = self._config({
+            "id": "solo-lock",
+            "checks": ["pr-check"],
+            "reason": "Solo el lockfile.",
+            "when": {"paths_all": ["pnpm-lock.yaml", "apps/*/package.json"]},
+        })
+        lock = {"author": {"login": "developer", "is_bot": False}, "files": [{"path": "pnpm-lock.yaml"}]}
+        mixed = {"author": {"login": "developer"}, "files": [{"path": "pnpm-lock.yaml"}, {"path": "apps/api/src/main.ts"}]}
+        self.assertEqual(find_exemption("pr-check", lock, config).id, "solo-lock")
+        self.assertIsNone(find_exemption("pr-check", mixed, config))
+        self.assertIsNone(find_exemption("pr-check", {"author": {"login": "developer"}}, config))
+
+    def test_broken_policy_fails_closed(self):
+        result = subprocess.run(
+            [sys.executable, "-B", str(ROOT / "scripts/backlog/exemptions.py"), "match", "--check", "pr-check",
+             "--config", str(self._config_text("{"))],
+            input="{}",
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("::error::", result.stderr)
+
+    def _config(self, rule):
+        return self._config_text(json.dumps({"version": 1, "rules": [rule]}))
+
+    def _config_text(self, text):
+        path = Path(self.id().replace(".", "_") + ".json")
+        # TemporaryDirectory from the other class is not here; use the stdlib one locally.
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(folder))
+        target = folder / "exemptions.json"
+        target.write_text(text)
+        return target
 
 
 if __name__ == "__main__":

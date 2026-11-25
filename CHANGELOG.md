@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## Comprobación del backlog
+
+- Quién no tiene que llevar «Closes #N» sale de
+  `scripts/backlog/exemptions.json`. Dependabot entra con el login
+  `app/dependabot` y `is_bot`. Un token de solo lectura ya no tumba el
+  check al intentar comentar.
+
 ## Extensión de Raycast
 
 - Un comando «Nueva tarea TTD» envía el texto a la API sin interpretarlo. El

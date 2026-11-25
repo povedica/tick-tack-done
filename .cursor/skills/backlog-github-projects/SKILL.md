@@ -125,7 +125,8 @@ rellenar Agente y Rama. El check escribe la Rama con la rama de la PR y
 avisa si Agente sigue vacío. No se toca la PR de otro agente.
 
 `#N` tiene que existir y estar abierta. La única PR sin issue es la de
-`dependabot[bot]` (`issue-link` en `ci-ok`). Un agente no usa `sin-backlog`.
+Dependabot: `issue-link` solo aplica la regla `dependabot` de
+`scripts/backlog/exemptions.json`. Un agente no usa `sin-backlog`.
 
 ### Ajuste post-cierre
 
@@ -194,7 +195,7 @@ Actualiza la fila de `DECISIONES.md` (estado «Decidida», fecha, decisión, qui
 
 ### 9. Regenerar el espejo
 
-`scripts/backlog/generar-backlog.sh`. Lo ejecuta backlog-sync. Una PR de agente no lleva `sin-backlog` para saltarse la issue: `issue-link` solo exime a `dependabot[bot]`.
+`scripts/backlog/generar-backlog.sh`. Lo ejecuta backlog-sync. Una PR de agente no lleva `sin-backlog` para saltarse la issue: `issue-link` solo aplica la regla `dependabot` de `scripts/backlog/exemptions.json`.
 
 ## Checklist al cerrar una tarea
 
