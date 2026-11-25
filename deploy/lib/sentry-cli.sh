@@ -9,7 +9,7 @@ if [[ ! -x $dest ]]; then
   url="https://github.com/getsentry/sentry-cli/releases/download/${version}/sentry-cli-Linux-x86_64"
   tmp=$(mktemp)
   curl -fsSL "$url" -o "$tmp"
-  echo "${expected}  ${tmp}" | sha256sum -c -
+  echo "${expected}  ${tmp}" | sha256sum -c --quiet - >&2
   chmod 755 "$tmp"
   mv "$tmp" "$dest"
 fi
