@@ -141,6 +141,18 @@ describe('web Sentry client (#209)', () => {
     expect(event?.tags).toMatchObject({ route: '/s/:token' });
     const crumbs = event?.breadcrumbs as { message: string }[];
     expect(crumbs.map((crumb) => crumb.message)).toContain('/s/:token -> /today');
+    window.history.replaceState(null, '', `/s/${TRAP.pat}/x`);
+    addBreadcrumb({
+      category: 'navigation',
+      data: { from: `/s/${TRAP.pat}/x`, to: '/today' },
+    });
+    reporter.capture(new Error('public list extra segment'), 'react');
+    await settle();
+    const extra = events(raw).at(-1);
+    expect(raw.join('\n')).not.toContain('TRAMPA');
+    expect(extra?.tags).toMatchObject({ route: '/s/:token/x' });
+    const extraCrumbs = extra?.breadcrumbs as { message: string }[];
+    expect(extraCrumbs.map((crumb) => crumb.message)).toContain('/s/:token/x -> /today');
   });
 
   it('throttle: 3 per fingerprint and 10 per session', async () => {

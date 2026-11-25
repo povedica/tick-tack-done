@@ -8,7 +8,8 @@ const BEARER = /\bBearer\s+[^\s,;]+/gi;
 const SESSION = /__Host-rfx_session=[^\s;,]+/g;
 // Single quotes stay: engines quote property names that way ("reading 'title'").
 const QUOTED = /"[^"\n]*"|«[^»\n]*»|“[^”\n]*”/g;
-const TOKEN_PATHS = /\/(feeds|public\/lists)\/[^/?#\s]+/g;
+// Fallback for paths the router template does not match, including /s/<token>/x.
+const TOKEN_PATHS = /\/(feeds|public\/lists|s)\/[^/?#\s]+/g;
 const NUMERIC = /\/\d{2,}(?=\/|$)/g;
 
 export const ALLOWED_TAGS = new Set(['component', 'route', 'source', 'deploy_sha', 'smoke']);
