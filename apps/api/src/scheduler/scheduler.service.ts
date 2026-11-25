@@ -10,8 +10,8 @@ import {
   countdownDaysLabel,
   deriveDurationMinutes,
   dueSignal,
-  formatDailyDigest,
   instantFromWall,
+  wallClock,
   isAtDueTrigger,
   OVERDUE_GRACE_MS,
   nextConstantFire,
@@ -38,6 +38,11 @@ import { GoogleSyncService } from '../modules/calendar/google-sync.service.js';
 import { lockRecurrenceSeries } from '../prisma/series-lock.js';
 import type { Tx } from '../prisma/tx.js';
 import { ReminderTransport } from './reminder.transport.js';
+import { mailLocale } from '../mail/templates/html.js';
+import { renderCountdownReminder } from '../mail/templates/countdown.js';
+import { renderDailyDigest } from '../mail/templates/daily-digest.js';
+import { renderShutdownDigest } from '../mail/templates/shutdown-digest.js';
+import { renderTaskReminder } from '../mail/templates/task-reminder.js';
 
 const TICK_MS = 60_000;
 const DUE_SOON_MS = 24 * 60 * 60 * 1000;
@@ -390,7 +395,21 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const reminders = await this.prisma.reminder.findMany({
       where: { deletedAt: null, task: { status: 'active', deletedAt: null } },
       include: {
-        task: { select: { dueDate: true, startDate: true, title: true, timeZone: true } },
+        owner: { select: { locale: true } },
+        task: {
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            dueDate: true,
+            startDate: true,
+            isAllDay: true,
+            timeZone: true,
+            priority: true,
+            project: { select: { name: true } },
+            tags: { select: { tag: { select: { name: true } } } },
+          },
+        },
       },
     });
     for (const reminder of reminders) {
@@ -419,7 +438,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         kind: 'task',
         now,
         catchUp,
-        payload: { title: reminder.task.title, body: `Recordatorio: ${reminder.task.title}` },
+        payload: taskReminderPayload(reminder.task, reminder.owner.locale, fireAt),
       });
     }
   }
@@ -427,7 +446,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private async enqueueDigests(now: Date, catchUp: boolean): Promise<void> {
     const users = await this.prisma.user.findMany({
       where: { deletedAt: null, dailyReminderTime: { not: null } },
-      select: { id: true, email: true, timeZone: true, dailyReminderTime: true },
+      select: { id: true, email: true, timeZone: true, dailyReminderTime: true, locale: true },
     });
     for (const user of users) {
       if (user.dailyReminderTime === null) {
@@ -441,36 +460,53 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       if (!next.ok) {
         continue;
       }
+      const end = endOfLocalDay(next.fireAt, user.timeZone);
       const tasks = await this.prisma.task.findMany({
         where: {
           ownerId: user.id,
           status: 'active',
           deletedAt: null,
           parentId: null,
-          dueDate: { not: null },
+          dueDate: end === null ? { not: null } : { not: null, lte: end },
         },
         orderBy: { dueDate: 'asc' },
-        take: 20,
-        select: { title: true, dueDate: true, isAllDay: true, timeZone: true, status: true },
+        select: {
+          id: true,
+          title: true,
+          dueDate: true,
+          startDate: true,
+          isAllDay: true,
+          timeZone: true,
+          priority: true,
+          project: { select: { name: true } },
+          tags: { select: { tag: { select: { name: true } } } },
+        },
       });
-      const digest = formatDailyDigest({
-        now: next.fireAt,
+      const loadLine = await this.closing.digestLine(user.id, next.fireAt, user.timeZone);
+      const digest = renderDailyDigest({
+        locale: mailLocale(user.locale),
         fireAt: next.fireAt,
+        timeZone: user.timeZone,
+        loadLine,
+        reminderTime: user.dailyReminderTime,
         tasks: tasks.flatMap((task) =>
           task.dueDate === null
             ? []
             : [
                 {
+                  id: task.id,
                   title: task.title,
                   dueDate: task.dueDate.toISOString(),
+                  startDate: task.startDate === null ? null : task.startDate.toISOString(),
                   isAllDay: task.isAllDay,
                   timeZone: task.timeZone,
+                  priority: task.priority,
+                  listName: task.project.name,
+                  tags: task.tags.map((link) => ({ name: link.tag.name })),
                 },
               ],
         ),
       });
-      const loadLine = await this.closing.digestLine(user.id, next.fireAt, user.timeZone);
-      const body = loadLine === null ? digest : `${digest}\n\n${loadLine}`;
       await this.queue({
         ownerId: user.id,
         reminderId: null,
@@ -482,9 +518,12 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         now,
         catchUp,
         payload: {
-          title: 'Planifica tu día',
-          body,
+          title: digest.pushTitle,
+          body: digest.pushBody,
           email: user.email,
+          html: digest.mail.html,
+          email_subject: digest.mail.subject,
+          email_text: digest.mail.text,
         },
       });
     }
@@ -493,7 +532,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private async enqueueShutdownDigests(now: Date, catchUp: boolean): Promise<void> {
     const users = await this.prisma.user.findMany({
       where: { deletedAt: null, shutdownReminderTime: { not: null } },
-      select: { id: true, email: true, timeZone: true, shutdownReminderTime: true },
+      select: { id: true, email: true, timeZone: true, shutdownReminderTime: true, locale: true },
     });
     for (const user of users) {
       if (user.shutdownReminderTime === null) {
@@ -511,6 +550,10 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       if (reminder === null) {
         continue;
       }
+      const mail = renderShutdownDigest({
+        locale: mailLocale(user.locale),
+        pending: reminder.pending,
+      });
       await this.queue({
         ownerId: user.id,
         reminderId: null,
@@ -526,6 +569,9 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
           body: reminder.body,
           email: user.email,
           url: '/cierre',
+          html: mail.html,
+          email_subject: mail.subject,
+          email_text: mail.text,
         },
       });
     }
@@ -593,7 +639,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       where: { deletedAt: null, archivedAt: null },
       include: {
         reminders: true,
-        owner: { select: { email: true, timeZone: true } },
+        owner: { select: { email: true, timeZone: true, locale: true } },
       },
     });
     for (const countdown of countdowns) {
@@ -670,7 +716,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       dayMode: 'standard' | 'plus_one';
       targetDate: Date;
       repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-      owner: { email: string; timeZone: string };
+      owner: { email: string; timeZone: string; locale: string };
     };
     reminder: { id: string };
     occurrence: string;
@@ -694,7 +740,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       dayMode: 'standard' | 'plus_one';
       targetDate: Date;
       repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-      owner: { email: string; timeZone: string };
+      owner: { email: string; timeZone: string; locale: string };
     };
     reminder: { id: string; offsetDays?: number };
     occurrence: string;
@@ -722,6 +768,12 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       label.kind === 'today'
         ? `${prefix} ${input.countdown.title}: ¡es hoy!`
         : `${prefix} ${input.countdown.title}: quedan ${String(label.days)} días`;
+    const mail = renderCountdownReminder({
+      locale: input.countdown.owner.locale,
+      title: input.countdown.title,
+      kind: label.kind === 'today' ? 'today' : 'upcoming',
+      days: label.days,
+    });
     const offset = input.reminder.offsetDays ?? 3;
     await this.queue({
       ownerId: input.countdown.ownerId,
@@ -742,6 +794,9 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         title: `${prefix} ${input.countdown.title}`,
         body,
         email: input.countdown.owner.email,
+        html: mail.html,
+        email_subject: mail.subject,
+        email_text: mail.text,
       },
     });
   }
@@ -1035,10 +1090,17 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
               telegram_message_id: null,
               retry_after_seconds: null,
             }
-          : await deliverNotification(this.prisma, this.transport, row, now, {
-              title: typeof payload.title === 'string' ? payload.title : 'Recordatorio',
-              body: typeof payload.body === 'string' ? payload.body : '',
-            });
+          : await deliverNotification(
+              this.prisma,
+              this.transport,
+              row,
+              now,
+              mailedCopy(
+                payload,
+                typeof payload.title === 'string' ? payload.title : 'Recordatorio',
+                typeof payload.body === 'string' ? payload.body : '',
+              ),
+            );
         if (emailNeedsReconciliation(result)) {
           await this.prisma.reminderDelivery.update({
             where: { id: row.id },
@@ -1258,7 +1320,18 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     }
     const task = await this.prisma.task.findFirst({
       where: { id: row.taskId, status: 'active', deletedAt: null },
-      select: { title: true },
+      select: {
+        title: true,
+        content: true,
+        dueDate: true,
+        startDate: true,
+        isAllDay: true,
+        timeZone: true,
+        priority: true,
+        project: { select: { name: true } },
+        tags: { select: { tag: { select: { name: true } } } },
+        owner: { select: { locale: true } },
+      },
     });
     if (task === null) {
       return;
@@ -1278,7 +1351,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       kind: 'task',
       now,
       catchUp: false,
-      payload: { title: task.title, body: `Recordatorio: ${task.title}` },
+      payload: taskReminderPayload(task, task.owner.locale, fireAt, row.taskId),
     });
   }
 
@@ -1358,11 +1431,17 @@ function noticeCopy(
   kind: string,
   payload: Record<string, unknown>,
   now: Date,
-): { title: string; body: string } {
+): {
+  title: string;
+  body: string;
+  html?: string;
+  emailSubject?: string;
+  emailText?: string;
+} {
   const rawTitle = typeof payload.title === 'string' ? payload.title : 'Recordatorio';
   const rawBody = typeof payload.body === 'string' ? payload.body : '';
   if (kind !== 'due_soon' && kind !== 'overdue') {
-    return { title: rawTitle, body: rawBody };
+    return mailedCopy(payload, rawTitle, rawBody);
   }
   const due = typeof payload.due === 'string' ? payload.due : now.toISOString();
   const zone = typeof payload.time_zone === 'string' ? payload.time_zone : 'UTC';
@@ -1418,4 +1497,81 @@ function shiftCalendarDate(date: string, amount: number): string {
 
 function emailNeedsReconciliation(result: DeliveryResult): boolean {
   return result.email_reconcile_required === true;
+}
+
+function endOfLocalDay(fireAt: string, timeZone: string): Date | null {
+  const wall = wallClock(fireAt, timeZone);
+  if (wall === null) {
+    return null;
+  }
+  const isoInstant = instantFromWall({ ...wall, hour: 23, minute: 59, second: 59 }, timeZone);
+  return isoInstant === null ? null : new Date(isoInstant);
+}
+
+function mailedCopy(
+  payload: Record<string, unknown>,
+  title: string,
+  body: string,
+): {
+  title: string;
+  body: string;
+  html?: string;
+  emailSubject?: string;
+  emailText?: string;
+} {
+  const html = typeof payload.html === 'string' ? payload.html : undefined;
+  const emailSubject =
+    typeof payload.email_subject === 'string' ? payload.email_subject : undefined;
+  const emailText = typeof payload.email_text === 'string' ? payload.email_text : undefined;
+  return {
+    title,
+    body,
+    ...(html === undefined ? {} : { html }),
+    ...(emailSubject === undefined ? {} : { emailSubject }),
+    ...(emailText === undefined ? {} : { emailText }),
+  };
+}
+
+function taskReminderPayload(
+  task: {
+    id?: string;
+    title: string;
+    content: string;
+    dueDate: Date | null;
+    startDate: Date | null;
+    isAllDay: boolean;
+    timeZone: string;
+    priority: 'none' | 'low' | 'medium' | 'high';
+    project: { name: string };
+    tags: readonly { tag: { name: string } }[];
+  },
+  locale: string | null,
+  now: string,
+  taskId?: string,
+): Prisma.InputJsonObject {
+  const id = taskId ?? task.id;
+  if (id === undefined) {
+    return { title: task.title, body: `Recordatorio: ${task.title}` };
+  }
+  const mail = renderTaskReminder({
+    locale,
+    id,
+    title: task.title,
+    content: task.content,
+    dueDate: task.dueDate === null ? null : task.dueDate.toISOString(),
+    startDate: task.startDate === null ? null : task.startDate.toISOString(),
+    isAllDay: task.isAllDay,
+    timeZone: task.timeZone,
+    priority: task.priority,
+    listName: task.project.name,
+    tags: task.tags.map((link) => ({ name: link.tag.name })),
+    now,
+  });
+  return {
+    title: task.title,
+    body: `Recordatorio: ${task.title}`,
+    html: mail.html,
+    email_subject: mail.subject,
+    email_text: mail.text,
+  };
 }

@@ -1,0 +1,508 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`email bodies > keeps the password reset link in the fragment and escapes the name 1`] = `
+"<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Restablece tu contraseña de tick-tack-done</title>
+<!--[if mso]><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  a { text-decoration:none; }
+  .task-link:hover { text-decoration:underline !important; }
+  @media (max-width:620px) {
+    .container { width:100% !important; }
+    .px { padding-left:16px !important; padding-right:16px !important; }
+    .outer { padding:12px 8px !important; }
+    .h1 { font-size:22px !important; }
+    .time { width:64px !important; white-space:normal !important; }
+    .btn a { display:block !important; }
+    .btn-wrap { width:100% !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg { background-color:#242424 !important; }
+    .surface { background-color:#222222 !important; border-color:#333333 !important; }
+    .ink { color:#ffffff !important; }
+    .ink2 { color:#a8a8a8 !important; }
+    .accink { color:#c5d4ff !important; }
+    .danger { color:#ff8787 !important; }
+    .border { border-color:#333333 !important; }
+    .chip { background-color:#2f3a5c !important; color:#c5d4ff !important; }
+    .note { background-color:#2a2a2a !important; border-color:#3a3a3a !important; }
+    .bar-none { background-color:#4a4a4a !important; }
+    .placeholder { border-color:#4a4a4a !important; color:#a8a8a8 !important; }
+  }
+  [data-ogsc] .ink { color:#ffffff !important; }
+  [data-ogsc] .ink2 { color:#a8a8a8 !important; }
+  [data-ogsc] .accink { color:#c5d4ff !important; }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Hola, &lt;script&gt;: Alguien (seguramente tú) ha pedido restablecer la contraseña de tu cuenta de tick-tack-done. Para elegir una nueva, abre est&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" bgcolor="#f2f5fe" style="background-color:#f2f5fe;">
+<tr><td align="center" class="outer" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td class="px" style="padding:4px 8px 16px 8px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="40" height="40" align="center" valign="middle" bgcolor="#4772FA" style="width:40px;height:40px;background-color:#4772FA;border-radius:10px;font-size:0;line-height:0;"><img src="https://todo.reflexionia.com/apple-touch-icon.png" width="32" height="32" alt="" border="0" style="display:block;width:32px;height:32px;border:0;outline:none;text-decoration:none;"></td>
+<td class="ink" style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:600;color:#191919;">TickTackDone</td>
+</tr></table>
+</td></tr>
+<tr><td class="surface px" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-radius:14px;padding:28px 32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#191919;">
+<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Hola, &lt;script&gt;:</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Alguien (seguramente tú) ha pedido restablecer la contraseña de tu cuenta de tick-tack-done.</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Para elegir una nueva, abre este enlace en los próximos 30 minutos:</p><table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-wrap" style="margin-top:24px;"><tr><td class="btn" align="center" bgcolor="#3e60cd" style="background-color:#3e60cd;border-radius:10px;"><!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="https://todo.reflexionia.com/reset-password#token=abc" style="height:44px;v-text-anchor:middle;width:291px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">Elegir una contraseña nueva</center></v:roundrect><![endif]--><!--[if !mso]><!-- --><a href="https://todo.reflexionia.com/reset-password#token=abc" style="display:inline-block;padding:12px 24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Elegir una contraseña nueva</a><!--<![endif]--></td></tr></table><p style="margin:12px 0 0 0;font-size:13px;line-height:20px;"><a href="https://todo.reflexionia.com/reset-password#token=abc" class="accink" style="color:#3e60cd;text-decoration:underline;word-break:break-all;">https://todo.reflexionia.com/reset-password#token=abc</a></p><p class="ink" style="margin:12px 0 0 0;font-size:15px;line-height:22px;color:#191919;">El enlace solo funciona una vez. Si no lo has pedido tú, ignora este correo: tu contraseña no cambia.</p>
+</td></tr>
+<tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
+<p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">Recibes este correo porque se pidió restablecer la contraseña de tu cuenta.</p>
+<p style="margin:0 0 8px 0;"><a href="https://todo.reflexionia.com/settings/notifications" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Gestionar notificaciones</a><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><a href="https://todo.reflexionia.com/" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Abrir TickTackDone</a></p>
+<p class="ink2" style="margin:0;color:#6b6b6b;font-size:12px;">TickTackDone · todo.reflexionia.com</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>"
+`;
+
+exports[`email bodies > renders a countdown for today and for a later day 1`] = `
+"<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Vacaciones: es hoy</title>
+<!--[if mso]><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  a { text-decoration:none; }
+  .task-link:hover { text-decoration:underline !important; }
+  @media (max-width:620px) {
+    .container { width:100% !important; }
+    .px { padding-left:16px !important; padding-right:16px !important; }
+    .outer { padding:12px 8px !important; }
+    .h1 { font-size:22px !important; }
+    .time { width:64px !important; white-space:normal !important; }
+    .btn a { display:block !important; }
+    .btn-wrap { width:100% !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg { background-color:#242424 !important; }
+    .surface { background-color:#222222 !important; border-color:#333333 !important; }
+    .ink { color:#ffffff !important; }
+    .ink2 { color:#a8a8a8 !important; }
+    .accink { color:#c5d4ff !important; }
+    .danger { color:#ff8787 !important; }
+    .border { border-color:#333333 !important; }
+    .chip { background-color:#2f3a5c !important; color:#c5d4ff !important; }
+    .note { background-color:#2a2a2a !important; border-color:#3a3a3a !important; }
+    .bar-none { background-color:#4a4a4a !important; }
+    .placeholder { border-color:#4a4a4a !important; color:#a8a8a8 !important; }
+  }
+  [data-ogsc] .ink { color:#ffffff !important; }
+  [data-ogsc] .ink2 { color:#a8a8a8 !important; }
+  [data-ogsc] .accink { color:#c5d4ff !important; }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Vacaciones. Es hoy.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" bgcolor="#f2f5fe" style="background-color:#f2f5fe;">
+<tr><td align="center" class="outer" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td class="px" style="padding:4px 8px 16px 8px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="40" height="40" align="center" valign="middle" bgcolor="#4772FA" style="width:40px;height:40px;background-color:#4772FA;border-radius:10px;font-size:0;line-height:0;"><img src="https://todo.reflexionia.com/apple-touch-icon.png" width="32" height="32" alt="" border="0" style="display:block;width:32px;height:32px;border:0;outline:none;text-decoration:none;"></td>
+<td class="ink" style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:600;color:#191919;">TickTackDone</td>
+</tr></table>
+</td></tr>
+<tr><td class="surface px" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-radius:14px;padding:28px 32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#191919;">
+<p class="accink" style="margin:0 0 4px 0;font-size:13px;line-height:18px;color:#3e60cd;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Cuenta atrás</p>
+<h1 class="ink h1" style="margin:0 0 12px 0;font-size:24px;line-height:30px;font-weight:700;color:#191919;">Vacaciones</h1>
+<p class="ink" style="margin:0;font-size:15px;line-height:22px;color:#191919;">Es hoy.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-wrap" style="margin-top:24px;"><tr><td class="btn" align="center" bgcolor="#3e60cd" style="background-color:#3e60cd;border-radius:10px;"><!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="https://todo.reflexionia.com/countdowns" style="height:44px;v-text-anchor:middle;width:192px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">Ver cuenta atrás</center></v:roundrect><![endif]--><!--[if !mso]><!-- --><a href="https://todo.reflexionia.com/countdowns" style="display:inline-block;padding:12px 24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Ver cuenta atrás</a><!--<![endif]--></td></tr></table>
+</td></tr>
+<tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
+<p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">Recibes este correo porque activaste un aviso de esta cuenta atrás.</p>
+<p style="margin:0 0 8px 0;"><a href="https://todo.reflexionia.com/settings/notifications" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Gestionar notificaciones</a><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><a href="https://todo.reflexionia.com/" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Abrir TickTackDone</a></p>
+<p class="ink2" style="margin:0;color:#6b6b6b;font-size:12px;">TickTackDone · todo.reflexionia.com</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>"
+`;
+
+exports[`email bodies > renders a task reminder with chips and without a second action 1`] = `
+"<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Recordatorio: Llamar al fontanero (10:00)</title>
+<!--[if mso]><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  a { text-decoration:none; }
+  .task-link:hover { text-decoration:underline !important; }
+  @media (max-width:620px) {
+    .container { width:100% !important; }
+    .px { padding-left:16px !important; padding-right:16px !important; }
+    .outer { padding:12px 8px !important; }
+    .h1 { font-size:22px !important; }
+    .time { width:64px !important; white-space:normal !important; }
+    .btn a { display:block !important; }
+    .btn-wrap { width:100% !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg { background-color:#242424 !important; }
+    .surface { background-color:#222222 !important; border-color:#333333 !important; }
+    .ink { color:#ffffff !important; }
+    .ink2 { color:#a8a8a8 !important; }
+    .accink { color:#c5d4ff !important; }
+    .danger { color:#ff8787 !important; }
+    .border { border-color:#333333 !important; }
+    .chip { background-color:#2f3a5c !important; color:#c5d4ff !important; }
+    .note { background-color:#2a2a2a !important; border-color:#3a3a3a !important; }
+    .bar-none { background-color:#4a4a4a !important; }
+    .placeholder { border-color:#4a4a4a !important; color:#a8a8a8 !important; }
+  }
+  [data-ogsc] .ink { color:#ffffff !important; }
+  [data-ogsc] .ink2 { color:#a8a8a8 !important; }
+  [data-ogsc] .accink { color:#c5d4ff !important; }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Hoy, 25 nov · 10:00 · Casa · Preguntar por el presupuesto del calentador.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" bgcolor="#f2f5fe" style="background-color:#f2f5fe;">
+<tr><td align="center" class="outer" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td class="px" style="padding:4px 8px 16px 8px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="40" height="40" align="center" valign="middle" bgcolor="#4772FA" style="width:40px;height:40px;background-color:#4772FA;border-radius:10px;font-size:0;line-height:0;"><img src="https://todo.reflexionia.com/apple-touch-icon.png" width="32" height="32" alt="" border="0" style="display:block;width:32px;height:32px;border:0;outline:none;text-decoration:none;"></td>
+<td class="ink" style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:600;color:#191919;">TickTackDone</td>
+</tr></table>
+</td></tr>
+<tr><td class="surface px" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-radius:14px;padding:28px 32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#191919;">
+<p class="accink" style="margin:0 0 4px 0;font-size:13px;line-height:18px;color:#3e60cd;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Recordatorio</p>
+<h1 class="h1" style="margin:0 0 16px 0;font-size:24px;line-height:30px;font-weight:700;"><a href="https://todo.reflexionia.com/task/t_demo09" class="ink" style="color:#191919;text-decoration:none;">Llamar al fontanero</a></h1>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="ink2 border" width="96" valign="top" style="width:96px;padding:10px 8px 10px 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6b6b6b;">Cuándo</td><td class="ink border" valign="top" style="padding:10px 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;color:#191919;"><strong>Hoy, 25 nov · 10:00</strong></td></tr><tr><td class="ink2 border" width="96" valign="top" style="width:96px;border-top:1px solid #e6e9f2;padding:10px 8px 10px 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6b6b6b;">Lista</td><td class="ink border" valign="top" style="border-top:1px solid #e6e9f2;padding:10px 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;color:#191919;">Casa</td></tr><tr><td class="ink2 border" width="96" valign="top" style="width:96px;border-top:1px solid #e6e9f2;padding:10px 8px 10px 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6b6b6b;">Prioridad</td><td class="ink border" valign="top" style="border-top:1px solid #e6e9f2;padding:10px 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;color:#191919;"><span style="color:#e13e39;font-size:12px;">&#9650;</span><span class="ink" style="color:#191919;"> Alta</span></td></tr><tr><td class="ink2 border" width="96" valign="top" style="width:96px;border-top:1px solid #e6e9f2;padding:10px 8px 10px 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6b6b6b;">Etiquetas</td><td class="ink border" valign="top" style="border-top:1px solid #e6e9f2;padding:10px 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;color:#191919;"><span class="chip" style="display:inline-block;background-color:#ecf0fe;color:#3e60cd;font-size:12px;line-height:18px;font-weight:600;padding:1px 8px;border-radius:9px;margin:4px 4px 0 0;">casa</span><span class="chip" style="display:inline-block;background-color:#ecf0fe;color:#3e60cd;font-size:12px;line-height:18px;font-weight:600;padding:1px 8px;border-radius:9px;margin:4px 4px 0 0;">llamadas</span></td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr><td class="note" bgcolor="#f7f8fb" style="background-color:#f7f8fb;border:1px solid #e6e9f2;border-radius:10px;padding:12px 14px;font-size:14px;line-height:21px;"><span class="ink2" style="color:#6b6b6b;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Nota</span><br><span class="ink" style="color:#191919;">Preguntar por el presupuesto del calentador.</span></td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-wrap" style="margin-top:24px;"><tr><td class="btn" align="center" bgcolor="#3e60cd" style="background-color:#3e60cd;border-radius:10px;"><!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="https://todo.reflexionia.com/task/t_demo09" style="height:44px;v-text-anchor:middle;width:160px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">Ver tarea</center></v:roundrect><![endif]--><!--[if !mso]><!-- --><a href="https://todo.reflexionia.com/task/t_demo09" style="display:inline-block;padding:12px 24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Ver tarea</a><!--<![endif]--></td></tr></table>
+</td></tr>
+<tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
+<p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">Recibes este correo porque pusiste un recordatorio a esta tarea.</p>
+<p style="margin:0 0 8px 0;"><a href="https://todo.reflexionia.com/settings/notifications" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Gestionar notificaciones</a><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><a href="https://todo.reflexionia.com/" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Abrir TickTackDone</a></p>
+<p class="ink2" style="margin:0;color:#6b6b6b;font-size:12px;">TickTackDone · todo.reflexionia.com</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>"
+`;
+
+exports[`email bodies > renders account deletion and the admin TOTP notice as multipart mail 1`] = `
+"<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Se va a borrar tu cuenta</title>
+<!--[if mso]><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  a { text-decoration:none; }
+  .task-link:hover { text-decoration:underline !important; }
+  @media (max-width:620px) {
+    .container { width:100% !important; }
+    .px { padding-left:16px !important; padding-right:16px !important; }
+    .outer { padding:12px 8px !important; }
+    .h1 { font-size:22px !important; }
+    .time { width:64px !important; white-space:normal !important; }
+    .btn a { display:block !important; }
+    .btn-wrap { width:100% !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg { background-color:#242424 !important; }
+    .surface { background-color:#222222 !important; border-color:#333333 !important; }
+    .ink { color:#ffffff !important; }
+    .ink2 { color:#a8a8a8 !important; }
+    .accink { color:#c5d4ff !important; }
+    .danger { color:#ff8787 !important; }
+    .border { border-color:#333333 !important; }
+    .chip { background-color:#2f3a5c !important; color:#c5d4ff !important; }
+    .note { background-color:#2a2a2a !important; border-color:#3a3a3a !important; }
+    .bar-none { background-color:#4a4a4a !important; }
+    .placeholder { border-color:#4a4a4a !important; color:#a8a8a8 !important; }
+  }
+  [data-ogsc] .ink { color:#ffffff !important; }
+  [data-ogsc] .ink2 { color:#a8a8a8 !important; }
+  [data-ogsc] .accink { color:#c5d4ff !important; }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Tu cuenta se está borrando. Si no has sido tú, el borrado ya se ha confirmado con tu contraseña.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" bgcolor="#f2f5fe" style="background-color:#f2f5fe;">
+<tr><td align="center" class="outer" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td class="px" style="padding:4px 8px 16px 8px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="40" height="40" align="center" valign="middle" bgcolor="#4772FA" style="width:40px;height:40px;background-color:#4772FA;border-radius:10px;font-size:0;line-height:0;"><img src="https://todo.reflexionia.com/apple-touch-icon.png" width="32" height="32" alt="" border="0" style="display:block;width:32px;height:32px;border:0;outline:none;text-decoration:none;"></td>
+<td class="ink" style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:600;color:#191919;">TickTackDone</td>
+</tr></table>
+</td></tr>
+<tr><td class="surface px" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-radius:14px;padding:28px 32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#191919;">
+<h1 class="ink h1" style="margin:0 0 12px 0;font-size:24px;line-height:30px;font-weight:700;color:#191919;">Se va a borrar tu cuenta</h1><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Tu cuenta se está borrando. Si no has sido tú, el borrado ya se ha confirmado con tu contraseña.</p>
+</td></tr>
+<tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
+<p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">Recibes este correo por un aviso de seguridad de tu cuenta.</p>
+<p style="margin:0 0 8px 0;"><a href="https://todo.reflexionia.com/settings/notifications" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Gestionar notificaciones</a><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><a href="https://todo.reflexionia.com/" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Abrir TickTackDone</a></p>
+<p class="ink2" style="margin:0;color:#6b6b6b;font-size:12px;">TickTackDone · todo.reflexionia.com</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>"
+`;
+
+exports[`email bodies > renders account deletion and the admin TOTP notice as multipart mail 2`] = `
+"<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Two-factor authentication was turned off</title>
+<!--[if mso]><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  a { text-decoration:none; }
+  .task-link:hover { text-decoration:underline !important; }
+  @media (max-width:620px) {
+    .container { width:100% !important; }
+    .px { padding-left:16px !important; padding-right:16px !important; }
+    .outer { padding:12px 8px !important; }
+    .h1 { font-size:22px !important; }
+    .time { width:64px !important; white-space:normal !important; }
+    .btn a { display:block !important; }
+    .btn-wrap { width:100% !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg { background-color:#242424 !important; }
+    .surface { background-color:#222222 !important; border-color:#333333 !important; }
+    .ink { color:#ffffff !important; }
+    .ink2 { color:#a8a8a8 !important; }
+    .accink { color:#c5d4ff !important; }
+    .danger { color:#ff8787 !important; }
+    .border { border-color:#333333 !important; }
+    .chip { background-color:#2f3a5c !important; color:#c5d4ff !important; }
+    .note { background-color:#2a2a2a !important; border-color:#3a3a3a !important; }
+    .bar-none { background-color:#4a4a4a !important; }
+    .placeholder { border-color:#4a4a4a !important; color:#a8a8a8 !important; }
+  }
+  [data-ogsc] .ink { color:#ffffff !important; }
+  [data-ogsc] .ink2 { color:#a8a8a8 !important; }
+  [data-ogsc] .accink { color:#c5d4ff !important; }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">An administrator turned off two-factor authentication on your tick-tack-done account. If this was not you, reset your password and contact t&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" bgcolor="#f2f5fe" style="background-color:#f2f5fe;">
+<tr><td align="center" class="outer" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td class="px" style="padding:4px 8px 16px 8px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="40" height="40" align="center" valign="middle" bgcolor="#4772FA" style="width:40px;height:40px;background-color:#4772FA;border-radius:10px;font-size:0;line-height:0;"><img src="https://todo.reflexionia.com/apple-touch-icon.png" width="32" height="32" alt="" border="0" style="display:block;width:32px;height:32px;border:0;outline:none;text-decoration:none;"></td>
+<td class="ink" style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:600;color:#191919;">TickTackDone</td>
+</tr></table>
+</td></tr>
+<tr><td class="surface px" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-radius:14px;padding:28px 32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#191919;">
+<h1 class="ink h1" style="margin:0 0 12px 0;font-size:24px;line-height:30px;font-weight:700;color:#191919;">Two-factor authentication was turned off</h1><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">An administrator turned off two-factor authentication on your tick-tack-done account. If this was not you, reset your password and contact the operator.</p>
+</td></tr>
+<tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
+<p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">You receive this email because of a security notice about your account.</p>
+<p style="margin:0 0 8px 0;"><a href="https://todo.reflexionia.com/settings/notifications" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Manage notifications</a><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><a href="https://todo.reflexionia.com/" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Open TickTackDone</a></p>
+<p class="ink2" style="margin:0;color:#6b6b6b;font-size:12px;">TickTackDone · todo.reflexionia.com</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>"
+`;
+
+exports[`email bodies > renders the share invitation with the list and the owner only 1`] = `
+"<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Invitación a «Casa &amp; obra»</title>
+<!--[if mso]><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  a { text-decoration:none; }
+  .task-link:hover { text-decoration:underline !important; }
+  @media (max-width:620px) {
+    .container { width:100% !important; }
+    .px { padding-left:16px !important; padding-right:16px !important; }
+    .outer { padding:12px 8px !important; }
+    .h1 { font-size:22px !important; }
+    .time { width:64px !important; white-space:normal !important; }
+    .btn a { display:block !important; }
+    .btn-wrap { width:100% !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg { background-color:#242424 !important; }
+    .surface { background-color:#222222 !important; border-color:#333333 !important; }
+    .ink { color:#ffffff !important; }
+    .ink2 { color:#a8a8a8 !important; }
+    .accink { color:#c5d4ff !important; }
+    .danger { color:#ff8787 !important; }
+    .border { border-color:#333333 !important; }
+    .chip { background-color:#2f3a5c !important; color:#c5d4ff !important; }
+    .note { background-color:#2a2a2a !important; border-color:#3a3a3a !important; }
+    .bar-none { background-color:#4a4a4a !important; }
+    .placeholder { border-color:#4a4a4a !important; color:#a8a8a8 !important; }
+  }
+  [data-ogsc] .ink { color:#ffffff !important; }
+  [data-ogsc] .ink2 { color:#a8a8a8 !important; }
+  [data-ogsc] .accink { color:#c5d4ff !important; }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Hola, Ana: Pablo te ha invitado a la lista «Casa &amp; obra» en tick-tack-done. No verás la lista hasta que aceptes: https://todo.reflexionia.co&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" bgcolor="#f2f5fe" style="background-color:#f2f5fe;">
+<tr><td align="center" class="outer" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td class="px" style="padding:4px 8px 16px 8px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="40" height="40" align="center" valign="middle" bgcolor="#4772FA" style="width:40px;height:40px;background-color:#4772FA;border-radius:10px;font-size:0;line-height:0;"><img src="https://todo.reflexionia.com/apple-touch-icon.png" width="32" height="32" alt="" border="0" style="display:block;width:32px;height:32px;border:0;outline:none;text-decoration:none;"></td>
+<td class="ink" style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:600;color:#191919;">TickTackDone</td>
+</tr></table>
+</td></tr>
+<tr><td class="surface px" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-radius:14px;padding:28px 32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#191919;">
+<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Hola, Ana:</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Pablo te ha invitado a la lista «Casa &amp; obra».</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">No verás la lista hasta que aceptes.</p><table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-wrap" style="margin-top:24px;"><tr><td class="btn" align="center" bgcolor="#3e60cd" style="background-color:#3e60cd;border-radius:10px;"><!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="https://todo.reflexionia.com/settings/sharing" style="height:44px;v-text-anchor:middle;width:237px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">Revisar la invitación</center></v:roundrect><![endif]--><!--[if !mso]><!-- --><a href="https://todo.reflexionia.com/settings/sharing" style="display:inline-block;padding:12px 24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Revisar la invitación</a><!--<![endif]--></td></tr></table><p style="margin:12px 0 0 0;font-size:13px;line-height:20px;"><a href="https://todo.reflexionia.com/settings/sharing" class="accink" style="color:#3e60cd;text-decoration:underline;word-break:break-all;">https://todo.reflexionia.com/settings/sharing</a></p>
+</td></tr>
+<tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
+<p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">Recibes este correo porque te han invitado a una lista compartida.</p>
+<p style="margin:0 0 8px 0;"><a href="https://todo.reflexionia.com/settings/notifications" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Gestionar notificaciones</a><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><a href="https://todo.reflexionia.com/" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Abrir TickTackDone</a></p>
+<p class="ink2" style="margin:0;color:#6b6b6b;font-size:12px;">TickTackDone · todo.reflexionia.com</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>"
+`;
+
+exports[`email bodies > renders the shutdown digest inside the shared frame 1`] = `
+"<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Cierra tu día</title>
+<!--[if mso]><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  a { text-decoration:none; }
+  .task-link:hover { text-decoration:underline !important; }
+  @media (max-width:620px) {
+    .container { width:100% !important; }
+    .px { padding-left:16px !important; padding-right:16px !important; }
+    .outer { padding:12px 8px !important; }
+    .h1 { font-size:22px !important; }
+    .time { width:64px !important; white-space:normal !important; }
+    .btn a { display:block !important; }
+    .btn-wrap { width:100% !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg { background-color:#242424 !important; }
+    .surface { background-color:#222222 !important; border-color:#333333 !important; }
+    .ink { color:#ffffff !important; }
+    .ink2 { color:#a8a8a8 !important; }
+    .accink { color:#c5d4ff !important; }
+    .danger { color:#ff8787 !important; }
+    .border { border-color:#333333 !important; }
+    .chip { background-color:#2f3a5c !important; color:#c5d4ff !important; }
+    .note { background-color:#2a2a2a !important; border-color:#3a3a3a !important; }
+    .bar-none { background-color:#4a4a4a !important; }
+    .placeholder { border-color:#4a4a4a !important; color:#a8a8a8 !important; }
+  }
+  [data-ogsc] .ink { color:#ffffff !important; }
+  [data-ogsc] .ink2 { color:#a8a8a8 !important; }
+  [data-ogsc] .accink { color:#c5d4ff !important; }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Quedan 3 tareas de hoy.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" bgcolor="#f2f5fe" style="background-color:#f2f5fe;">
+<tr><td align="center" class="outer" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td class="px" style="padding:4px 8px 16px 8px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="40" height="40" align="center" valign="middle" bgcolor="#4772FA" style="width:40px;height:40px;background-color:#4772FA;border-radius:10px;font-size:0;line-height:0;"><img src="https://todo.reflexionia.com/apple-touch-icon.png" width="32" height="32" alt="" border="0" style="display:block;width:32px;height:32px;border:0;outline:none;text-decoration:none;"></td>
+<td class="ink" style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:600;color:#191919;">TickTackDone</td>
+</tr></table>
+</td></tr>
+<tr><td class="surface px" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-radius:14px;padding:28px 32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#191919;">
+<p class="accink" style="margin:0 0 4px 0;font-size:13px;line-height:18px;color:#3e60cd;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Cierre de día</p>
+<h1 class="ink h1" style="margin:0 0 12px 0;font-size:24px;line-height:30px;font-weight:700;color:#191919;">Cierra tu día</h1>
+<p class="ink" style="margin:0;font-size:15px;line-height:22px;color:#191919;">Quedan 3 tareas de hoy.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-wrap" style="margin-top:24px;"><tr><td class="btn" align="center" bgcolor="#3e60cd" style="background-color:#3e60cd;border-radius:10px;"><!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="https://todo.reflexionia.com/cierre" style="height:44px;v-text-anchor:middle;width:183px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">Abrir el cierre</center></v:roundrect><![endif]--><!--[if !mso]><!-- --><a href="https://todo.reflexionia.com/cierre" style="display:inline-block;padding:12px 24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Abrir el cierre</a><!--<![endif]--></td></tr></table>
+</td></tr>
+<tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
+<p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">Recibes este correo porque tienes activado el aviso de cierre del día.</p>
+<p style="margin:0 0 8px 0;"><a href="https://todo.reflexionia.com/settings/notifications" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Gestionar notificaciones</a><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><a href="https://todo.reflexionia.com/" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Abrir TickTackDone</a></p>
+<p class="ink2" style="margin:0;color:#6b6b6b;font-size:12px;">TickTackDone · todo.reflexionia.com</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>"
+`;

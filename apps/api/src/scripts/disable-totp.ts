@@ -2,6 +2,8 @@ import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { PrismaClient } from '@prisma/client';
 import { sendEmail } from '../mail/send-email.js';
+import { mailLocale } from '../mail/templates/html.js';
+import { renderTotpDisabled } from '../mail/templates/security-notice.js';
 
 /**
  * RF-PR D-6. Server-only. There is no HTTP route.
@@ -51,15 +53,12 @@ export async function disableTotpAccount(
       },
     });
   });
-  const english = user.locale.toLowerCase().startsWith('en');
+  const notice = renderTotpDisabled({ locale: mailLocale(user.locale) });
   await sendEmail({
     to: user.email,
-    subject: english
-      ? 'Two-factor authentication was turned off'
-      : 'Se desactivó la verificación en dos pasos',
-    text: english
-      ? 'An administrator turned off two-factor authentication on your tick-tack-done account. If this was not you, reset your password and contact the operator.'
-      : 'Un administrador desactivó la verificación en dos pasos de tu cuenta de tick-tack-done. Si no has sido tú, restablece la contraseña y avisa a quien opera el servicio.',
+    subject: notice.subject,
+    text: notice.text,
+    html: notice.html,
     idempotencyKey: `admin-disable-totp/${user.id}/${now.toISOString()}`,
   });
   return { id: user.id };

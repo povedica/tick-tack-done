@@ -104,8 +104,13 @@ export {
   afternoonInstant,
   snoozeReminder,
 } from './reminders/trigger';
-export { formatDailyDigest } from './reminders/digest';
-export type { DigestTask } from './reminders/digest';
+export {
+  DIGEST_TASK_LIMIT,
+  buildDailyDigest,
+  formatDailyDigest,
+  titleWithoutKnownTags,
+} from './reminders/digest';
+export type { DailyDigestModel, DigestItem, DigestTag, DigestTask } from './reminders/digest';
 export {
   allDayClockConflict,
   dueSignal,

@@ -1,5 +1,16 @@
 # Historial de cambios
 
+## Correos con el mismo marco
+
+- Todos los correos (resumen, cierre, recordatorio, cuenta atrás, contraseña,
+  invitación y avisos de seguridad) salen con la misma cabecera, la tarjeta y
+  el pie, en HTML y en texto plano.
+- La cabecera lleva el icono de la app sobre una placa azul y el nombre
+  TickTackDone. El botón es azul oscuro para que se lea en Outlook.
+- El resumen diario lista hasta 20 tareas, con hora, lista, prioridad y
+  etiquetas, y enlaza el resto a Hoy. El asunto cuenta las de hoy y las
+  vencidas.
+
 ## Permisos del token en tabla
 
 - Al crear un token personal, los permisos se eligen en una tabla siempre visible
