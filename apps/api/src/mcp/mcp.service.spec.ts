@@ -83,6 +83,7 @@ describe('McpService recurrence mapping', () => {
   const projectOverview = { overview: vi.fn(), markReviewed: vi.fn() };
   const search = { search: vi.fn() };
   const countdowns = { list: vi.fn(), update: vi.fn(), restore: vi.fn(), create: vi.fn() };
+  const habits = { list: vi.fn(), create: vi.fn(), checkIn: vi.fn() };
   const closing = { replanTool: vi.fn(), discardReplan: vi.fn() };
   let service: McpService;
 
@@ -96,7 +97,7 @@ describe('McpService recurrence mapping', () => {
       tags as never,
       {} as never,
       {} as never,
-      {} as never,
+      habits as never,
       countdowns as never,
       {} as never,
       search as never,
@@ -166,6 +167,143 @@ describe('McpService recurrence mapping', () => {
       params: { name: 'restore_countdown', arguments: { id } },
     });
     expect(countdowns.restore).toHaveBeenCalledWith(owner, id);
+  });
+
+  it('#203: create_countdown forwards a civil target_date', async () => {
+    countdowns.create.mockResolvedValue({
+      body: {
+        id: '33333333-3333-4333-8333-333333333333',
+        title: 'Examen de Mates',
+        target_date: '2026-12-01',
+      },
+    });
+    const owner = { ...user, scopes: ['countdowns:write'] };
+    const result = await service.handle(owner, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: {
+        name: 'create_countdown',
+        arguments: { title: 'Examen de Mates', target_date: '2026-12-01' },
+      },
+    });
+    expect(result).toMatchObject({ result: { isError: false } });
+    expect(toolText(result)).not.toContain('date must be YYYY-MM-DD');
+    expect(countdowns.create).toHaveBeenCalledWith(
+      expect.objectContaining({ id: user.id }),
+      { title: 'Examen de Mates', target_date: '2026-12-01' },
+      undefined,
+    );
+  });
+
+  it('#203: create_countdown forwards optional fields with the same target_date', async () => {
+    countdowns.create.mockResolvedValue({
+      body: { id: '33333333-3333-4333-8333-333333333333', title: 'Examen de Mates' },
+    });
+    const owner = { ...user, scopes: ['countdowns:write'] };
+    const result = await service.handle(owner, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: {
+        name: 'create_countdown',
+        arguments: {
+          title: 'Examen de Mates',
+          target_date: '2026-12-01',
+          type: 'countdown',
+          repeat: 'none',
+          day_mode: 'standard',
+          reminders: [2, 1, 0],
+          show_in_sidebar: true,
+          show_in_smart_list: true,
+        },
+      },
+    });
+    expect(result).toMatchObject({ result: { isError: false } });
+    expect(countdowns.create).toHaveBeenCalledWith(
+      expect.objectContaining({ id: user.id }),
+      {
+        title: 'Examen de Mates',
+        target_date: '2026-12-01',
+        type: 'countdown',
+        repeat_rule: 'none',
+        day_mode: 'standard',
+        reminders: [{ offset_days: 2 }, { offset_days: 1 }, { offset_days: 0 }],
+        show_in_sidebar: true,
+        show_in_smart_list: true,
+      },
+      undefined,
+    );
+  });
+
+  it('#203: create_countdown rejects a missing or non-civil target_date', async () => {
+    const owner = { ...user, scopes: ['countdowns:write'] };
+    const call = (args: Record<string, unknown>) =>
+      service.handle(owner, {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'create_countdown', arguments: args },
+      });
+    const missing = await call({ title: 'Examen de Mates' });
+    const invalid = await call({ title: 'Examen de Mates', target_date: '01/12/2026' });
+    for (const result of [missing, invalid]) {
+      expect(result).toMatchObject({ result: { isError: true } });
+      expect(toolText(result)).toContain('validation_failed');
+      expect(toolText(result)).toContain('target_date');
+      expect(toolText(result)).not.toContain('date must be YYYY-MM-DD');
+    }
+    expect(countdowns.create).not.toHaveBeenCalled();
+  });
+
+  it('#203: update_countdown still applies a civil target_date', async () => {
+    const id = '33333333-3333-4333-8333-333333333333';
+    countdowns.update.mockResolvedValue({ id, target_date: '2026-12-01' });
+    const result = await service.handle(
+      { ...user, scopes: ['countdowns:write'] },
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: {
+          name: 'update_countdown',
+          arguments: { id, target_date: '2026-12-01' },
+        },
+      },
+    );
+    expect(result).toMatchObject({ result: { isError: false } });
+    expect(countdowns.update).toHaveBeenCalledWith(expect.objectContaining({ id: user.id }), id, {
+      target_date: '2026-12-01',
+    });
+  });
+
+  it('#203: check_in_habit still requires the date field', async () => {
+    const id = '55555555-5555-4555-8555-555555555555';
+    const owner = { ...user, scopes: ['habits:write'] };
+    const call = (args: Record<string, unknown>) =>
+      service.handle(owner, {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'check_in_habit', arguments: args },
+      });
+    const missing = await call({ id });
+    const invalid = await call({ id, date: 'tomorrow' });
+    expect(missing).toMatchObject({ result: { isError: true } });
+    expect(toolText(missing)).toContain('validation_failed');
+    expect(toolText(missing)).toContain('date');
+    expect(toolText(invalid)).toBe('validation_failed: date must be YYYY-MM-DD');
+    expect(habits.checkIn).not.toHaveBeenCalled();
+
+    habits.checkIn.mockResolvedValue({ body: { id, date: '2026-12-01', count: 1 } });
+    const ok = await call({ id, date: '2026-12-01' });
+    expect(ok).toMatchObject({ result: { isError: false } });
+    expect(habits.checkIn).toHaveBeenCalledWith(
+      expect.objectContaining({ id: user.id }),
+      id,
+      { date: '2026-12-01', count: 1 },
+      undefined,
+    );
   });
 
   it('RF-2007: create_task with recurrence builds an RRULE for TasksService', async () => {

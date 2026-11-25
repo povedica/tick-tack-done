@@ -1,5 +1,31 @@
 # Historial de cambios
 
+## Filtro por persona asignada
+
+- En el editor de filtros, «Asignado» elige a una persona y guarda su id de
+  usuario. «Yo» aparece primero. Sin listas compartidas solo se ofrece «Yo».
+  Si esa persona deja de estar disponible, la condición se conserva y se avisa.
+
+## Correos con el mismo marco
+
+- Todos los correos (resumen, cierre, recordatorio, cuenta atrás, contraseña,
+  invitación y avisos de seguridad) salen con la misma cabecera, la tarjeta y
+  el pie, en HTML y en texto plano.
+- La cabecera lleva el icono de la app sobre una placa azul y el nombre
+  TickTackDone. El botón es azul oscuro para que se lea en Outlook.
+- El resumen diario lista hasta 20 tareas, con hora, lista, prioridad y
+  etiquetas, y enlaza el resto a Hoy. El asunto cuenta las de hoy y las
+  vencidas. El texto plano lleva el enlace de cada tarea.
+- El correo se compone al enviarlo, con los datos de ese momento. Una tarea
+  que ya no existe no se manda.
+
+## Permisos del token en tabla
+
+- Al crear un token personal, los permisos se eligen en una tabla siempre visible
+  con interruptores de Leer y Escribir, plantillas y confirmación de acceso total.
+  Escribir incluye el permiso de lectura, porque la API no lo deduce, y la columna
+  avisa de que permite crear, editar y borrar.
+
 ## Contratos del navegador
 
 - Recuperar contraseña vuelve a mandar el POST. El idioma sale de la etiqueta
@@ -71,6 +97,8 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
   con el campo nativo Status de GitHub. Espejo regenerado desde las issues reales.
 
 ## Sin publicar
+
+- MCP `create_countdown` acepta `target_date` en `YYYY-MM-DD`. Antes rechazaba cualquier alta con `date must be YYYY-MM-DD` (#203).
 
 - BKL-003 (#101): verificación de accesibilidad y móvil de filtros en claro y oscuro; objetivos táctiles del editor y del menú lateral, foco de menús y del borrado.
 

@@ -1,0 +1,308 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`daily digest mail > renders sections, chips, a capped remainder and counters 1`] = `
+"<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Planifica tu día: 21 para hoy, 1 vencida</title>
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  a { text-decoration:none; }
+  .task-link:hover { text-decoration:underline !important; }
+  @media (max-width:620px) {
+    .container { width:100% !important; }
+    .px { padding-left:16px !important; padding-right:16px !important; }
+    .outer { padding:12px 8px !important; }
+    .h1 { font-size:22px !important; }
+    .time { width:64px !important; white-space:normal !important; }
+    .btn a { display:block !important; }
+    .btn-wrap { width:100% !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg { background-color:#242424 !important; }
+    .surface { background-color:#222222 !important; border-color:#333333 !important; }
+    .ink { color:#ffffff !important; }
+    .ink2 { color:#a8a8a8 !important; }
+    .accink { color:#c5d4ff !important; }
+    .danger { color:#ff8787 !important; }
+    .border { border-color:#333333 !important; }
+    .chip { background-color:#2f3a5c !important; color:#c5d4ff !important; }
+    .note { background-color:#2a2a2a !important; border-color:#3a3a3a !important; }
+    .bar-none { background-color:#4a4a4a !important; }
+    .placeholder { border-color:#4a4a4a !important; color:#a8a8a8 !important; }
+  }
+  [data-ogsc] .ink { color:#ffffff !important; }
+  [data-ogsc] .ink2 { color:#a8a8a8 !important; }
+  [data-ogsc] .accink { color:#c5d4ff !important; }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Primero: Revisar presupuesto (vencida ayer). Abre Hoy para ordenar tu día.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" bgcolor="#f2f5fe" style="background-color:#f2f5fe;">
+<tr><td align="center" class="outer" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td class="px" style="padding:4px 8px 16px 8px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="40" height="40" align="center" valign="middle" bgcolor="#4772FA" style="width:40px;height:40px;background-color:#4772FA;border-radius:10px;font-size:0;line-height:0;"><img src="https://todo.reflexionia.com/apple-touch-icon.png" width="32" height="32" alt="" border="0" style="display:block;width:32px;height:32px;border:0;outline:none;text-decoration:none;"></td>
+<td class="ink" style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:600;color:#191919;">TickTackDone</td>
+</tr></table>
+</td></tr>
+<tr><td class="surface px" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-radius:14px;padding:28px 32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#191919;">
+<p class="accink" style="margin:0 0 4px 0;font-size:13px;line-height:18px;color:#3e60cd;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">miércoles, 25 de noviembre</p>
+<h1 class="ink h1" style="margin:0 0 8px 0;font-size:26px;line-height:32px;font-weight:700;color:#191919;">Planifica tu día</h1>
+<p class="ink2" style="margin:0;font-size:15px;line-height:22px;color:#6b6b6b;">Tienes <strong class="ink" style="color:#191919;">21 tareas para hoy</strong> y <strong class="danger" style="color:#c92a2a;">1 vencida</strong>.</p>
+<p class="ink2" style="margin:6px 0 0 0;font-size:13px;line-height:19px;color:#6b6b6b;">Hoy: 4 tareas (~2 h) + 30 min de agenda, de 8 h de jornada.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+<tr><td colspan="2" style="padding-bottom:6px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="danger" style="font-size:13px;line-height:18px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#c92a2a;">Vencidas</span><span class="ink2" style="font-size:13px;color:#6b6b6b;">&nbsp;1</span></td></tr>
+<tr>
+<td class="time border danger" valign="top" width="84" style="width:84px;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#c92a2a;font-weight:600;white-space:nowrap;">Ayer</td>
+<td class="border" valign="top" style="padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" bgcolor="#e13e39" style="width:3px;background-color:#e13e39;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_overdue" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Revisar presupuesto</a><div style="font-size:13px;line-height:19px;margin-top:2px;"><span style="color:#e13e39;font-size:11px;">&#9650;</span><span class="ink2" style="color:#6b6b6b;"> Prioridad alta</span><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><span class="ink2" style="color:#6b6b6b;">Trabajo</span></div><div style="line-height:18px;"><span class="chip" style="display:inline-block;background-color:#ecf0fe;color:#3e60cd;font-size:12px;line-height:18px;font-weight:600;padding:1px 8px;border-radius:9px;margin:4px 4px 0 0;">review</span></div></td>
+</tr></table>
+</td>
+</tr>
+
+</table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+<tr><td colspan="2" style="padding-bottom:6px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="accink" style="font-size:13px;line-height:18px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#3e60cd;">Hoy</span><span class="ink2" style="font-size:13px;color:#6b6b6b;">&nbsp;21</span></td></tr>
+<tr>
+<td class="time border accink" valign="top" width="84" style="width:84px;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#3e60cd;font-weight:600;white-space:nowrap;">Todo el día</td>
+<td class="border" valign="top" style="padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_day" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Cumpleaños</a><div style="font-size:13px;line-height:19px;margin-top:2px;"><span class="ink2" style="color:#6b6b6b;">Personal</span></div><div style="line-height:18px;"><span class="chip" style="display:inline-block;background-color:#ecf0fe;color:#3e60cd;font-size:12px;line-height:18px;font-weight:600;padding:1px 8px;border-radius:9px;margin:4px 4px 0 0;">familia</span></div></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">09:30</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_time" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Daily &lt;equipo&gt; #extra</a><div style="font-size:13px;line-height:19px;margin-top:2px;"><span class="ink2" style="color:#6b6b6b;">Trabajo</span></div><div style="line-height:18px;"><span class="chip" style="display:inline-block;background-color:#ecf0fe;color:#3e60cd;font-size:12px;line-height:18px;font-weight:600;padding:1px 8px;border-radius:9px;margin:4px 4px 0 0;">reunión</span></div></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">10:00 – 11:30</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" bgcolor="#4772FA" style="width:3px;background-color:#4772FA;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_range" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Preparar demo</a><div style="font-size:13px;line-height:19px;margin-top:2px;"><span style="color:#4772FA;font-size:11px;">&#9660;</span><span class="ink2" style="color:#6b6b6b;"> Prioridad baja</span><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><span class="ink2" style="color:#6b6b6b;">Trabajo</span></div><div style="line-height:18px;"><span class="chip" style="display:inline-block;background-color:#ecf0fe;color:#3e60cd;font-size:12px;line-height:18px;font-weight:600;padding:1px 8px;border-radius:9px;margin:4px 4px 0 0;">foco</span></div></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_0" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 0</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_1" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 1</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_2" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 2</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_3" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 3</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_4" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 4</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_5" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 5</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_6" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 6</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_7" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 7</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_8" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 8</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_9" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 9</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_10" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 10</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_11" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 11</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_12" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 12</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_13" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 13</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_14" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 14</a></td>
+</tr></table>
+</td>
+</tr>
+<tr>
+<td class="time border ink2" valign="top" width="84" style="width:84px;border-top:1px solid #e6e9f2;padding:12px 8px 12px 0;font-size:13px;line-height:20px;color:#6b6b6b;font-weight:600;white-space:nowrap;">16:00</td>
+<td class="border" valign="top" style="border-top:1px solid #e6e9f2;padding:12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="3" class="bar-none" bgcolor="#c9ccd6" style="width:3px;background-color:#c9ccd6;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><a href="https://todo.reflexionia.com/task/t_more_15" class="ink task-link" style="color:#191919;font-size:15px;line-height:21px;font-weight:600;text-decoration:none;">Tarea 15</a></td>
+</tr></table>
+</td>
+</tr>
+<tr><td class="border" colspan="2" style="border-top:1px solid #e6e9f2;padding:12px 0 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:20px;"><a href="https://todo.reflexionia.com/today" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:none;">y 2 más en Hoy &rarr;</a></td></tr>
+</table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-wrap" style="margin-top:24px;"><tr><td class="btn" align="center" bgcolor="#3e60cd" style="background-color:#3e60cd;border-radius:10px;"><!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" href="https://todo.reflexionia.com/today" style="height:44px;v-text-anchor:middle;width:160px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">Abrir Hoy</center></v:roundrect><![endif]--><!--[if !mso]><!-- --><a href="https://todo.reflexionia.com/today" style="display:inline-block;padding:12px 24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Abrir Hoy</a><!--<![endif]--></td></tr></table>
+</td></tr>
+<tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
+<p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">Recibes este correo porque tienes activado el resumen diario a las 07:00.</p>
+<p style="margin:0 0 8px 0;"><a href="https://todo.reflexionia.com/settings/notifications" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Gestionar notificaciones</a><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><a href="https://todo.reflexionia.com/" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Abrir TickTackDone</a></p>
+<p class="ink2" style="margin:0;color:#6b6b6b;font-size:12px;">TickTackDone · todo.reflexionia.com</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>"
+`;
+
+exports[`daily digest mail > renders sections, chips, a capped remainder and counters 2`] = `
+"TickTackDone
+
+miércoles, 25 de noviembre
+Planifica tu día
+
+Tienes 21 tareas para hoy y 1 vencida.
+Hoy: 4 tareas (~2 h) + 30 min de agenda, de 8 h de jornada.
+
+Vencidas (1)
+- Ayer · Revisar presupuesto · Prioridad alta · Trabajo · review https://todo.reflexionia.com/task/t_overdue
+
+Hoy (21)
+- Todo el día · Cumpleaños · Personal · familia https://todo.reflexionia.com/task/t_day
+- 09:30 · Daily <equipo> #extra · Trabajo · reunión https://todo.reflexionia.com/task/t_time
+- 10:00 – 11:30 · Preparar demo · Prioridad baja · Trabajo · foco https://todo.reflexionia.com/task/t_range
+- 16:00 · Tarea 0 https://todo.reflexionia.com/task/t_more_0
+- 16:00 · Tarea 1 https://todo.reflexionia.com/task/t_more_1
+- 16:00 · Tarea 2 https://todo.reflexionia.com/task/t_more_2
+- 16:00 · Tarea 3 https://todo.reflexionia.com/task/t_more_3
+- 16:00 · Tarea 4 https://todo.reflexionia.com/task/t_more_4
+- 16:00 · Tarea 5 https://todo.reflexionia.com/task/t_more_5
+- 16:00 · Tarea 6 https://todo.reflexionia.com/task/t_more_6
+- 16:00 · Tarea 7 https://todo.reflexionia.com/task/t_more_7
+- 16:00 · Tarea 8 https://todo.reflexionia.com/task/t_more_8
+- 16:00 · Tarea 9 https://todo.reflexionia.com/task/t_more_9
+- 16:00 · Tarea 10 https://todo.reflexionia.com/task/t_more_10
+- 16:00 · Tarea 11 https://todo.reflexionia.com/task/t_more_11
+- 16:00 · Tarea 12 https://todo.reflexionia.com/task/t_more_12
+- 16:00 · Tarea 13 https://todo.reflexionia.com/task/t_more_13
+- 16:00 · Tarea 14 https://todo.reflexionia.com/task/t_more_14
+- 16:00 · Tarea 15 https://todo.reflexionia.com/task/t_more_15
+
+y 2 más en Hoy: https://todo.reflexionia.com/today
+
+Abrir Hoy: https://todo.reflexionia.com/today
+
+Recibes este correo porque tienes activado el resumen diario a las 07:00.
+Gestionar notificaciones: https://todo.reflexionia.com/settings/notifications
+Abrir TickTackDone: https://todo.reflexionia.com/
+
+TickTackDone · todo.reflexionia.com"
+`;
