@@ -107,6 +107,15 @@ jobs:
           CADDY_SITES_DIR: ${{ vars.CADDY_SITES_DIR }}
           EDGE_CADDY_CONTAINER: ${{ vars.EDGE_CADDY_CONTAINER }}
         run: bash deploy/lib/remote.sh
+      - name: Mark the deployed releases in Sentry
+        continue-on-error: true
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_URL: ${{ vars.SENTRY_URL || 'https://de.sentry.io/' }}
+          TARGET: ${{ inputs.sha }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: bash deploy/lib/sentry-release.sh
       - name: Record deployment result for staging evidence and last-good
         if: always() && steps.deployment.outputs.id != ''
         env:

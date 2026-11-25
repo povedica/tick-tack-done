@@ -213,6 +213,17 @@ class DeployTest(unittest.TestCase):
         self.assertNotIn('postgres',up)
         self.assertNotIn('redis',up)
 
+    def test_deploy_sha_recreates_the_api_when_only_the_web_image_changes(self):
+        result,calls,_,running=self.run_deploy(web='web:new', DEPLOY_SHA='a'*40)
+        self.assertEqual(result.returncode,0,result.stderr)
+        up=next(c for c in calls if 'up' in c)
+        self.assertIn('staging-api',up)
+        self.assertIn('staging-web',up)
+        self.assertNotIn('postgres',up)
+        self.assertNotIn('redis',up)
+        self.assertEqual(running['staging-api'],'api:old')
+        self.assertEqual(running['staging-web'],'web:new')
+
 class ProxyTest(unittest.TestCase):
     def proxy(self, same=False, restore=False):
         with tempfile.TemporaryDirectory() as directory:

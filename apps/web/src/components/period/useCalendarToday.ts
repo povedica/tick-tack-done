@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
 import { nextMidnight, todayInZone } from './calendar-today';
@@ -12,13 +12,19 @@ export function useCalendarToday(timeZone?: string): string {
   });
   const zone = timeZone ?? account.data?.time_zone ?? 'Europe/Madrid';
   const [now, setNow] = useState(() => new Date());
+  const dayKey = useRef(todayInZone(now, zone));
+  const visibleKey = todayInZone(now, zone);
+  dayKey.current = visibleKey;
   useEffect(() => {
-    let timer: number;
+    let timer = 0;
     function refresh() {
       const current = new Date();
-      setNow((previous) =>
-        todayInZone(previous, zone) === todayInZone(current, zone) ? previous : current,
-      );
+      const key = todayInZone(current, zone);
+      // Same civil day: do not schedule a render. A same-state update still commits.
+      if (key !== dayKey.current) {
+        dayKey.current = key;
+        setNow(current);
+      }
       window.clearTimeout(timer);
       timer = window.setTimeout(
         refresh,
@@ -34,5 +40,5 @@ export function useCalendarToday(timeZone?: string): string {
       window.removeEventListener('focus', refresh);
     };
   }, [zone]);
-  return todayInZone(now, zone);
+  return visibleKey;
 }
