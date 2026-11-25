@@ -31,7 +31,13 @@ export async function deliverNotification(
   transport: ReminderTransport,
   row: NotificationJob,
   now: Date,
-  copy: { title: string; body: string },
+  copy: {
+    title: string;
+    body: string;
+    html?: string;
+    emailSubject?: string;
+    emailText?: string;
+  },
 ): Promise<DeliveryResult> {
   const owner = await prisma.user.findUniqueOrThrow({
     where: { id: row.ownerId },
@@ -194,7 +200,11 @@ export async function deliverNotification(
     email: typeof payload.email === 'string' ? payload.email : owner.email,
     subscriptions: owner.pushSubscriptions,
     telegramChatId: link?.chatId ?? null,
-    ...copy,
+    title: copy.title,
+    body: copy.body,
+    ...(copy.html === undefined ? {} : { html: copy.html }),
+    ...(copy.emailSubject === undefined ? {} : { emailSubject: copy.emailSubject }),
+    ...(copy.emailText === undefined ? {} : { emailText: copy.emailText }),
     ...(action
       ? {
           action,

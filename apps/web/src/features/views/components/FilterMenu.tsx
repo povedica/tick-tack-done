@@ -43,9 +43,12 @@ export function FilterMenu({
   const tint = color === null ? undefined : ({ '--list-tint': color } as CSSProperties);
 
   useEffect(() => {
-    const menu = menuRef.current;
-    const first = menu?.querySelector<HTMLButtonElement>('[role="menuitem"]');
-    first?.focus();
+    const frame = requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
   }, []);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>): void {

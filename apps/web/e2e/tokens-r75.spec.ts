@@ -75,12 +75,11 @@ for (const width of [1280, 390]) {
     await page.screenshot({ path: `/tmp/ttd-tokens-${width}-light.png`, fullPage: true });
     await page.getByRole('button', { name: 'Nuevo token', exact: true }).click();
     await page.locator('#token-name').fill('Audit token');
-    await page.getByRole('radio', { name: '30 días', exact: true }).check();
-    if (width < 1024) await page.locator('.token-resource summary').first().click();
-    await page.getByRole('button', { name: 'Leer', exact: true }).first().click();
+    await page.getByRole('radio', { name: '30 días', exact: true }).click();
+    await page.getByRole('switch', { name: 'Tareas, Leer' }).click();
     await page.getByRole('button', { name: 'Crear token', exact: true }).click();
     await expect(page.locator('.token-secret-value')).toHaveValue('rfx_pat_fixture');
-    expect(created).toMatchObject({ expires_in_days: 30 });
+    expect(created).toMatchObject({ expires_in_days: 30, scopes: ['tasks:read'] });
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     await page.screenshot({ path: `/tmp/ttd-tokens-${width}-dark.png`, fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
