@@ -8,7 +8,7 @@ const user = {
   id: 'user-1',
   tokenId: null,
   scopes: ['tasks:read'],
-} as AuthUser;
+} as unknown as AuthUser;
 
 describe('realtime SSE', () => {
   afterEach(() => {
