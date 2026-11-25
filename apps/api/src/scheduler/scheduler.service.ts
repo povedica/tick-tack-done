@@ -28,6 +28,7 @@ import {
 } from '@reflexionia/domain';
 import type { EventActor } from '../auth/auth-user.js';
 import { isolated, reportBackgroundFailure } from '../observability/background-failure.js';
+import { cronEveryTicks, TickHeartbeat } from '../observability/sentry/cron.js';
 import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
 import { asJson } from '../http/json.js';
@@ -64,6 +65,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | null = null;
   private resetPurgeDay = '';
   private invitePurgeDay = '';
+  private readonly heartbeat = new TickHeartbeat(cronEveryTicks(process.env));
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
@@ -86,9 +88,15 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private tick(catchUp: boolean): void {
-    this.run(new Date(), catchUp).catch((error: unknown) => {
-      reportBackgroundFailure({ queue: 'scheduler', job: 'tick' }, error);
-    });
+    this.run(new Date(), catchUp).then(
+      (result) => {
+        this.heartbeat.beat(result.failed === 0);
+      },
+      (error: unknown) => {
+        reportBackgroundFailure({ queue: 'scheduler', job: 'tick' }, error);
+        this.heartbeat.beat(false);
+      },
+    );
   }
 
   onModuleDestroy(): void {
@@ -104,9 +112,10 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   async run(
     now: Date,
     catchUp: boolean,
-  ): Promise<{ materialized: number; fired: number; late: number }> {
+  ): Promise<{ materialized: number; fired: number; late: number; failed: number }> {
+    const failures = { count: 0 };
     const phase = <T>(job: string, fallback: T, work: () => Promise<T>): Promise<T> =>
-      isolated({ queue: 'scheduler', job }, fallback, work);
+      isolated({ queue: 'scheduler', job }, fallback, work, failures);
     await phase('purge-reset-tokens', undefined, () => this.purgeResetTokens(now));
     await phase('expire-invites', undefined, () => this.expireInvites(now));
     const materialized =
@@ -122,9 +131,9 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     );
     await phase('habit-streak-breaks', undefined, () => this.recordHabitStreakBreaks(now));
     await phase('signals', undefined, () => this.enqueueSignals(now, catchUp));
-    await phase('calendar-sync', undefined, () => this.syncCalendars(now, catchUp));
+    await phase('calendar-sync', undefined, () => this.syncCalendars(now, catchUp, failures));
     const fired = await phase('fire', { fired: 0, late: 0 }, () => this.fire(now, catchUp));
-    return { materialized, fired: fired.fired, late: fired.late };
+    return { materialized, fired: fired.fired, late: fired.late, failed: failures.count };
   }
 
   /** RF-PR-14. One pass per UTC day, at most 1000 rows. */
@@ -158,18 +167,35 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** RF-2513. Isolated from reminder delivery: a calendar failure must not stop the tick. */
-  private async syncCalendars(now: Date, catchUp: boolean): Promise<void> {
+  private async syncCalendars(
+    now: Date,
+    catchUp: boolean,
+    failures: { count: number },
+  ): Promise<void> {
     // syncDue isolates each subscription; this only guards a listing failure.
-    await isolated({ queue: 'scheduler', job: 'google-sync' }, undefined, () =>
-      this.googleSync.syncDue(now, catchUp),
+    await isolated(
+      { queue: 'scheduler', job: 'google-sync', fingerprint: 'calendar-sync|google|phase' },
+      undefined,
+      () => this.googleSync.syncDue(now, catchUp),
+      failures,
     );
     // A watch renewal failure must not stop reminders or the poll.
-    await isolated({ queue: 'scheduler', job: 'google-watch-renewal' }, undefined, () =>
-      this.googleSync.renewWatches(now),
+    await isolated(
+      {
+        queue: 'scheduler',
+        job: 'google-watch-renewal',
+        fingerprint: 'calendar-sync|google|watch',
+      },
+      undefined,
+      () => this.googleSync.renewWatches(now),
+      failures,
     );
     // iCal rows record their own last_error.
-    await isolated({ queue: 'scheduler', job: 'ical-sync' }, undefined, () =>
-      this.calendars.syncIcalDue(now, catchUp),
+    await isolated(
+      { queue: 'scheduler', job: 'ical-sync', fingerprint: 'calendar-sync|ical|phase' },
+      undefined,
+      () => this.calendars.syncIcalDue(now, catchUp),
+      failures,
     );
   }
 

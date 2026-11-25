@@ -40,6 +40,18 @@ describe('EventThrottle', () => {
     expect(throttle.admit('next-day')).toBe(true);
   });
 
+  it('admits a repeating calendar sync once per window and keeps the level budget', () => {
+    let now = 0;
+    const throttle = new EventThrottle(throttleLimits('production'), () => now);
+    expect(throttle.admit('calendar-sync|google|calendar_fetch_failed')).toBe(true);
+    expect(throttle.admit('calendar-sync|google|calendar_fetch_failed')).toBe(false);
+    expect(throttle.admit('calendar-sync|ical|calendar_fetch_failed')).toBe(true);
+    expect(throttle.admit('api-500')).toBe(true);
+    now = 10 * 60_000;
+    expect(throttle.admit('calendar-sync|google|calendar_fetch_failed')).toBe(true);
+    expect(throttle.takeSuppressed()).toBe(1);
+  });
+
   it('staging: 3 per fingerprint per hour', () => {
     let now = 0;
     const throttle = new EventThrottle(throttleLimits('staging'), () => now);

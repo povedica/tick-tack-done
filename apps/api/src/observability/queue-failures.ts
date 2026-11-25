@@ -7,6 +7,16 @@ interface FailedJob {
   readonly name: string;
   readonly id?: string | undefined;
   readonly attemptsMade: number;
+  readonly opts?: { readonly attempts?: number | undefined } | undefined;
+}
+
+/** BullMQ emits `failed` on every try. `opts.attempts` is the configured total; 0 means one try. */
+export function isLastAttempt(job: FailedJob | undefined): boolean {
+  const configured = job?.opts?.attempts;
+  if (configured === undefined) {
+    return true;
+  }
+  return (job?.attemptsMade ?? 0) >= configured;
 }
 
 type Emitter = Pick<EventEmitter, 'on'>;
@@ -33,6 +43,7 @@ export function watchQueue(name: string, queue: Emitter | null, worker: Emitter 
     reportBackgroundFailure(
       { queue: name, job: job?.name ?? 'unknown', jobId: job?.id, attempts: job?.attemptsMade },
       error,
+      isLastAttempt(job),
     );
   });
 }

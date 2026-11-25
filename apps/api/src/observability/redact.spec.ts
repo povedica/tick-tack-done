@@ -48,6 +48,11 @@ describe('redact', () => {
     expect(scrubbed).toContain('task :id');
   });
 
+  it('CA-05: drops quoted literals, where an interpolated title would sit', () => {
+    expect(scrubText(`task "${TRAP.title}" failed`)).toBe('task "…" failed');
+    expect(scrubText(`lista «${TRAP.title}» y “${TRAP.rawText}”`)).toBe('lista "…" y "…"');
+  });
+
   it('truncates to 300 characters', () => {
     expect(scrubText('x'.repeat(1_000))).toHaveLength(MAX_MESSAGE_LENGTH);
   });

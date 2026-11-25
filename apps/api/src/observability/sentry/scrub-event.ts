@@ -124,8 +124,11 @@ export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
   return out;
 }
 
-/** Stable key for the throttle: exception type, scrubbed message and top frame. */
+/** Stable key for the throttle. An explicit fingerprint wins over the stack frame. */
 export function fingerprintOf(event: ErrorEvent): string {
+  if (event.fingerprint !== undefined && event.fingerprint.length > 0) {
+    return event.fingerprint.join('|');
+  }
   const values = event.exception?.values;
   const last = values?.[values.length - 1];
   if (last === undefined) {
