@@ -28,6 +28,7 @@ import { missingScopes } from '../auth/scopes.js';
 import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
 import { asJson } from '../http/json.js';
+import { annotateMcpFailure } from '../observability/sentry/report.js';
 import { offsetOf, offsetCursor, offsetPage } from '../http/offset-page.js';
 import { projectConstraint } from '@reflexionia/domain';
 import { assignedByActor, assigneeFilter } from '../reading/assignment.js';
@@ -133,6 +134,7 @@ export class McpService {
         }
         return failure(id, -32602, message.length > 0 ? `${code}: ${message}` : code);
       }
+      annotateMcpFailure(error, body.method, toolNameOf(body.method, body.params));
       throw error;
     }
   }
@@ -1468,6 +1470,14 @@ function exceptionMessage(error: DomainException): string {
     return response.message;
   }
   return error.message;
+}
+
+/** Catalog tool name only: an unknown name from the caller is never reported. */
+function toolNameOf(method: string, params: unknown): string | null {
+  if (method !== 'tools/call' || !isRecord(params) || typeof params.name !== 'string') {
+    return null;
+  }
+  return findTool(params.name)?.name ?? null;
 }
 
 /** RF-2014: surface code and actionable message to the MCP client. */

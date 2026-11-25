@@ -28,6 +28,7 @@ import {
 } from '@reflexionia/domain';
 import type { EventActor } from '../auth/auth-user.js';
 import { isolated, reportBackgroundFailure } from '../observability/background-failure.js';
+import { cronEveryTicks, TickHeartbeat } from '../observability/sentry/cron.js';
 import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
 import { asJson } from '../http/json.js';
@@ -64,6 +65,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | null = null;
   private resetPurgeDay = '';
   private invitePurgeDay = '';
+  private readonly heartbeat = new TickHeartbeat(cronEveryTicks(process.env));
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
@@ -86,9 +88,15 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private tick(catchUp: boolean): void {
-    this.run(new Date(), catchUp).catch((error: unknown) => {
-      reportBackgroundFailure({ queue: 'scheduler', job: 'tick' }, error);
-    });
+    this.run(new Date(), catchUp).then(
+      () => {
+        this.heartbeat.beat(true);
+      },
+      (error: unknown) => {
+        reportBackgroundFailure({ queue: 'scheduler', job: 'tick' }, error);
+        this.heartbeat.beat(false);
+      },
+    );
   }
 
   onModuleDestroy(): void {

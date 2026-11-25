@@ -26,8 +26,12 @@ export function safePath(raw: string): string {
   return maskTokenPaths(path).replace(UUID, ':id');
 }
 
+/** Quoted literals in an error message are interpolated values (a title, a note): never kept. */
+const QUOTED = /"[^"\n]*"|«[^»\n]*»|“[^”\n]*”/g;
+
 export function scrubText(text: string, max = MAX_MESSAGE_LENGTH): string {
   const scrubbed = maskTokenPaths(text)
+    .replace(QUOTED, '"…"')
     .replace(SESSION_COOKIE, '[token]')
     .replace(BEARER, 'Bearer [token]')
     .replace(RFX_TOKEN, '[token]')

@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { describeError, safeStack } from './redact.js';
+import { reportBackgroundError } from './sentry/report.js';
 
 export interface BackgroundJob {
   /** Queue name, phase group or loop: `domain-events`, `calendar-local-days`, `scheduler`, `outbox`. */
@@ -12,8 +13,9 @@ export interface BackgroundJob {
 
 const logger = new Logger('BackgroundFailure');
 
-/** Logs a failed job or phase with a scrubbed stack. Never rethrows. */
+/** Logs a failed job or phase with a scrubbed stack and reports it once. Never rethrows. */
 export function reportBackgroundFailure(job: BackgroundJob, error: unknown): void {
+  reportBackgroundError(error, { queue: job.queue, job: job.job });
   try {
     logger.error(
       JSON.stringify({
