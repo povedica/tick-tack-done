@@ -38,21 +38,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TARGET: ${{ inputs.sha }}
           IMAGE_RUN: ${{ inputs.image-run }}
+          ENVIRONMENT: ${{ inputs.environment }}
         run: |
-          ci=0
-          for _ in {1..30}; do
-            ci=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$TARGET&status=success&per_page=10" --jq '[.workflow_runs[] | select(.head_branch == "main" and .event == "push")] | length')
-            [[ "$ci" -gt 0 ]] && break
-            sleep 10
-          done
-          [[ "$ci" -gt 0 ]] || { echo 'CI on main must pass before deployment' >&2; exit 1; }
-          if [[ -z "$IMAGE_RUN" ]]; then
-            IMAGE_RUN=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/images.yml/runs?head_sha=$TARGET&status=success&per_page=10" --jq '[.workflow_runs[] | select(.head_branch == "main" and (.event == "push" or .event == "workflow_dispatch"))][0].id // empty')
+          python3 scripts/deploy/release_preflight.py staging-ci --repo "$GITHUB_REPOSITORY" --target "$TARGET" || { echo 'CI on main must pass before deployment' >&2; exit 1; }
+          if [[ "$ENVIRONMENT" == production ]]; then
+            python3 scripts/deploy/release_preflight.py production-ci --repo "$GITHUB_REPOSITORY" --target "$TARGET" || exit 1
           fi
-          [[ "$IMAGE_RUN" =~ ^[0-9]+$ ]] || { echo 'No successful Images push or workflow_dispatch run on main for target SHA' >&2; exit 1; }
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$IMAGE_RUN" | jq -e --arg sha "$TARGET" '.head_sha == $sha and .head_branch == "main" and (.event == "push" or .event == "workflow_dispatch") and .conclusion == "success"' >/dev/null || { echo 'Successful Images push or workflow_dispatch on main required for exact SHA' >&2; exit 1; }
+          if [[ -z "$IMAGE_RUN" ]]; then
+            IMAGE_RUN=$(python3 scripts/deploy/release_preflight.py find-images --repo "$GITHUB_REPOSITORY" --target "$TARGET") || { echo 'No successful Images run on main for target SHA' >&2; exit 1; }
+          fi
+          [[ "$IMAGE_RUN" =~ ^[0-9]+$ ]] || { echo 'No successful Images run on main for target SHA' >&2; exit 1; }
           mkdir -p "$RUNNER_TEMP/plan"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$IMAGE_RUN" > "$RUNNER_TEMP/image-run.json"
           gh run download "$IMAGE_RUN" --repo "$GITHUB_REPOSITORY" --name deployment-plan --dir "$RUNNER_TEMP/plan" || { echo 'Deployment plan is missing or expired' >&2; exit 1; }
+          python3 scripts/deploy/release_preflight.py verify-images --run "$RUNNER_TEMP/image-run.json" --plan "$RUNNER_TEMP/plan/plan.json" --target "$TARGET" || exit 1
           jq -e --arg sha "$TARGET" '.sha == $sha and (.api|type == "boolean") and (.web|type == "boolean")' "$RUNNER_TEMP/plan/plan.json" >/dev/null || { echo 'Deployment plan does not match the target SHA or component flags' >&2; exit 1; }
           jq -e '.api_sha | test("^[a-f0-9]{40}$")' "$RUNNER_TEMP/plan/plan.json" >/dev/null || { echo 'Invalid API image SHA in deployment plan' >&2; exit 1; }
           jq -e '.web_sha | test("^[a-f0-9]{40}$")' "$RUNNER_TEMP/plan/plan.json" >/dev/null || { echo 'Invalid web image SHA in deployment plan' >&2; exit 1; }

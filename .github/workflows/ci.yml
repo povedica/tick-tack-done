@@ -1,5 +1,8 @@
 name: CI
 
+# Filters live on jobs, never on pull_request.paths, so ci-ok is always created.
+# A push reuses a green pull_request run of this workflow when the git trees match.
+# schedule (02:00 UTC) and workflow_dispatch mode=full run every suite.
 on:
   push:
     branches: [main]
@@ -7,6 +10,18 @@ on:
   # on that same SHA: a green edit must not replace a red test run.
   pull_request:
     types: [opened, edited, synchronize, reopened]
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: full runs every suite; filtered follows path filters
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
+          - filtered
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -15,6 +30,7 @@ concurrency:
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 
 jobs:
   changes:
@@ -23,99 +39,136 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
       api: ${{ steps.filter.outputs.api }}
-      browser: ${{ steps.filter.outputs.browser }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+      perf: ${{ steps.filter.outputs.perf }}
+      web: ${{ steps.filter.outputs.web }}
       tooling: ${{ steps.filter.outputs.tooling }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
       - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
-            shared: &shared
-              - 'packages/domain/**'
-              - 'pnpm-lock.yaml'
-              - 'package.json'
-              - 'pnpm-workspace.yaml'
-              - '.npmrc'
-              - 'tsconfig*'
-              - '.github/**'
-              - 'scripts/!(backlog)/**'
-              - 'scripts/*'
             code:
-              - *shared
               - 'apps/**'
               - 'packages/**'
               - 'eslint*'
+              - '.prettierrc'
+              - '.prettierignore'
+              - 'tsconfig*'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.npmrc'
+              - 'scripts/ci/**'
+              - '.github/actions/**'
             api:
-              - *shared
               - 'apps/api/**'
-            browser:
-              - *shared
+              - 'packages/domain/**'
+              - 'tsconfig*'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.npmrc'
+              - 'scripts/ci/**'
+              - '.github/actions/**'
+            e2e:
               - 'apps/web/**'
               - 'packages/sdk/**'
+              - 'packages/domain/**'
               - 'apps/api/src/auth/**'
               - 'apps/api/src/health/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.npmrc'
+              - 'tsconfig*'
+              - '.github/workflows/**'
+              - '.github/actions/**'
+              - 'apps/api/prisma/**'
+            perf:
+              - 'apps/api/**'
+              - 'packages/domain/**'
+              - 'apps/api/prisma/**'
+              - 'scripts/perf/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/**'
+            web:
+              - 'apps/web/**'
+              - 'packages/sdk/**'
+              - 'packages/domain/**'
+              - 'pnpm-lock.yaml'
+              - 'scripts/check-bundle-budget.mjs'
             tooling:
-              - '.github/**'
+              - '.github/workflows/**'
+              - '.github/actions/**'
+              - '.github/actionlint.yaml'
+              - 'scripts/ci/**'
+              - 'scripts/secrets/**'
+              - 'scripts/deploy/**'
+              - 'scripts/backup.sh'
+              - 'scripts/dev.sh'
               - 'deploy/**'
-              - 'scripts/**'
+              - '.cursor/setup-worktree-unix.sh'
+
+  reuse:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      hit: ${{ steps.decide.outputs.hit }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: decide
+        name: Reuse a green pull request run with the same tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/reuse-tree.py
 
   code-checks:
     env:
       FORMAT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-    needs: changes
-    if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
+    needs: [changes, reuse]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.code == 'true')
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       quality: ${{ steps.checks.outputs.quality }}
       unit: ${{ steps.checks.outputs.unit }}
       openapi: ${{ steps.checks.outputs.openapi }}
-      browser: ${{ steps.checks.outputs.browser }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
         with:
-          build-api: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
+          build-api: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true') || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full') || needs.changes.outputs.api == 'true' }}
       - name: Fail fast on formatting before launching expensive checks
         run: pnpm format:check
-      - name: Resolve installed Playwright version
-        if: github.event_name == 'push' || needs.changes.outputs.browser == 'true'
-        id: playwright
-        run: echo "version=$(pnpm --filter web exec playwright --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
-        if: github.event_name == 'push' || needs.changes.outputs.browser == 'true'
-        id: browsers
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - if: (github.event_name == 'push' || needs.changes.outputs.browser == 'true') && steps.browsers.outputs.cache-hit != 'true'
-        run: pnpm --filter web exec playwright install --with-deps chromium
-      - if: (github.event_name == 'push' || needs.changes.outputs.browser == 'true') && steps.browsers.outputs.cache-hit == 'true'
-        run: |
-          browser=$(find "$HOME/.cache/ms-playwright" -type f \( -name chrome -o -name chrome-headless-shell \) -print -quit)
-          if [[ -z "$browser" ]] || ldd "$browser" | grep -q 'not found'; then
-            pnpm --filter web exec playwright install-deps chromium
-          fi
       - id: checks
         name: Run independent checks concurrently on one runner
         env:
           RUN_UNIT: 'false'
-          RUN_API: ${{ github.event_name == 'push' || needs.changes.outputs.api == 'true' }}
-          RUN_BROWSER: ${{ github.event_name == 'push' || needs.changes.outputs.browser == 'true' }}
+          RUN_API: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true') || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full') || needs.changes.outputs.api == 'true' }}
         run: bash scripts/ci/run-code-checks.sh
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: r80-browser-evidence
-          path: |
-            apps/web/test-results
-            test-artifacts/audit/r80/98-waterfall-despues-*.json
-          retention-days: 14
 
   quality:
-    needs: [changes, code-checks]
-    if: always() && (github.event_name == 'push' || needs.changes.outputs.code == 'true')
+    needs: [changes, reuse, code-checks]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.code == 'true')
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     steps:
@@ -125,8 +178,14 @@ jobs:
         run: test "$PARENT" = success && test "$RESULT" = 0
 
   test-unit:
-    needs: changes
-    if: github.event_name == 'push' || needs.changes.outputs.code == 'true'
+    needs: [changes, reuse]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.code == 'true')
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -135,8 +194,14 @@ jobs:
       - run: pnpm test:ci
 
   openapi-check:
-    needs: [changes, code-checks]
-    if: always() && (github.event_name == 'push' || needs.changes.outputs.api == 'true')
+    needs: [changes, reuse, code-checks]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.api == 'true')
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     steps:
@@ -145,20 +210,99 @@ jobs:
           PARENT: ${{ needs.code-checks.result }}
         run: test "$PARENT" = success && test "$RESULT" = 0
 
-  r80-browser-contracts:
-    needs: [changes, code-checks]
-    if: always() && (github.event_name == 'push' || needs.changes.outputs.browser == 'true')
+  e2e-r80:
+    needs: [changes, reuse]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.e2e == 'true')
+      )
     runs-on: ubuntu-24.04
-    timeout-minutes: 1
+    timeout-minutes: 20
     steps:
-      - env:
-          RESULT: ${{ needs.code-checks.outputs.browser }}
-          PARENT: ${{ needs.code-checks.result }}
-        run: test "$PARENT" = success && test "$RESULT" = 0
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Resolve installed Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter web exec playwright --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter web exec playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: |
+          browser=$(find "$HOME/.cache/ms-playwright" -type f \( -name chrome -o -name chrome-headless-shell \) -print -quit)
+          if [[ -z "$browser" ]] || ldd "$browser" | grep -q 'not found'; then
+            pnpm --filter web exec playwright install-deps chromium
+          fi
+      - name: Run r80 browser contracts
+        run: bash scripts/ci/run-e2e.sh r80
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: r80-browser-evidence
+          path: |
+            apps/web/test-results
+            test-artifacts/audit/r80/98-waterfall-despues-*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  e2e-filters:
+    needs: [changes, reuse]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.e2e == 'true')
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Resolve installed Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter web exec playwright --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter web exec playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: |
+          browser=$(find "$HOME/.cache/ms-playwright" -type f \( -name chrome -o -name chrome-headless-shell \) -print -quit)
+          if [[ -z "$browser" ]] || ldd "$browser" | grep -q 'not found'; then
+            pnpm --filter web exec playwright install-deps chromium
+          fi
+      - name: Run filter browser contracts
+        run: bash scripts/ci/run-e2e.sh filters
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: e2e-filters-results
+          path: |
+            apps/web/test-results
+            apps/web/e2e/__screenshots__
+          if-no-files-found: warn
+          retention-days: 14
 
   test-integration:
-    needs: changes
-    if: github.event_name == 'push' || needs.changes.outputs.api == 'true'
+    needs: [changes, reuse]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.api == 'true')
+      )
     timeout-minutes: 15
     runs-on: ubuntu-24.04
     env:
@@ -261,7 +405,7 @@ jobs:
     env:
       FORMAT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
     needs: changes
-    if: github.event_name != 'push' && needs.changes.outputs.code != 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
@@ -275,8 +419,14 @@ jobs:
       - run: pnpm format:check
 
   infra-check:
-    needs: changes
-    if: github.event_name == 'push' || needs.changes.outputs.tooling == 'true'
+    needs: [changes, reuse]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.tooling == 'true')
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -301,6 +451,14 @@ jobs:
 
   web:
     # F10. Static graph of the entry plus /calendar/:view (SPEC §5.4).
+    needs: [changes, reuse]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.web == 'true')
+      )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -316,6 +474,14 @@ jobs:
 
   perf-k6:
     # F1. Ephemeral Postgres only. TOKEN_RATE_LIMIT_TEST is refused when NODE_ENV=production.
+    needs: [changes, reuse]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.perf == 'true')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -390,6 +556,14 @@ jobs:
 
   perf-k6-vista:
     # #109 §6.4. Seed S, ephemeral localhost only. Thresholds are CA-R4.
+    needs: [changes, reuse]
+    if: >-
+      !cancelled() && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'push' && needs.reuse.outputs.hit != 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+        || ((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.perf == 'true')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -478,17 +652,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/ci/issue_link.py
 
-  ci-ok:
-    if: always()
+  nightly-alert:
+    if: always() && github.event_name == 'schedule'
     needs:
       [
         changes,
+        reuse,
         code-checks,
         quality,
         test-unit,
         test-integration,
         openapi-check,
-        r80-browser-contracts,
+        e2e-r80,
+        e2e-filters,
         web,
         perf-k6,
         perf-k6-vista,
@@ -496,6 +672,41 @@ jobs:
         docs-format,
         infra-check,
         issue-link,
+      ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Open or update the nightly failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULTS: ${{ toJSON(needs) }}
+        run: python3 scripts/ci/nightly-issue.py
+
+  ci-ok:
+    if: always()
+    needs:
+      [
+        changes,
+        reuse,
+        code-checks,
+        quality,
+        test-unit,
+        test-integration,
+        openapi-check,
+        e2e-r80,
+        e2e-filters,
+        web,
+        perf-k6,
+        perf-k6-vista,
+        public-tree-guard,
+        docs-format,
+        infra-check,
+        issue-link,
+        nightly-alert,
       ]
     runs-on: ubuntu-24.04
     timeout-minutes: 1

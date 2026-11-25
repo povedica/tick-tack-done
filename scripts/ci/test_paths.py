@@ -28,29 +28,56 @@ class PathContracts(unittest.TestCase):
             result=subprocess.run(['node',ACTION],cwd=root,env=env,capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr+result.stdout)
             values={}
-            for match in re.finditer(r'([a-z]+)<<([^\n]+)\n(.*?)\n\2',output.read_text(),re.S):values[match[1]]=match[3]
-            return {key:values.get(key)=='true' for key in ['code','api','browser','tooling']}
+            for match in re.finditer(r'([a-z0-9]+)<<([^\n]+)\n(.*?)\n\2',output.read_text(),re.S):values[match[1]]=match[3]
+            keys=('code','api','e2e','perf','web','tooling')
+            return {key:values.get(key)=='true' for key in keys}
 
-    def test_docs_skip_integration_and_browser(self):
-        self.assertEqual(self.matches(Path('docs/probe.md')),dict(code=False,api=False,browser=False,tooling=False))
+    def test_docs_skip_e2e_and_integration(self):
+        self.assertEqual(self.matches(Path('docs/probe.md')),dict(code=False,api=False,e2e=False,perf=False,web=False,tooling=False))
 
-    def test_web_skips_integration(self):
+    def test_templates_codeowners_and_dependabot_skip_suites(self):
+        for path in ('CODEOWNERS','.github/CODEOWNERS','.github/dependabot.yml','.github/ISSUE_TEMPLATE/bug.yml'):
+            with self.subTest(path=path):
+                self.assertEqual(self.matches(Path(path)),dict(code=False,api=False,e2e=False,perf=False,web=False,tooling=False))
+
+    def test_web_runs_e2e_and_skips_k6_and_integration(self):
         value=self.matches(Path('apps/web/src/probe.ts'))
-        self.assertEqual((value['code'],value['api'],value['browser']),(True,False,True))
+        self.assertEqual((value['code'],value['api'],value['e2e'],value['perf'],value['web']),(True,False,True,False,True))
 
-    def test_api_skips_browser(self):
+    def test_api_only_skips_e2e(self):
         value=self.matches(Path('apps/api/src/tasks/probe.ts'))
-        self.assertEqual((value['code'],value['api'],value['browser']),(True,True,False))
+        self.assertEqual((value['code'],value['api'],value['e2e'],value['perf'],value['web']),(True,True,False,True,False))
 
-    def test_auth_requires_browser_contracts(self):
-        self.assertTrue(self.matches(Path('apps/api/src/auth/probe.ts'))['browser'])
+    def test_auth_and_health_require_e2e(self):
+        for path in ('apps/api/src/auth/probe.ts','apps/api/src/health/probe.ts'):
+            with self.subTest(path=path):
+                self.assertTrue(self.matches(Path(path))['e2e'])
 
-    def test_domain_runs_all_code_checks(self):
+    def test_domain_runs_code_api_e2e_perf_and_bundle(self):
         value=self.matches(Path('packages/domain/src/probe.ts'))
-        self.assertEqual((value['code'],value['api'],value['browser']),(True,True,True))
+        self.assertEqual((value['code'],value['api'],value['e2e'],value['perf'],value['web']),(True,True,True,True,True))
 
-    def test_backlog_scripts_do_not_run_integration_or_browser(self):
+    def test_lockfile_workflows_and_prisma_are_fail_safe(self):
+        lock=self.matches(Path('pnpm-lock.yaml'))
+        self.assertEqual((lock['code'],lock['api'],lock['e2e'],lock['perf'],lock['web']),(True,True,True,True,True))
+        workflow=self.matches(Path('.github/workflows/deploy.yml'))
+        self.assertTrue(workflow['e2e'])
+        self.assertTrue(workflow['tooling'])
+        self.assertFalse(workflow['api'])
+        self.assertFalse(workflow['perf'])
+        ci=self.matches(Path('.github/workflows/ci.yml'))
+        self.assertTrue(ci['e2e'] and ci['perf'] and ci['tooling'])
+        self.assertFalse(ci['api'])
+        prisma=self.matches(Path('apps/api/prisma/schema.prisma'))
+        self.assertTrue(prisma['api'] and prisma['e2e'] and prisma['perf'] and prisma['code'])
+
+    def test_bundle_script_runs_web_only(self):
+        value=self.matches(Path('scripts/check-bundle-budget.mjs'))
+        self.assertTrue(value['web'])
+        self.assertFalse(value['e2e'] or value['api'] or value['perf'])
+
+    def test_backlog_scripts_do_not_run_integration_or_e2e(self):
         value=self.matches(Path('scripts/backlog/probe.sh'))
-        self.assertEqual((value['code'],value['api'],value['browser']),(False,False,False))
+        self.assertEqual((value['code'],value['api'],value['e2e'],value['perf']),(False,False,False,False))
 
 if __name__=='__main__':unittest.main()
