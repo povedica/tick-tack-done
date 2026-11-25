@@ -118,7 +118,7 @@ Revertir las PRs es seguro: no hay migraciones.
 ## Cron monitor y uptime
 
 - `scheduler-tick` se crea solo con el primer check-in, por `monitorConfig`: un check-in cada 5 ticks, margen de 5 min, `maxRuntime` de 10 min, UTC.
-- Un tick fallido envía `error`.
+- Un tick `ok` sigue saliendo cada 5 ticks. Un tick fallido envía `error` en ese momento y hace flush: no espera a la cuenta de 5. Con `SENTRY_CRON_EVERY_TICKS=0` no hay check-in.
 - El **uptime monitor** de `/api/v1/health` lo crea Pablo en la UI: el plan incluye 1.
 
 ## Smoke
@@ -144,24 +144,24 @@ Guardar en la issue #209 el id del evento, el entorno, el `release`, el tag `dep
 3. Una traza de la web desminificada con el release `ttd-web@…`.
 4. Un check-in `ok` de `scheduler-tick`.
 5. El marcador de deploy de los dos componentes.
-6. El tag `deploy_sha` de la API y el de la web son el mismo valor: los 7 primeros hex del SHA desplegado, no el commit de una imagen reutilizada.
+6. El tag `deploy_sha` de la API y el de la web son el mismo valor: los 7 primeros hex de `DEPLOY_SHA`. Si esa variable va en el deploy, `deploy.sh` recrea los dos contenedores, así que un cambio solo de la imagen web no deja la API con el SHA anterior. Si llega vacía, cada uno usa el `GIT_COMMIT` de su imagen.
 
 ### Producción
 
 1. El mensaje info del smoke manual (nivel `info`, `environment:production`, `smoke:true`, sin excepción). Anotar el id.
 2. El mismo `deploy_sha` en ese evento y en la web (el `deploy-sha.js` del contenedor).
 3. Un check-in `ok` de `scheduler-tick` y el marcador de deploy.
-4. Confirmar en Stats que el evento info no cuenta como error de la cuota de issues, y que no quedó una issue de error creada por el humo.
+4. PENDIENTE DE VERIFICAR: si el evento info cuenta o no en la cuota de errores de Stats, y si el humo deja una issue de error. El código manda un `captureMessage` de nivel info, sin excepción; el consumo en el plan gratuito no está comprobado.
 
 ## Releases y source maps
 
 - Las releases son `ttd-api@<versión>+<sha7>` y `ttd-web@<versión>+<sha7>`, con la etiqueta `deploy_sha`.
-- `DEPLOY_SHA` es el SHA del despliegue. La API y la web lo publican con el mismo nombre de tag, `deploy_sha`, y el mismo valor (7 hex). Si llega vacío, los dos usan el `GIT_COMMIT` de su imagen.
+- `DEPLOY_SHA` es el SHA del despliegue y se lee al arrancar el proceso. Cuando el deploy lo define, `deploy.sh` recrea la API y la web, así que los dos publican el mismo `deploy_sha` (7 hex) aunque solo haya cambiado una imagen. Si llega vacío, cada uno usa el `GIT_COMMIT` de su imagen.
 - Web: el contenedor recibe `DEPLOY_SHA`. Al arrancar, `40-deploy-sha.sh` escribe `/tmp/deploy-sha.js` (`window.__DEPLOY_SHA__`, solo hex) y nginx lo sirve en `/deploy-sha.js`. El cliente recorta a 7 hex igual que la API.
 - Web:
   - Con token, la imagen se construye con mapas `hidden`.
   - `apps/web/scripts/split-sourcemaps.mjs` los saca a la etapa `sourcemaps` y rompe el build si queda un `.map` o un `sourceMappingURL` servible. nginx también devuelve 404 a los `.map`.
-  - `images.yml` publica la imagen con `build-push-action` y exporta los mapas desde la caché local de ese mismo build. Si el paso de build no sale de la caché, o si la subida falla, el job avisa y termina en rojo. Si falta `SENTRY_AUTH_TOKEN`, lo dice en el resumen y sigue.
+  - `images.yml` publica la imagen con `build-push-action` y exporta los mapas desde la caché local de ese mismo build. La subida usa `deploy/lib/sentry-cli.sh` (binario 3.8.2 con checksum, sin `npx --yes`). Si falla, el paso avisa y sigue (`continue-on-error`): no rompe el job web ni el deploy. El token solo entra en el paso si la ref es `refs/heads/main` o un tag `v*` cuyo commit está en `main`. Si falta `SENTRY_AUTH_TOKEN`, lo dice en el resumen y sigue.
 - Tras un deploy sano, `deploy/lib/sentry-release.sh` marca el deploy de cada componente. Sin token no hace nada.
 - La API no sube mapas: arranca con `node --enable-source-maps` y las trazas ya llegan mapeadas.
 
