@@ -1001,7 +1001,7 @@ describe('McpService recurrence mapping', () => {
     expect(response).toMatchObject({
       result: {
         capabilities: { tools: { listChanged: true } },
-        serverInfo: { version: expect.stringMatching(/^0\.2\.0\+(?:[a-f0-9]{7}|unknown)$/) },
+        serverInfo: { version: expect.stringMatching(/^0\.3\.0\+(?:[a-f0-9]{7}|unknown)$/) },
       },
     });
   });

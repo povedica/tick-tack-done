@@ -74,7 +74,7 @@ de este cambio: la crea Pablo sobre el commit de `main` que se despliegue.
   el camino anterior.
 - `calendar_versions` sube en la misma transacción que un cambio que afecta al
   calendario. El ETag se calcula antes de la consulta principal. `Cache-Control:
-  private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
+private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 - Un token limitado a una lista no mete las otras listas en el resumen ni en
   las páginas. Los eventos externos visibles no desaparecen por ese límite.
 - El conteo del año usa un índice de `external_events` sobre el dueño y los
