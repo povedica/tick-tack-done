@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Logger } from '@nestjs/common';
 import type { Response } from 'express';
+import { maskTokenPaths } from './redact.js';
 
 /** A single query slower than this is a slow_query log. */
 export const SLOW_QUERY_MS = 50;
@@ -34,7 +35,7 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 /** Path only: drop the query string and replace ids. No emails, titles, or user ids. */
 export function normalizeRoute(method: string, path: string): string {
-  const bare = path.split('?')[0] ?? path;
+  const bare = maskTokenPaths(path.split('?')[0] ?? path);
   const withIds = bare.replace(UUID, ':id').replace(/\/\d+(?=\/|$)/g, '/:id');
   return `${method.toUpperCase()} ${withIds}`;
 }

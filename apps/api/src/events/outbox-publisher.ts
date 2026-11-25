@@ -1,5 +1,6 @@
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { tombstoneCutoff } from '@reflexionia/domain';
+import { reportBackgroundFailure } from '../observability/background-failure.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BullMqEventBus, busAutostart } from './bullmq-bus.js';
 
@@ -20,11 +21,17 @@ export class OutboxPublisher implements OnModuleInit, OnModuleDestroy {
       return;
     }
     this.bus.start();
-    void this.publishPending();
+    this.tick();
     this.timer = setInterval(() => {
-      void this.publishPending();
+      this.tick();
     }, TICK_MS);
     this.timer.unref();
+  }
+
+  private tick(): void {
+    this.publishPending().catch((error: unknown) => {
+      reportBackgroundFailure({ queue: 'outbox', job: 'publish-pending' }, error);
+    });
   }
 
   onModuleDestroy(): void {

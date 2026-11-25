@@ -3,6 +3,7 @@ import { Queue, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import { EventBus, type DomainBusEvent } from './event-bus.js';
 import { EventRouter } from './event-router.js';
+import { watchQueue } from '../observability/queue-failures.js';
 
 const QUEUE = 'domain-events';
 
@@ -42,6 +43,7 @@ export class BullMqEventBus extends EventBus implements OnModuleDestroy {
       },
       { connection, concurrency: 4 },
     );
+    watchQueue(QUEUE, this.queue, this.worker);
   }
 
   async publish(event: DomainBusEvent): Promise<void> {

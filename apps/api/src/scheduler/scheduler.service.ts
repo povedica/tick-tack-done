@@ -27,6 +27,7 @@ import {
   skipPastEnqueue,
 } from '@reflexionia/domain';
 import type { EventActor } from '../auth/auth-user.js';
+import { isolated, reportBackgroundFailure } from '../observability/background-failure.js';
 import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
 import { asJson } from '../http/json.js';
@@ -77,11 +78,17 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     if (!schedulerAutostart()) {
       return;
     }
-    void this.run(new Date(), true);
+    this.tick(true);
     this.timer = setInterval(() => {
-      void this.run(new Date(), false);
+      this.tick(false);
     }, TICK_MS);
     this.timer.unref();
+  }
+
+  private tick(catchUp: boolean): void {
+    this.run(new Date(), catchUp).catch((error: unknown) => {
+      reportBackgroundFailure({ queue: 'scheduler', job: 'tick' }, error);
+    });
   }
 
   onModuleDestroy(): void {
@@ -90,24 +97,33 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Materializes the next occurrence and fires reminders. catchUp marks already-due work as late. */
+  /**
+   * Materializes the next occurrence and fires reminders. catchUp marks already-due work as late.
+   * Each phase is isolated: a failing phase is reported and the rest of the tick still runs.
+   */
   async run(
     now: Date,
     catchUp: boolean,
   ): Promise<{ materialized: number; fired: number; late: number }> {
-    await this.purgeResetTokens(now);
-    await this.expireInvites(now);
-    const materialized = (await this.advanceCompleted()) + (await this.advanceDetached());
-    await this.enqueueFocusEnds(now, catchUp);
-    await this.enqueueReminders(now, catchUp);
-    await this.enqueueDigests(now, catchUp);
-    await this.enqueueShutdownDigests(now, catchUp);
-    await this.enqueueHabitReminders(now, catchUp);
-    await this.enqueueCountdownReminders(now, catchUp);
-    await this.recordHabitStreakBreaks(now);
-    await this.enqueueSignals(now, catchUp);
-    await this.syncCalendars(now, catchUp);
-    const fired = await this.fire(now, catchUp);
+    const phase = <T>(job: string, fallback: T, work: () => Promise<T>): Promise<T> =>
+      isolated({ queue: 'scheduler', job }, fallback, work);
+    await phase('purge-reset-tokens', undefined, () => this.purgeResetTokens(now));
+    await phase('expire-invites', undefined, () => this.expireInvites(now));
+    const materialized =
+      (await phase('advance-completed', 0, () => this.advanceCompleted())) +
+      (await phase('advance-detached', 0, () => this.advanceDetached()));
+    await phase('focus-ends', undefined, () => this.enqueueFocusEnds(now, catchUp));
+    await phase('reminders', undefined, () => this.enqueueReminders(now, catchUp));
+    await phase('digests', undefined, () => this.enqueueDigests(now, catchUp));
+    await phase('shutdown-digests', undefined, () => this.enqueueShutdownDigests(now, catchUp));
+    await phase('habit-reminders', undefined, () => this.enqueueHabitReminders(now, catchUp));
+    await phase('countdown-reminders', undefined, () =>
+      this.enqueueCountdownReminders(now, catchUp),
+    );
+    await phase('habit-streak-breaks', undefined, () => this.recordHabitStreakBreaks(now));
+    await phase('signals', undefined, () => this.enqueueSignals(now, catchUp));
+    await phase('calendar-sync', undefined, () => this.syncCalendars(now, catchUp));
+    const fired = await phase('fire', { fired: 0, late: 0 }, () => this.fire(now, catchUp));
     return { materialized, fired: fired.fired, late: fired.late };
   }
 
@@ -120,8 +136,9 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     this.resetPurgeDay = day;
     try {
       await purgePasswordResetTokens(this.prisma, now);
-    } catch {
+    } catch (error) {
       this.resetPurgeDay = '';
+      throw error;
     }
   }
 
@@ -134,28 +151,26 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     this.invitePurgeDay = day;
     try {
       await expireShareInvitations(this.prisma, now);
-    } catch {
+    } catch (error) {
       this.invitePurgeDay = '';
+      throw error;
     }
   }
 
   /** RF-2513. Isolated from reminder delivery: a calendar failure must not stop the tick. */
   private async syncCalendars(now: Date, catchUp: boolean): Promise<void> {
-    try {
-      await this.googleSync.syncDue(now, catchUp);
-    } catch {
-      // syncDue isolates each subscription; this only guards a listing failure.
-    }
-    try {
-      await this.googleSync.renewWatches(now);
-    } catch {
-      // A watch renewal failure must not stop reminders or the poll.
-    }
-    try {
-      await this.calendars.syncIcalDue(now, catchUp);
-    } catch {
-      // iCal rows record their own last_error.
-    }
+    // syncDue isolates each subscription; this only guards a listing failure.
+    await isolated({ queue: 'scheduler', job: 'google-sync' }, undefined, () =>
+      this.googleSync.syncDue(now, catchUp),
+    );
+    // A watch renewal failure must not stop reminders or the poll.
+    await isolated({ queue: 'scheduler', job: 'google-watch-renewal' }, undefined, () =>
+      this.googleSync.renewWatches(now),
+    );
+    // iCal rows record their own last_error.
+    await isolated({ queue: 'scheduler', job: 'ical-sync' }, undefined, () =>
+      this.calendars.syncIcalDue(now, catchUp),
+    );
   }
 
   private async advanceCompleted(): Promise<number> {
