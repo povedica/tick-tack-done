@@ -203,6 +203,60 @@ describe('RF-802 RF-808: shared transactional email', () => {
     });
   });
 
+  it('sends multipart text and html, and wraps a notice that has no html of its own', async () => {
+    setup();
+    const fetcher = vi.fn(() => Promise.resolve(Response.json({ id: 'email-id' })));
+    vi.stubGlobal('fetch', fetcher);
+    const delivery = await transport();
+    await delivery.deliver({
+      channel: 'email',
+      email: message.to,
+      subscriptions: [],
+      telegramChatId: null,
+      title: 'Planifica tu día',
+      body: 'Vencidas\n- A',
+      html: '<!DOCTYPE html><html><body>digest</body></html>',
+      emailSubject: 'Planifica tu día: 1 para hoy, 0 vencidas',
+      emailText:
+        'TickTackDone\n\nVencidas\n- A\n\nGestionar notificaciones: https://todo.example.org/settings/notifications',
+    });
+    const sent = (call: number): { url: string; subject: string; text: string; html: string } => {
+      const request = fetcher.mock.calls[call] as unknown as
+        [string, { body?: string }] | undefined;
+      const body = JSON.parse(String(request?.[1].body)) as {
+        subject: string;
+        text: string;
+        html: string;
+      };
+      return { url: String(request?.[0]), ...body };
+    };
+    expect(sent(0).url).toBe('https://api.resend.com/emails');
+    expect(sent(0)).toMatchObject({
+      subject: 'Planifica tu día: 1 para hoy, 0 vencidas',
+      html: '<!DOCTYPE html><html><body>digest</body></html>',
+    });
+    expect(sent(0).text).toContain('Vencidas');
+    expect(sent(0).text).toContain('Gestionar notificaciones');
+    fetcher.mockClear();
+    await delivery.deliver({
+      channel: 'email',
+      email: message.to,
+      subscriptions: [],
+      telegramChatId: null,
+      title: 'Recordatorio',
+      body: 'Recordatorio: Llamar',
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(sent(0).url).toBe('https://api.resend.com/emails');
+    expect(sent(0).subject).toBe('Recordatorio');
+    expect(sent(0).text).toContain('Recordatorio: Llamar');
+    expect(sent(0).text).toContain('Gestionar notificaciones');
+    expect(sent(0).html).toContain('apple-touch-icon.png');
+    expect(sent(0).html).toContain('alt=""');
+    expect(sent(0).html).toContain('#3e60cd');
+    expect(sent(0).html).not.toContain('>ttd<');
+  });
+
   it('RF-PR-13: sends html and headers on Resend and SMTP', async () => {
     setup();
     const fetcher = vi.fn(() => Promise.resolve(Response.json({ id: 'email-id' })));
