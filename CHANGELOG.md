@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## Contraste de las etiquetas en el filtro
+
+- El fondo de la etiqueta en el resumen de una vista tiene al menos 3:1 con la
+  superficie, en claro y en oscuro. La etiqueta sigue sin borde.
+- Esa comprobación, y el resto de los e2e de filtros, corre en la integración continua.
+
 ## Filtro por persona asignada
 
 - En el editor de filtros, «Asignado» elige a una persona y guarda su id de
