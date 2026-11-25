@@ -1,7 +1,7 @@
 import { ApiError } from '@reflexionia/sdk';
 import type { Reporter, ReporterConfig } from './sentry-client';
 
-export type ErrorSource = 'react' | 'action' | 'window';
+export type ErrorSource = 'react' | 'action' | 'window' | 'smoke';
 
 const NETWORK = /^(Failed to fetch|Load failed)$|NetworkError|network connection was lost/;
 
@@ -47,7 +47,15 @@ export function reportError(error: unknown, source: ErrorSource): Promise<string
 
 /** Uncaught errors outside React. Rejections already go through installActionErrorFallback. */
 export function installErrorReporting(): () => void {
-  if (reporterConfig() === null) return () => undefined;
+  const config = reporterConfig();
+  if (config === null) return () => undefined;
+  // Staging smoke: open any page with ?sentry-smoke to send one tagged test event.
+  if (
+    config.environment === 'staging' &&
+    new URLSearchParams(location.search).has('sentry-smoke')
+  ) {
+    reportError(new Error('Sentry smoke (staging web)'), 'smoke').catch(() => null);
+  }
   const onError = (event: ErrorEvent): void => {
     if (event.error instanceof Error) {
       reportError(event.error, 'window').catch(() => null);

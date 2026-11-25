@@ -59,6 +59,20 @@ describe('error reporting shim (#209)', () => {
     expect(client.createReporter).not.toHaveBeenCalled();
   });
 
+  it('?sentry-smoke sends one tagged event in staging only', async () => {
+    vi.stubEnv('VITE_SENTRY_DSN', 'https://webkey@o0.ingest.de.sentry.io/2');
+    window.history.replaceState(null, '', '/today?sentry-smoke');
+    vi.stubEnv('VITE_SENTRY_ENVIRONMENT', 'production');
+    (await load()).installErrorReporting()();
+    vi.stubEnv('VITE_SENTRY_ENVIRONMENT', 'staging');
+    (await load()).installErrorReporting()();
+    await vi.waitFor(() => {
+      expect(client.capture).toHaveBeenCalledTimes(1);
+    });
+    expect(client.capture).toHaveBeenCalledWith(expect.any(Error), 'smoke');
+    window.history.replaceState(null, '', '/');
+  });
+
   it('uncaught window errors are reported; resource errors without an Error are not', async () => {
     vi.stubEnv('VITE_SENTRY_DSN', 'https://webkey@o0.ingest.de.sentry.io/2');
     const { installErrorReporting } = await load();

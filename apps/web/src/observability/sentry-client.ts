@@ -81,6 +81,7 @@ export function createReporter(config: ReporterConfig): Reporter {
     capture(error, source) {
       return withScope((scope) => {
         scope.setTag('source', source);
+        if (source === 'smoke') scope.setTag('smoke', 'true');
         scope.setTag('route', safePath(location.pathname));
         return captureException(error);
       });
