@@ -1,7 +1,9 @@
 import { Logger } from '@nestjs/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { leaks, TRAP } from '../../test/helpers/pii-trap.js';
+import { fakeTransport } from '../../test/helpers/sentry-transport.js';
 import { OutboxPublisher } from '../events/outbox-publisher.js';
+import { closeSentry, initSentry } from '../observability/sentry/sentry.js';
 import { SchedulerService } from './scheduler.service.js';
 
 afterEach(() => {
@@ -107,6 +109,38 @@ describe('scheduler tick isolation', () => {
     await vi.waitFor(() => {
       expect(jobsLogged(error)).toEqual(['tick']);
     });
+  });
+
+  it('a failed tick sends an error check-in and flushes it', async () => {
+    vi.stubEnv('SCHEDULER_AUTOSTART', 'true');
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const fake = fakeTransport();
+    initSentry(
+      {
+        SENTRY_ENABLED: 'true',
+        SENTRY_DSN: 'https://public@o0.ingest.de.sentry.io/1',
+        SENTRY_ENVIRONMENT: 'production',
+        GIT_COMMIT: 'abcdef1234567890',
+      },
+      { transport: fake.transport, processHandlers: false },
+    );
+    const service = scheduler(fakePrisma(new Map()));
+    vi.spyOn(service, 'run').mockRejectedValue(new Error('tick exploded'));
+    try {
+      service.onModuleInit();
+      service.onModuleDestroy();
+      await vi.waitFor(() => {
+        // The test does not flush. The envelope is here only because beat() flushed the error check-in.
+        const checkIns = fake.captured.raw.filter((envelope) =>
+          envelope.includes('"type":"check_in"'),
+        );
+        expect(checkIns).toHaveLength(1);
+        expect(checkIns[0]).toContain('"status":"error"');
+        expect(checkIns[0]).toContain('"monitor_slug":"scheduler-tick"');
+      });
+    } finally {
+      await closeSentry();
+    }
   });
 });
 

@@ -23,18 +23,29 @@ export class TickHeartbeat {
 
   constructor(private readonly every: number) {}
 
-  /** Called after each finished tick. Sends one `ok` or `error` check-in every N ticks. */
+  /**
+   * Called after each finished tick. An `ok` check-in goes out every N ticks.
+   * A failed tick sends `error` immediately and flushes it, whatever N is.
+   */
   beat(ok: boolean): void {
     if (this.every === 0 || !sentryActive()) {
+      return;
+    }
+    if (!ok) {
+      this.emit('error');
       return;
     }
     this.ticks += 1;
     if (this.ticks % this.every !== 0) {
       return;
     }
+    this.emit('ok');
+  }
+
+  private emit(status: 'ok' | 'error'): void {
     try {
       Sentry.captureCheckIn(
-        { monitorSlug: SCHEDULER_MONITOR, status: ok ? 'ok' : 'error' },
+        { monitorSlug: SCHEDULER_MONITOR, status },
         {
           schedule: { type: 'interval', value: this.every, unit: 'minute' },
           checkinMargin: this.every,
@@ -42,6 +53,9 @@ export class TickHeartbeat {
           timezone: 'UTC',
         },
       );
+      if (status === 'error') {
+        void Sentry.flush(2_000).catch(() => undefined);
+      }
     } catch {
       // A check-in must never stop the scheduler.
     }
