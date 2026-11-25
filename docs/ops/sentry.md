@@ -153,6 +153,18 @@ Guardar en la issue #209 el id del evento, el entorno, el `release`, el tag `dep
 3. Un check-in `ok` de `scheduler-tick` y el marcador de deploy.
 4. PENDIENTE DE VERIFICAR: si el evento info cuenta o no en la cuota de errores de Stats, y si el humo deja una issue de error. El código manda un `captureMessage` de nivel info, sin excepción; el consumo en el plan gratuito no está comprobado.
 
+### Batería
+
+Hacerla en staging, con el `release` desplegado, y guardar el id del evento. No pegar el cuerpo si pudiera incluir datos de una cuenta.
+
+1. **Datos personales en un evento real.** Provocar un error de la web (no el smoke) cuyo mensaje lleve un título entre comillas, un correo, un PAT y una ruta `/s/<token>/<segmento>`, y cuya página sea esa ruta. En el evento guardado no pueden aparecer el título, el correo, el token, el segmento ni el nombre de la lista. La ruta, el breadcrumb y el mensaje deben quedar en `/s/:token` o `/s/:token/*`.
+2. **4xx y 500.** Un 401 y un 404 de la API no crean evento. Un 500 de la API sí, en nivel error, sin cuerpo ni query. Una `ApiError` en la web, aunque sea 500, no crea evento: el 5xx ya lo informa la API. `GET /api/v1/health` no crea evento.
+3. **`.map`.** `curl -sI` a un `*.map` del origen público devuelve 404. El HTML servido no lleva `sourceMappingURL`.
+4. **Interruptores.** Con `SENTRY_ENABLED=false` y redeploy del mismo SHA, la API deja de enviar. Con `SENTRY_TUNNEL_ENABLED=false`, el túnel responde 204 y no reenvía. Volver a dejarlos como estaban y comprobar que el smoke llega otra vez.
+5. **p95.** El p95 añadido por el SDK se queda por debajo de 20 ms. Si lo pasa, es rollback.
+6. **A las 24 h.** En Stats: volumen del día, cuota, ninguna issue con datos personales, y `scheduler-tick` en `ok`.
+7. **A los 7 días.** Repetir Stats, el cron y una muestra de eventos nuevos. La cuota de la semana tiene que caber en el plan gratuito.
+
 ## Releases y source maps
 
 - Las releases son `ttd-api@<versión>+<sha7>` y `ttd-web@<versión>+<sha7>`, con la etiqueta `deploy_sha`.
