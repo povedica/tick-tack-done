@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## Menú del tablero de proyectos
+
+- El menú «⋯» recupera fondo, sombra y separación, también al abrir el tablero
+  directamente. En el móvil el botón se queda visible. En oscuro, las columnas
+  se distinguen con el borde que ya usa la app.
+
 ## Contraste de las etiquetas en el filtro
 
 - El fondo de la etiqueta en el resumen de una vista tiene al menos 3:1 con la
