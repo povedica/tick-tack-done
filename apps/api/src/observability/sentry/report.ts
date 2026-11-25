@@ -11,6 +11,8 @@ export interface ServerErrorContext {
 export interface BackgroundErrorContext {
   readonly queue: string;
   readonly job: string;
+  /** Groups a repeating failure so the throttle can keep later ticks. */
+  readonly fingerprint?: string | undefined;
 }
 
 interface McpFailure {
@@ -62,6 +64,7 @@ export function reportBackgroundError(error: unknown, context: BackgroundErrorCo
       scope.setTag('component', 'worker');
       scope.setTag('queue', context.queue);
       scope.setTag('job', context.job);
+      if (context.fingerprint !== undefined) scope.setFingerprint([context.fingerprint]);
       Sentry.captureException(error);
     });
   } catch {

@@ -168,16 +168,26 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   /** RF-2513. Isolated from reminder delivery: a calendar failure must not stop the tick. */
   private async syncCalendars(now: Date, catchUp: boolean): Promise<void> {
     // syncDue isolates each subscription; this only guards a listing failure.
-    await isolated({ queue: 'scheduler', job: 'google-sync' }, undefined, () =>
-      this.googleSync.syncDue(now, catchUp),
+    await isolated(
+      { queue: 'scheduler', job: 'google-sync', fingerprint: 'calendar-sync|google|phase' },
+      undefined,
+      () => this.googleSync.syncDue(now, catchUp),
     );
     // A watch renewal failure must not stop reminders or the poll.
-    await isolated({ queue: 'scheduler', job: 'google-watch-renewal' }, undefined, () =>
-      this.googleSync.renewWatches(now),
+    await isolated(
+      {
+        queue: 'scheduler',
+        job: 'google-watch-renewal',
+        fingerprint: 'calendar-sync|google|watch',
+      },
+      undefined,
+      () => this.googleSync.renewWatches(now),
     );
     // iCal rows record their own last_error.
-    await isolated({ queue: 'scheduler', job: 'ical-sync' }, undefined, () =>
-      this.calendars.syncIcalDue(now, catchUp),
+    await isolated(
+      { queue: 'scheduler', job: 'ical-sync', fingerprint: 'calendar-sync|ical|phase' },
+      undefined,
+      () => this.calendars.syncIcalDue(now, catchUp),
     );
   }
 

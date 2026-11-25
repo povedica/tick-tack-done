@@ -7,6 +7,7 @@ import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { DomainException } from '../../http/domain.exception.js';
+import { reportCalendarSyncFailure } from '../../observability/background-failure.js';
 import { asJson } from '../../http/json.js';
 import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint.js';
 import { IdempotencyService } from '../../idempotency/idempotency.service.js';
@@ -339,6 +340,7 @@ export class GoogleSyncService {
         const code =
           error instanceof DomainException ? this.codeOf(error) : 'calendar_fetch_failed';
         this.logger.warn(`calendar sync failed ${code}`);
+        reportCalendarSyncFailure('google', code);
       }
     }
   }

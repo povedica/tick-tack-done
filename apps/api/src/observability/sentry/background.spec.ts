@@ -2,12 +2,14 @@ import { EventEmitter } from 'node:events';
 import type { ArgumentsHost } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
+import { Queue, Worker } from 'bullmq';
+import { Redis } from 'ioredis';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { leaks, TRAP } from '../../../test/helpers/pii-trap.js';
 import { fakeTransport, type CapturedEnvelopes } from '../../../test/helpers/sentry-transport.js';
 import { ApiExceptionFilter } from '../../http/api-exception.filter.js';
 import { McpService } from '../../mcp/mcp.service.js';
-import { isolated } from '../background-failure.js';
+import { isolated, reportCalendarSyncFailure } from '../background-failure.js';
 import { watchQueue } from '../queue-failures.js';
 import { cronEveryTicks, TickHeartbeat } from './cron.js';
 import { closeSentry, initSentry } from './sentry.js';
@@ -53,6 +55,83 @@ describe('Sentry in background work', () => {
       tags: { component: 'worker', queue: 'domain-events', job: 'task.created@v1' },
     });
     expect(leaks(captured.raw.join('\n'))).toEqual([]);
+  });
+
+  it('an intermediate attempt is not reported; the last attempt is', async () => {
+    const worker = new EventEmitter();
+    watchQueue('domain-events', null, worker);
+    worker.emit(
+      'failed',
+      { name: 'task.created@v1', id: 'job-1', attemptsMade: 1, opts: { attempts: 3 } },
+      new Error('try again'),
+    );
+    expect(await sentEvents()).toEqual([]);
+    worker.emit(
+      'failed',
+      { name: 'task.created@v1', id: 'job-1', attemptsMade: 3, opts: { attempts: 3 } },
+      new Error('gave up'),
+    );
+    expect(await sentEvents()).toHaveLength(1);
+  });
+
+  it('reports only the last attempt of a real BullMQ worker and queue', async () => {
+    const url = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379';
+    const name = `sentry-last-attempt-${Date.now().toString(36)}`;
+    const workerRedis = new Redis(url, { maxRetriesPerRequest: null });
+    const queueRedis = new Redis(url, { maxRetriesPerRequest: null });
+    const queue = new Queue(name, { connection: queueRedis });
+    const attempts: number[] = [];
+    const worker = new Worker(name, () => Promise.reject(new Error('handler failed')), {
+      connection: workerRedis,
+      concurrency: 1,
+    });
+    watchQueue(name, null, worker);
+    const exhausted = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`job stopped after attempts ${attempts.join(',')}`));
+      }, 15_000);
+      worker.on('failed', (job) => {
+        if (job !== undefined) attempts.push(job.attemptsMade);
+        if (attempts.length >= 3) {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+    try {
+      await queue.add(
+        'tick',
+        { title: TRAP.title },
+        { attempts: 3, backoff: { type: 'fixed', delay: 0 } },
+      );
+      await exhausted;
+      const events = await sentEvents();
+      expect(attempts).toEqual([1, 2, 3]);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        tags: { component: 'worker', queue: name, job: 'tick' },
+      });
+      expect(leaks(captured.raw.join('\n'))).toEqual([]);
+    } finally {
+      await worker.close();
+      await queue.obliterate({ force: true });
+      await queue.close();
+      workerRedis.disconnect();
+      queueRedis.disconnect();
+    }
+  });
+
+  it('a repeating calendar sync stays an error and sends one event per fingerprint', async () => {
+    reportCalendarSyncFailure('google', 'calendar_fetch_failed');
+    reportCalendarSyncFailure('google', 'calendar_fetch_failed');
+    reportCalendarSyncFailure('ical', 'calendar_fetch_failed');
+    const events = await sentEvents();
+    expect(events).toHaveLength(2);
+    expect(events.every((event) => event.level === 'error')).toBe(true);
+    expect(events.map((event) => event.fingerprint)).toEqual([
+      ['calendar-sync|google|calendar_fetch_failed'],
+      ['calendar-sync|ical|calendar_fetch_failed'],
+    ]);
   });
 
   it('CA-07: a failed local-day job sends 1 worker event', async () => {

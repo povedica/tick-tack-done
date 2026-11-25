@@ -8,6 +8,7 @@ import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
+import { reportCalendarSyncFailure } from '../../observability/background-failure.js';
 import { ICAL_MAX_BYTES, safeFetch } from '../../security/safe-fetch.js';
 import { eventLocalDayColumns } from '../../prisma/local-day-columns.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -742,6 +743,7 @@ export class CalendarService {
         });
       } catch {
         const failures = row.syncFailures + 1;
+        reportCalendarSyncFailure('ical', 'calendar_fetch_failed');
         await this.prisma.calendarSubscription.update({
           where: { id: row.id },
           data: {

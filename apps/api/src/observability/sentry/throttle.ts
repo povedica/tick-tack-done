@@ -16,6 +16,14 @@ const MAX_FINGERPRINTS = 500;
  */
 export const DAILY_EVENT_CAP = 160;
 
+/**
+ * A calendar poll that keeps failing shares one fingerprint. One event per window:
+ * the default of 10 per 10 minutes would still send every 5 minute tick.
+ */
+export function fingerprintCap(fingerprint: string, limits: ThrottleLimits): number {
+  return fingerprint.startsWith('calendar-sync|') ? 1 : limits.perFingerprint;
+}
+
 /** The per-DSN rate limit is a paid feature: the process throttles itself (D3). */
 export function throttleLimits(environment: string): ThrottleLimits {
   const perDay = DAILY_EVENT_CAP;
@@ -44,7 +52,7 @@ export class EventThrottle {
       (time) => at - time < this.limits.fingerprintWindowMs,
     );
     if (
-      seen.length >= this.limits.perFingerprint ||
+      seen.length >= fingerprintCap(fingerprint, this.limits) ||
       this.recentHour.length >= this.limits.perHour ||
       this.recentDay.length >= this.limits.perDay
     ) {
