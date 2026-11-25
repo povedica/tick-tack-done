@@ -42,6 +42,8 @@ services:
   staging-web:
     image: ${WEB_IMAGE:?Set WEB_IMAGE}
     restart: unless-stopped
+    environment:
+      DEPLOY_SHA: ${DEPLOY_SHA:-}
     read_only: true
     tmpfs:
       - /tmp

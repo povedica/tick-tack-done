@@ -40,6 +40,8 @@ COPY --from=build /sourcemaps /
 FROM nginx:alpine AS runner
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY apps/web/security-headers.conf /etc/nginx/security-headers.conf
+COPY apps/web/docker-entrypoint.d/40-deploy-sha.sh /docker-entrypoint.d/40-deploy-sha.sh
+RUN chmod 755 /docker-entrypoint.d/40-deploy-sha.sh
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1
