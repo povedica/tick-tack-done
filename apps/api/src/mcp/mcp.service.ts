@@ -1052,7 +1052,7 @@ export class McpService {
             user,
             {
               title: requiredString(args, 'title', 200),
-              target_date: requiredDate(args),
+              target_date: requiredDate(args, 'target_date'),
               ...countdownChanges(args),
             },
             undefined,
@@ -2274,13 +2274,13 @@ function limitOf(args: Record<string, unknown>): number {
   return args.limit;
 }
 
-function requiredDate(args: Record<string, unknown>): string {
-  const value = args.date;
+function requiredDate(args: Record<string, unknown>, key = 'date'): string {
+  const value = args[key];
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new DomainException(
       HttpStatus.BAD_REQUEST,
       'validation_failed',
-      'date must be YYYY-MM-DD',
+      `${key} must be YYYY-MM-DD`,
     );
   }
   return value;
@@ -2307,7 +2307,9 @@ function countdownChanges(args: Record<string, unknown>): {
   type Changes = { [K in keyof UpdateCountdownDto]: UpdateCountdownDto[K] };
   return {
     ...(typeof args.title === 'string' ? { title: args.title } : {}),
-    ...(typeof args.target_date === 'string' ? { target_date: args.target_date } : {}),
+    ...(typeof args.target_date === 'string'
+      ? { target_date: requiredDate(args, 'target_date') }
+      : {}),
     ...(typeof args.type === 'string'
       ? { type: args.type as Exclude<Changes['type'], undefined> }
       : {}),

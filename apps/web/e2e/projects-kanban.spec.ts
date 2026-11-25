@@ -71,7 +71,7 @@ test('desktop kanban pauses with undo and archives from the folded row', async (
     }
     if (url.includes('/state') && route.request().method() === 'POST') {
       state = String(route.request().postDataJSON().state);
-      await route.fulfill({ json: { id: 'job', state } });
+      await route.fulfill({ json: { ...board.items[0], id: 'job', state, is_inbox: false } });
       return;
     }
     if (url.includes('/projects') && route.request().method() === 'GET') {
@@ -82,10 +82,10 @@ test('desktop kanban pauses with undo and archives from the folded row', async (
   });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/dashboard');
-  await page.getByRole('link', { name: 'Proyectos' }).click();
+  await page.locator('.garden-projects-link').click();
   await expect(page.getByRole('heading', { name: 'Proyectos' })).toBeVisible();
   await expect(page.getByText('Ver archivados 1')).toBeVisible();
-  const card = page.locator('[data-project-id="job"]');
+  const card = page.locator('.project-board [data-project-id="job"]');
   const paused = page.locator('[data-project-column="paused"]');
   await card.dragTo(paused);
   await expect(page.getByRole('status')).toContainText('en pausa');
@@ -114,4 +114,105 @@ test('mobile tabs open pause and move', async ({ page }) => {
   await page.getByRole('button', { name: /Acciones del proyecto/ }).click();
   await expect(page.getByRole('menuitem', { name: 'Pausar' })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: /Mover a/ })).toBeVisible();
+});
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const width of [1280, 390]) {
+    test(`RF-301: opaque project menu on direct entry ${theme} ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.addInitScript(
+        (value) => localStorage.setItem('tick-tack-done.theme', value),
+        theme,
+      );
+      const states: string[] = [];
+      await page.route('**/api/v1/**', async (route) => {
+        if (await replySession(route)) return;
+        const url = route.request().url();
+        if (url.includes('/projects/overview')) {
+          await route.fulfill({ json: board });
+        } else if (url.includes('/state') && route.request().method() === 'POST') {
+          const state = String(route.request().postDataJSON().state);
+          states.push(state);
+          await route.fulfill({ json: { ...board.items[0], id: 'job', state, is_inbox: false } });
+        } else if (url.includes('/projects') && route.request().method() === 'GET') {
+          await route.fulfill({ json: { items: [], next_cursor: null } });
+        } else {
+          await route.fulfill({ json: {} });
+        }
+      });
+      await page.goto('/dashboard/projects');
+      await expect(page.getByRole('heading', { name: 'Proyectos' })).toBeVisible();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      const trigger = page.getByRole('button', { name: /Acciones del proyecto/ });
+      await trigger.click();
+      const menu = page.getByRole('dialog', { name: /Acciones del proyecto:/ });
+      await expect(menu).toBeVisible();
+      const style = await menu.evaluate((node) => {
+        const css = getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        return {
+          background: css.backgroundColor,
+          shadow: css.boxShadow,
+          radius: css.borderRadius,
+          hit: node.contains(
+            document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2),
+          ),
+        };
+      });
+      expect(style.background).toBe(theme === 'dark' ? 'rgb(34, 34, 34)' : 'rgb(255, 255, 255)');
+      expect(style.shadow).not.toBe('none');
+      expect(style.radius).not.toBe('0px');
+      expect(style.hit).toBe(true);
+      await expect(page.locator('.projects-page')).toHaveCSS('background-color', style.background);
+      if (width === 1280) {
+        await expect(page.locator('.project-column').first()).not.toHaveCSS(
+          'background-color',
+          style.background,
+        );
+        if (theme === 'dark')
+          await expect(page.locator('.project-column').first()).toHaveCSS(
+            'border-top-width',
+            '1px',
+          );
+      } else {
+        await expect(menu).toHaveClass(/is-bottom-sheet/);
+        const box = await menu.boundingBox();
+        expect(box && Math.round(box.y + box.height)).toBe(800);
+      }
+      await page.screenshot({ path: `e2e/__screenshots__/projects-menu-${theme}-${width}.png` });
+      await page.keyboard.press('Escape');
+      await expect(menu).toBeHidden();
+      await trigger.click();
+      await page.mouse.click(5, 5);
+      await expect(menu).toBeHidden();
+      await trigger.click();
+      await page.getByRole('menuitem', { name: 'Pausar', exact: true }).click();
+      await expect.poll(() => states).toContain('paused');
+      await trigger.click();
+      await page.getByRole('menuitem', { name: 'Archivar', exact: true }).click();
+      await expect.poll(() => states).toContain('archived');
+    });
+  }
+}
+
+test('RF-301: project actions stay visible on a touch tablet', async ({ browser }) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    viewport: { width: 1024, height: 768 },
+  });
+  const page = await context.newPage();
+  await page.route('**/api/v1/**', async (route) => {
+    if (await replySession(route)) return;
+    await route.fulfill({
+      json: route.request().url().includes('/projects/overview')
+        ? board
+        : { items: [], next_cursor: null },
+    });
+  });
+  await page.goto('/dashboard/projects');
+  await expect(page.getByRole('button', { name: /Acciones del proyecto/ })).toHaveCSS(
+    'opacity',
+    '1',
+  );
+  await context.close();
 });

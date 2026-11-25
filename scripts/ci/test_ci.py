@@ -45,6 +45,20 @@ class CIContracts(unittest.TestCase):
         self.assertIn('browser=0',output)
         self.assertFalse(any('openapi:generate' in c['args'] or 'build' in c['args'] for c in calls))
 
+    def test_filters_e2e_uses_the_default_playwright_config(self):
+        result,_,calls=self.run_script('run-code-checks.sh')
+        self.assertEqual(result.returncode,0,result.stderr)
+        playwright=[c['args'] for c in calls if 'playwright' in c['args'] and 'test' in c['args']]
+        self.assertEqual(len(playwright),2)
+        r80=' '.join(playwright[0])
+        filters=' '.join(playwright[1])
+        self.assertIn('playwright.r80.config.ts', r80)
+        self.assertNotIn('filters.spec.ts', r80)
+        self.assertIn('--config', filters)
+        self.assertIn('playwright.config.ts', filters)
+        self.assertIn('filters.spec.ts', filters)
+        self.assertNotIn('playwright.r80.config.ts', filters)
+
     def test_dedicated_units_are_not_duplicated_on_shared_runner(self):
         result,_,calls=self.run_script('run-code-checks.sh',RUN_UNIT='false')
         self.assertEqual(result.returncode,0,result.stderr)

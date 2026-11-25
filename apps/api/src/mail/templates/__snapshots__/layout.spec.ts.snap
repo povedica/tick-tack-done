@@ -1,0 +1,72 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`email layout > frames a notice with the app icon, inline CSS and a full plain-text copy 1`] = `
+"<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Aviso</title>
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  a { text-decoration:none; }
+  .task-link:hover { text-decoration:underline !important; }
+  @media (max-width:620px) {
+    .container { width:100% !important; }
+    .px { padding-left:16px !important; padding-right:16px !important; }
+    .outer { padding:12px 8px !important; }
+    .h1 { font-size:22px !important; }
+    .time { width:64px !important; white-space:normal !important; }
+    .btn a { display:block !important; }
+    .btn-wrap { width:100% !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .bg { background-color:#242424 !important; }
+    .surface { background-color:#222222 !important; border-color:#333333 !important; }
+    .ink { color:#ffffff !important; }
+    .ink2 { color:#a8a8a8 !important; }
+    .accink { color:#c5d4ff !important; }
+    .danger { color:#ff8787 !important; }
+    .border { border-color:#333333 !important; }
+    .chip { background-color:#2f3a5c !important; color:#c5d4ff !important; }
+    .note { background-color:#2a2a2a !important; border-color:#3a3a3a !important; }
+    .bar-none { background-color:#4a4a4a !important; }
+    .placeholder { border-color:#4a4a4a !important; color:#a8a8a8 !important; }
+  }
+  [data-ogsc] .ink { color:#ffffff !important; }
+  [data-ogsc] .ink2 { color:#a8a8a8 !important; }
+  [data-ogsc] .accink { color:#c5d4ff !important; }
+</style>
+</head>
+<body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Texto de previsualización&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg" bgcolor="#f2f5fe" style="background-color:#f2f5fe;">
+<tr><td align="center" class="outer" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:600px;max-width:600px;">
+<tr><td class="px" style="padding:4px 8px 16px 8px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="40" height="40" align="center" valign="middle" bgcolor="#4772FA" style="width:40px;height:40px;background-color:#4772FA;border-radius:10px;font-size:0;line-height:0;"><img src="https://todo.reflexionia.com/apple-touch-icon.png" width="32" height="32" alt="" border="0" style="display:block;width:32px;height:32px;border:0;outline:none;text-decoration:none;"></td>
+<td class="ink" style="padding-left:10px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:600;color:#191919;">TickTackDone</td>
+</tr></table>
+</td></tr>
+<tr><td class="surface px" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-radius:14px;padding:28px 32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#191919;">
+<p class="ink">Cuerpo del aviso</p>
+</td></tr>
+<tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
+<p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">Recibes este correo por tus avisos de TickTackDone.</p>
+<p style="margin:0 0 8px 0;"><a href="https://todo.reflexionia.com/settings/notifications" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Gestionar notificaciones</a><span class="ink2" style="color:#6b6b6b;">&nbsp;·&nbsp;</span><a href="https://todo.reflexionia.com/" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:underline;">Abrir TickTackDone</a></p>
+<p class="ink2" style="margin:0;color:#6b6b6b;font-size:12px;">TickTackDone · todo.reflexionia.com</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>"
+`;

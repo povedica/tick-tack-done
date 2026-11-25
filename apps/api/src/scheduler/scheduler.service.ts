@@ -4,13 +4,12 @@ import { deliverNotification } from '../notifications/deliver.js';
 import type { DeliveryResult } from './reminder.transport.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { Prisma, type ReminderChannel } from '@prisma/client';
+import { Prisma, type ReminderChannel, type ReminderDeliveryKind } from '@prisma/client';
 import {
   calendarDate,
   countdownDaysLabel,
   deriveDurationMinutes,
   dueSignal,
-  formatDailyDigest,
   instantFromWall,
   isAtDueTrigger,
   OVERDUE_GRACE_MS,
@@ -37,6 +36,12 @@ import { DayClosingService } from '../modules/planning/day-closing.service.js';
 import { GoogleSyncService } from '../modules/calendar/google-sync.service.js';
 import { lockRecurrenceSeries } from '../prisma/series-lock.js';
 import type { Tx } from '../prisma/tx.js';
+import {
+  digestEnqueuePayload,
+  recordMissingTask,
+  resolveDeliveryNotice,
+  taskEnqueuePayload,
+} from './delivery-mail.js';
 import { ReminderTransport } from './reminder.transport.js';
 
 const TICK_MS = 60_000;
@@ -390,7 +395,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const reminders = await this.prisma.reminder.findMany({
       where: { deletedAt: null, task: { status: 'active', deletedAt: null } },
       include: {
-        task: { select: { dueDate: true, startDate: true, title: true, timeZone: true } },
+        owner: { select: { locale: true } },
+        task: { select: { dueDate: true, startDate: true, timeZone: true } },
       },
     });
     for (const reminder of reminders) {
@@ -419,7 +425,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         kind: 'task',
         now,
         catchUp,
-        payload: { title: reminder.task.title, body: `Recordatorio: ${reminder.task.title}` },
+        payload: taskEnqueuePayload(reminder.owner.locale),
       });
     }
   }
@@ -427,7 +433,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private async enqueueDigests(now: Date, catchUp: boolean): Promise<void> {
     const users = await this.prisma.user.findMany({
       where: { deletedAt: null, dailyReminderTime: { not: null } },
-      select: { id: true, email: true, timeZone: true, dailyReminderTime: true },
+      select: { id: true, email: true, timeZone: true, dailyReminderTime: true, locale: true },
     });
     for (const user of users) {
       if (user.dailyReminderTime === null) {
@@ -441,36 +447,6 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       if (!next.ok) {
         continue;
       }
-      const tasks = await this.prisma.task.findMany({
-        where: {
-          ownerId: user.id,
-          status: 'active',
-          deletedAt: null,
-          parentId: null,
-          dueDate: { not: null },
-        },
-        orderBy: { dueDate: 'asc' },
-        take: 20,
-        select: { title: true, dueDate: true, isAllDay: true, timeZone: true, status: true },
-      });
-      const digest = formatDailyDigest({
-        now: next.fireAt,
-        fireAt: next.fireAt,
-        tasks: tasks.flatMap((task) =>
-          task.dueDate === null
-            ? []
-            : [
-                {
-                  title: task.title,
-                  dueDate: task.dueDate.toISOString(),
-                  isAllDay: task.isAllDay,
-                  timeZone: task.timeZone,
-                },
-              ],
-        ),
-      });
-      const loadLine = await this.closing.digestLine(user.id, next.fireAt, user.timeZone);
-      const body = loadLine === null ? digest : `${digest}\n\n${loadLine}`;
       await this.queue({
         ownerId: user.id,
         reminderId: null,
@@ -481,11 +457,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         kind: 'daily_digest',
         now,
         catchUp,
-        payload: {
-          title: 'Planifica tu día',
-          body,
+        payload: digestEnqueuePayload({
+          digestDate: next.fireAt,
+          locale: user.locale,
           email: user.email,
-        },
+        }),
       });
     }
   }
@@ -493,7 +469,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private async enqueueShutdownDigests(now: Date, catchUp: boolean): Promise<void> {
     const users = await this.prisma.user.findMany({
       where: { deletedAt: null, shutdownReminderTime: { not: null } },
-      select: { id: true, email: true, timeZone: true, shutdownReminderTime: true },
+      select: { id: true, email: true, timeZone: true, shutdownReminderTime: true, locale: true },
     });
     for (const user of users) {
       if (user.shutdownReminderTime === null) {
@@ -525,6 +501,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
           title: 'Cierra tu día',
           body: reminder.body,
           email: user.email,
+          locale: user.locale,
           url: '/cierre',
         },
       });
@@ -593,7 +570,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       where: { deletedAt: null, archivedAt: null },
       include: {
         reminders: true,
-        owner: { select: { email: true, timeZone: true } },
+        owner: { select: { email: true, timeZone: true, locale: true } },
       },
     });
     for (const countdown of countdowns) {
@@ -670,7 +647,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       dayMode: 'standard' | 'plus_one';
       targetDate: Date;
       repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-      owner: { email: string; timeZone: string };
+      owner: { email: string; timeZone: string; locale: string };
     };
     reminder: { id: string };
     occurrence: string;
@@ -694,7 +671,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       dayMode: 'standard' | 'plus_one';
       targetDate: Date;
       repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-      owner: { email: string; timeZone: string };
+      owner: { email: string; timeZone: string; locale: string };
     };
     reminder: { id: string; offsetDays?: number };
     occurrence: string;
@@ -742,6 +719,10 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         title: `${prefix} ${input.countdown.title}`,
         body,
         email: input.countdown.owner.email,
+        locale: input.countdown.owner.locale,
+        countdown_title: input.countdown.title,
+        phase: label.kind === 'today' ? 'today' : 'upcoming',
+        days: label.days,
       },
     });
   }
@@ -1035,10 +1016,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
               telegram_message_id: null,
               retry_after_seconds: null,
             }
-          : await deliverNotification(this.prisma, this.transport, row, now, {
-              title: typeof payload.title === 'string' ? payload.title : 'Recordatorio',
-              body: typeof payload.body === 'string' ? payload.body : '',
-            });
+          : await this.deliverRendered(row, payload, now);
         if (emailNeedsReconciliation(result)) {
           await this.prisma.reminderDelivery.update({
             where: { id: row.id },
@@ -1109,14 +1087,54 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         }
         continue;
       }
-      if (await this.deliveryStale(row.taskId, payload)) {
+      if (
+        row.kind !== 'task' &&
+        row.kind !== 'daily_digest' &&
+        row.kind !== 'shutdown_digest' &&
+        (await this.deliveryStale(row.taskId, payload))
+      ) {
         await this.prisma.reminderDelivery.update({
           where: { id: row.id },
           data: { status: 'cancelled', firedAt: now },
         });
         continue;
       }
-      const notice = noticeCopy(row.kind, payload, now);
+      const rendered = await resolveDeliveryNotice(
+        this.prisma,
+        this.closing,
+        {
+          id: row.id,
+          kind: row.kind,
+          ownerId: row.ownerId,
+          taskId: row.taskId,
+          countdownId: row.countdownId,
+          fireAt: row.fireAt.toISOString(),
+          payload,
+        },
+        now,
+      );
+      if (rendered.action === 'skip') {
+        await recordMissingTask(
+          this.prisma,
+          { id: row.id, ownerId: row.ownerId, fireAt: row.fireAt },
+          now,
+        );
+        continue;
+      }
+      if (rendered.action === 'cancel') {
+        await this.prisma.reminderDelivery.update({
+          where: { id: row.id },
+          data: { status: 'cancelled', firedAt: now, leaseUntil: null },
+        });
+        continue;
+      }
+      const notice =
+        row.kind === 'task' ||
+        row.kind === 'daily_digest' ||
+        row.kind === 'shutdown_digest' ||
+        typeof payload.html === 'string'
+          ? rendered.notice
+          : noticeCopy(row.kind, payload, now);
       const result = await deliverNotification(this.prisma, this.transport, row, now, notice);
       if (emailNeedsReconciliation(result)) {
         await this.prisma.reminderDelivery.update({
@@ -1225,6 +1243,50 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     return { fired, late };
   }
 
+  private async deliverRendered(
+    row: {
+      id: string;
+      kind: string;
+      ownerId: string;
+      taskId: string | null;
+      countdownId: string | null;
+      fireAt: Date;
+    },
+    payload: Record<string, unknown>,
+    now: Date,
+  ): Promise<DeliveryResult> {
+    const rendered = await resolveDeliveryNotice(
+      this.prisma,
+      this.closing,
+      {
+        id: row.id,
+        kind: row.kind,
+        ownerId: row.ownerId,
+        taskId: row.taskId,
+        countdownId: row.countdownId,
+        fireAt: row.fireAt.toISOString(),
+        payload,
+      },
+      now,
+    );
+    if (rendered.action !== 'send') {
+      return {
+        email: 'skipped',
+        push: 'skipped',
+        telegram: 'skipped',
+        telegram_message_id: null,
+        retry_after_seconds: null,
+      };
+    }
+    return deliverNotification(
+      this.prisma,
+      this.transport,
+      { ...row, kind: row.kind as ReminderDeliveryKind, payload: payload as Prisma.JsonValue },
+      now,
+      rendered.notice,
+    );
+  }
+
   private async deliveryStale(
     taskId: string | null,
     payload: Record<string, unknown>,
@@ -1258,7 +1320,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     }
     const task = await this.prisma.task.findFirst({
       where: { id: row.taskId, status: 'active', deletedAt: null },
-      select: { title: true },
+      select: { owner: { select: { locale: true } } },
     });
     if (task === null) {
       return;
@@ -1278,7 +1340,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       kind: 'task',
       now,
       catchUp: false,
-      payload: { title: task.title, body: `Recordatorio: ${task.title}` },
+      payload: taskEnqueuePayload(task.owner.locale),
     });
   }
 
@@ -1358,11 +1420,17 @@ function noticeCopy(
   kind: string,
   payload: Record<string, unknown>,
   now: Date,
-): { title: string; body: string } {
+): {
+  title: string;
+  body: string;
+  html?: string;
+  emailSubject?: string;
+  emailText?: string;
+} {
   const rawTitle = typeof payload.title === 'string' ? payload.title : 'Recordatorio';
   const rawBody = typeof payload.body === 'string' ? payload.body : '';
   if (kind !== 'due_soon' && kind !== 'overdue') {
-    return { title: rawTitle, body: rawBody };
+    return mailedCopy(payload, rawTitle, rawBody);
   }
   const due = typeof payload.due === 'string' ? payload.due : now.toISOString();
   const zone = typeof payload.time_zone === 'string' ? payload.time_zone : 'UTC';
@@ -1418,4 +1486,28 @@ function shiftCalendarDate(date: string, amount: number): string {
 
 function emailNeedsReconciliation(result: DeliveryResult): boolean {
   return result.email_reconcile_required === true;
+}
+
+function mailedCopy(
+  payload: Record<string, unknown>,
+  title: string,
+  body: string,
+): {
+  title: string;
+  body: string;
+  html?: string;
+  emailSubject?: string;
+  emailText?: string;
+} {
+  const html = typeof payload.html === 'string' ? payload.html : undefined;
+  const emailSubject =
+    typeof payload.email_subject === 'string' ? payload.email_subject : undefined;
+  const emailText = typeof payload.email_text === 'string' ? payload.email_text : undefined;
+  return {
+    title,
+    body,
+    ...(html === undefined ? {} : { html }),
+    ...(emailSubject === undefined ? {} : { emailSubject }),
+    ...(emailText === undefined ? {} : { emailText }),
+  };
 }

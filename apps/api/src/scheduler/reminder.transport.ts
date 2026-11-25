@@ -6,6 +6,8 @@ import {
   telegramRevisionMatches,
 } from '../integrations/telegram-configuration.js';
 import { sendEmail, type EmailResult } from '../mail/send-email.js';
+import { renderPlainNotice } from '../mail/templates/layout.js';
+import type { MailLocale } from '../mail/templates/html.js';
 
 import webpush from 'web-push';
 
@@ -34,6 +36,11 @@ export interface ReminderMessage {
   readonly allowTelegram?: boolean;
   readonly title: string;
   readonly body: string;
+  /** Email-only. Push and Telegram keep `title` and `body`. */
+  readonly html?: string;
+  readonly emailSubject?: string;
+  readonly emailText?: string;
+  readonly locale?: MailLocale;
   readonly buttons?: readonly (readonly TelegramButton[])[];
 }
 
@@ -110,16 +117,30 @@ export class ReminderTransport {
   }
 
   private email(message: ReminderMessage): Promise<EmailResult> {
-    return message.email === null
-      ? Promise.resolve({ status: 'skipped', retryAfter: null })
-      : sendEmail({
-          to: message.email,
-          subject: message.title,
-          text: message.body,
-          ...(message.deliveryId === undefined
-            ? {}
-            : { idempotencyKey: `reminder/${message.deliveryId}` }),
-        });
+    if (message.email === null) {
+      return Promise.resolve({ status: 'skipped', retryAfter: null });
+    }
+    const mail =
+      message.html === undefined
+        ? renderPlainNotice({
+            locale: message.locale ?? 'es',
+            title: message.emailSubject ?? message.title,
+            body: message.body,
+          })
+        : {
+            subject: message.emailSubject ?? message.title,
+            text: message.emailText ?? message.body,
+            html: message.html,
+          };
+    return sendEmail({
+      to: message.email,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+      ...(message.deliveryId === undefined
+        ? {}
+        : { idempotencyKey: `reminder/${message.deliveryId}` }),
+    });
   }
 
   private async push(message: ReminderMessage): Promise<ChannelOutcome> {

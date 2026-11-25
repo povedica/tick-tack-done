@@ -1,3 +1,9 @@
+import { emailButton, escapeHtml, rawLink, type RenderedMail } from './html.js';
+import { renderEmailLayout } from './layout.js';
+
+export type { RenderedMail } from './html.js';
+export { escapeHtml } from './html.js';
+
 export interface PasswordResetCopy {
   readonly locale: 'es' | 'en';
   readonly displayName: string;
@@ -17,12 +23,6 @@ export interface PasswordChangedCopy {
   readonly forgotUrl: string;
 }
 
-export interface RenderedMail {
-  readonly subject: string;
-  readonly text: string;
-  readonly html: string;
-}
-
 export function renderPasswordReset(copy: PasswordResetCopy): RenderedMail {
   const name = copy.displayName.trim().length > 0 ? copy.displayName.trim() : '—';
   const minutes = String(copy.minutes);
@@ -36,17 +36,14 @@ export function renderPasswordReset(copy: PasswordResetCopy): RenderedMail {
       copy.url,
       '',
       "The link works once. If you didn't ask for this, ignore this email: your password stays the same.",
-      '',
-      '— tick-tack-done · todo.reflexionia.com',
     ].join('\n');
-    return {
+    return renderNotice({
+      locale: 'en',
       subject: 'Reset your tick-tack-done password',
       text,
-      html: layout(
-        'Reset your tick-tack-done password',
-        `<p>Hi ${escapeHtml(name)},</p><p>Someone (probably you) asked to reset the password on your tick-tack-done account.</p><p>To choose a new one, open this link within the next ${escapeHtml(minutes)} minutes:</p>${button(copy.url, 'Choose a new password')}<p>The link works once. If you didn't ask for this, ignore this email: your password stays the same.</p>`,
-      ),
-    };
+      html: `<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Hi ${escapeHtml(name)},</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Someone (probably you) asked to reset the password on your tick-tack-done account.</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">To choose a new one, open this link within the next ${escapeHtml(minutes)} minutes:</p>${emailButton(copy.url, 'Choose a new password')}${rawLink(copy.url)}<p class="ink" style="margin:12px 0 0 0;font-size:15px;line-height:22px;color:#191919;">The link works once. If you didn't ask for this, ignore this email: your password stays the same.</p>`,
+      reason: 'You receive this email because a password reset was requested for your account.',
+    });
   }
   const text = [
     `Hola, ${name}:`,
@@ -57,17 +54,14 @@ export function renderPasswordReset(copy: PasswordResetCopy): RenderedMail {
     copy.url,
     '',
     'El enlace solo funciona una vez. Si no lo has pedido tú, ignora este correo: tu contraseña no cambia.',
-    '',
-    '— tick-tack-done · todo.reflexionia.com',
   ].join('\n');
-  return {
+  return renderNotice({
+    locale: 'es',
     subject: 'Restablece tu contraseña de tick-tack-done',
     text,
-    html: layout(
-      'Restablece tu contraseña de tick-tack-done',
-      `<p>Hola, ${escapeHtml(name)}:</p><p>Alguien (seguramente tú) ha pedido restablecer la contraseña de tu cuenta de tick-tack-done.</p><p>Para elegir una nueva, abre este enlace en los próximos ${escapeHtml(minutes)} minutos:</p>${button(copy.url, 'Elegir una contraseña nueva')}<p>El enlace solo funciona una vez. Si no lo has pedido tú, ignora este correo: tu contraseña no cambia.</p>`,
-    ),
-  };
+    html: `<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Hola, ${escapeHtml(name)}:</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Alguien (seguramente tú) ha pedido restablecer la contraseña de tu cuenta de tick-tack-done.</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Para elegir una nueva, abre este enlace en los próximos ${escapeHtml(minutes)} minutos:</p>${emailButton(copy.url, 'Elegir una contraseña nueva')}${rawLink(copy.url)}<p class="ink" style="margin:12px 0 0 0;font-size:15px;line-height:22px;color:#191919;">El enlace solo funciona una vez. Si no lo has pedido tú, ignora este correo: tu contraseña no cambia.</p>`,
+    reason: 'Recibes este correo porque se pidió restablecer la contraseña de tu cuenta.',
+  });
 }
 
 export function renderPasswordChanged(copy: PasswordChangedCopy): RenderedMail {
@@ -94,14 +88,13 @@ export function renderPasswordChanged(copy: PasswordChangedCopy): RenderedMail {
     ]
       .filter((line) => line.length > 0)
       .join('\n');
-    return {
+    return renderNotice({
+      locale: 'en',
       subject: 'Your tick-tack-done password was changed',
       text,
-      html: layout(
-        'Your tick-tack-done password was changed',
-        `<p>Hi ${escapeHtml(name)},</p><p>The password on your account was changed on ${escapeHtml(when)} from ${escapeHtml(where)}.</p><p>For safety we signed out every session and disconnected apps authorized with OAuth (for example ChatGPT or Claude). You will need to authorize them again.</p>${tokenLine.length > 0 ? `<p>${escapeHtml(tokenLine)}</p>` : ''}<p>If this was not you, request a new link at ${escapeHtml(copy.forgotUrl)} and review your tokens.</p>`,
-      ),
-    };
+      html: `<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Hi ${escapeHtml(name)},</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">The password on your account was changed on ${escapeHtml(when)} from ${escapeHtml(where)}.</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">For safety we signed out every session and disconnected apps authorized with OAuth (for example ChatGPT or Claude). You will need to authorize them again.</p>${tokenLine.length > 0 ? `<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">${escapeHtml(tokenLine)}</p>` : ''}<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">If this was not you, request a new link and review your tokens.</p>${emailButton(copy.forgotUrl, 'Request a new link')}${rawLink(copy.forgotUrl)}`,
+      reason: 'You receive this email because the password on your account was changed.',
+    });
   }
   const text = [
     `Hola, ${name}:`,
@@ -115,23 +108,31 @@ export function renderPasswordChanged(copy: PasswordChangedCopy): RenderedMail {
   ]
     .filter((line) => line.length > 0)
     .join('\n');
-  return {
+  return renderNotice({
+    locale: 'es',
     subject: 'Tu contraseña de tick-tack-done ha cambiado',
     text,
-    html: layout(
-      'Tu contraseña de tick-tack-done ha cambiado',
-      `<p>Hola, ${escapeHtml(name)}:</p><p>La contraseña de tu cuenta se cambió el ${escapeHtml(when)} desde ${escapeHtml(where)}.</p><p>Por seguridad hemos cerrado todas las sesiones y desconectado las apps conectadas por OAuth (por ejemplo ChatGPT o Claude); tendrás que volver a autorizarlas.</p>${tokenLine.length > 0 ? `<p>${escapeHtml(tokenLine)}</p>` : ''}<p>Si no has sido tú, pide un enlace nuevo en ${escapeHtml(copy.forgotUrl)} y revisa tus tokens.</p>`,
-    ),
-  };
+    html: `<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Hola, ${escapeHtml(name)}:</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">La contraseña de tu cuenta se cambió el ${escapeHtml(when)} desde ${escapeHtml(where)}.</p><p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Por seguridad hemos cerrado todas las sesiones y desconectado las apps conectadas por OAuth (por ejemplo ChatGPT o Claude); tendrás que volver a autorizarlas.</p>${tokenLine.length > 0 ? `<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">${escapeHtml(tokenLine)}</p>` : ''}<p class="ink" style="margin:0 0 12px 0;font-size:15px;line-height:22px;color:#191919;">Si no has sido tú, pide un enlace nuevo y revisa tus tokens.</p>${emailButton(copy.forgotUrl, 'Pedir un enlace nuevo')}${rawLink(copy.forgotUrl)}`,
+    reason: 'Recibes este correo porque la contraseña de tu cuenta ha cambiado.',
+  });
 }
 
-export function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+function renderNotice(input: {
+  locale: 'es' | 'en';
+  subject: string;
+  text: string;
+  html: string;
+  reason: string;
+}): RenderedMail {
+  const laid = renderEmailLayout({
+    locale: input.locale,
+    documentTitle: input.subject,
+    preheader: input.text.replace(/\s+/g, ' ').trim().slice(0, 140),
+    bodyHtml: input.html,
+    bodyText: input.text,
+    reason: input.reason,
+  });
+  return { subject: input.subject, text: laid.text, html: laid.html };
 }
 
 function formatWhen(when: Date, locale: 'es' | 'en', timeZone: string): string {
@@ -146,13 +147,4 @@ function formatWhen(when: Date, locale: 'es' | 'en', timeZone: string): string {
     timeZone: zone,
   }).format(when);
   return `${formatted} (${zone})`;
-}
-
-function button(url: string, label: string): string {
-  const safe = escapeHtml(url);
-  return `<p><a href="${safe}" style="display:inline-block;padding:12px 18px;background:#4772FA;color:#ffffff;text-decoration:none;border-radius:10px">${escapeHtml(label)}</a></p><p><a href="${safe}">${safe}</a></p>`;
-}
-
-function layout(title: string, body: string): string {
-  return `<!DOCTYPE html><html><body style="margin:0;padding:24px;background:#f4f6fb"><div style="max-width:520px;margin:0 auto;background:#ffffff;padding:28px;border-radius:16px;font-family:sans-serif;color:#1c2434"><h1 style="font-size:20px">${escapeHtml(title)}</h1>${body}<p style="color:#5c6b82">tick-tack-done · todo.reflexionia.com</p></div></body></html>`;
 }
