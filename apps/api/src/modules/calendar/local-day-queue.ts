@@ -1,13 +1,8 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  type OnModuleDestroy,
-  type OnModuleInit,
-} from '@nestjs/common';
+import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import type { PrismaClient } from '@prisma/client';
 import { Queue, Worker, type JobsOptions } from 'bullmq';
 import { Redis } from 'ioredis';
+import { watchQueue } from '../../observability/queue-failures.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { backfillLocalDays } from './backfill-local-days.js';
 import { recalcTimedEventLocalDays } from './recalc-timed-events.js';
@@ -75,7 +70,6 @@ export async function runBackfill(prisma: PrismaClient, ownerId: string): Promis
 
 @Injectable()
 export class LocalDayQueue implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(LocalDayQueue.name);
   private queue: Queue | null = null;
   private worker: Worker | null = null;
   private queueRedis: Redis | null = null;
@@ -147,9 +141,7 @@ export class LocalDayQueue implements OnModuleInit, OnModuleDestroy {
       },
       { connection: redis, concurrency: 1 },
     );
-    this.worker.on('error', (error: Error) => {
-      this.logger.error(error.message);
-    });
+    watchQueue(QUEUE, null, this.worker);
   }
 
   private ensureQueue(): Queue {
@@ -159,9 +151,7 @@ export class LocalDayQueue implements OnModuleInit, OnModuleDestroy {
     const redis = connectRedis();
     this.queueRedis = redis;
     this.queue = new Queue(QUEUE, { connection: redis });
-    this.queue.on('error', (error: Error) => {
-      this.logger.error(error.message);
-    });
+    watchQueue(QUEUE, this.queue, null);
     return this.queue;
   }
 }

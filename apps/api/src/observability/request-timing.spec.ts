@@ -26,6 +26,11 @@ describe('request timing', () => {
     expect(route).not.toContain('person@example.test');
   });
 
+  it('keeps the public list token out of slow_request routes', () => {
+    const route = normalizeRoute('get', '/api/v1/public/lists/TRAMPAlistToken0123456789');
+    expect(route).toBe('GET /api/v1/public/lists/:token');
+  });
+
   it('splits auth, db, app and total and puts the query count on db', () => {
     const store = createRequestStore('req-1', 'GET /api/v1/tasks');
     store.startedAt = 0;

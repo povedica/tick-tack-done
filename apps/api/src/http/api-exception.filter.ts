@@ -10,6 +10,7 @@ import type { Request, Response } from 'express';
 import { MulterError } from 'multer';
 import { oauthChallenge } from '../auth/oauth-discovery.controller.js';
 import { isOauthProtocolPath, oauthErrorBody } from '../auth/oauth-error.js';
+import { describeError, maskTokenPaths, safePath, safeStack } from '../observability/redact.js';
 
 interface ApiErrorBody {
   error: {
@@ -73,8 +74,9 @@ function errorParts(exception: HttpException): { code: string; message: string; 
   };
 }
 
+/** Secret path segments (`/public/lists/:token`, `/feeds/:token`) never reach a log. */
 export function maskPublicListPath(path: string): string {
-  return path.replace(/\/public\/lists\/[^/]+/g, '/public/lists/:token');
+  return maskTokenPaths(path);
 }
 
 function requestPath(host: ArgumentsHost): string {
@@ -82,6 +84,11 @@ function requestPath(host: ArgumentsHost): string {
   const raw = request.originalUrl.length > 0 ? request.originalUrl : request.url;
   const path = raw.split('?')[0] ?? raw;
   return maskPublicListPath(path);
+}
+
+function requestId(response: Response): string | null {
+  const value = response.getHeader('X-Request-Id');
+  return typeof value === 'string' ? value : null;
 }
 
 function transportStatus(error: unknown): number | null {
@@ -170,7 +177,15 @@ export class ApiExceptionFilter implements ExceptionFilter {
       this.sendApiError(response, path, exception.getStatus(), parts);
       return;
     }
-    this.logger.error(exception instanceof Error ? exception.message : 'Unhandled error');
+    this.logger.error(
+      JSON.stringify({
+        event: 'unhandled_error',
+        request_id: requestId(response),
+        route: safePath(path),
+        error: describeError(exception),
+      }),
+      safeStack(exception),
+    );
     this.sendApiError(response, path, HttpStatus.INTERNAL_SERVER_ERROR, {
       code: 'internal_error',
       message: 'Internal server error',
