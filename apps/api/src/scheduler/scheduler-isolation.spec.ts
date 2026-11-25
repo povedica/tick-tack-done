@@ -90,6 +90,7 @@ describe('scheduler tick isolation', () => {
       materialized: 0,
       fired: 0,
       late: 0,
+      failed: 2,
     });
 
     expect(jobsLogged(error)).toEqual(['reminders', 'google-sync']);
@@ -138,6 +139,42 @@ describe('scheduler tick isolation', () => {
         expect(checkIns[0]).toContain('"status":"error"');
         expect(checkIns[0]).toContain('"monitor_slug":"scheduler-tick"');
       });
+    } finally {
+      await closeSentry();
+    }
+  });
+
+  it('a failed phase sends an error check-in at the end of the tick and the rest still run', async () => {
+    vi.stubEnv('SCHEDULER_AUTOSTART', 'true');
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const fake = fakeTransport();
+    initSentry(
+      {
+        SENTRY_ENABLED: 'true',
+        SENTRY_DSN: 'https://public@o0.ingest.de.sentry.io/1',
+        SENTRY_ENVIRONMENT: 'production',
+        GIT_COMMIT: 'abcdef1234567890',
+      },
+      { transport: fake.transport, processHandlers: false },
+    );
+    const calls: Calls = new Map();
+    const service = scheduler(
+      fakePrisma(calls, {
+        'reminder.findMany': () => Promise.reject(new Error('phase failed')),
+      }),
+    );
+    try {
+      service.onModuleInit();
+      service.onModuleDestroy();
+      await vi.waitFor(() => {
+        const checkIns = fake.captured.raw.filter((envelope) =>
+          envelope.includes('"type":"check_in"'),
+        );
+        expect(checkIns).toHaveLength(1);
+        expect(checkIns[0]).toContain('"status":"error"');
+      });
+      expect(calls.get('habit.findMany')).toBeGreaterThan(0);
+      expect(calls.get('reminderDelivery.findMany')).toBe(1);
     } finally {
       await closeSentry();
     }

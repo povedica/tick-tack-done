@@ -89,8 +89,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
 
   private tick(catchUp: boolean): void {
     this.run(new Date(), catchUp).then(
-      () => {
-        this.heartbeat.beat(true);
+      (result) => {
+        this.heartbeat.beat(result.failed === 0);
       },
       (error: unknown) => {
         reportBackgroundFailure({ queue: 'scheduler', job: 'tick' }, error);
@@ -112,9 +112,10 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   async run(
     now: Date,
     catchUp: boolean,
-  ): Promise<{ materialized: number; fired: number; late: number }> {
+  ): Promise<{ materialized: number; fired: number; late: number; failed: number }> {
+    const failures = { count: 0 };
     const phase = <T>(job: string, fallback: T, work: () => Promise<T>): Promise<T> =>
-      isolated({ queue: 'scheduler', job }, fallback, work);
+      isolated({ queue: 'scheduler', job }, fallback, work, failures);
     await phase('purge-reset-tokens', undefined, () => this.purgeResetTokens(now));
     await phase('expire-invites', undefined, () => this.expireInvites(now));
     const materialized =
@@ -130,9 +131,9 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     );
     await phase('habit-streak-breaks', undefined, () => this.recordHabitStreakBreaks(now));
     await phase('signals', undefined, () => this.enqueueSignals(now, catchUp));
-    await phase('calendar-sync', undefined, () => this.syncCalendars(now, catchUp));
+    await phase('calendar-sync', undefined, () => this.syncCalendars(now, catchUp, failures));
     const fired = await phase('fire', { fired: 0, late: 0 }, () => this.fire(now, catchUp));
-    return { materialized, fired: fired.fired, late: fired.late };
+    return { materialized, fired: fired.fired, late: fired.late, failed: failures.count };
   }
 
   /** RF-PR-14. One pass per UTC day, at most 1000 rows. */
@@ -166,12 +167,17 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** RF-2513. Isolated from reminder delivery: a calendar failure must not stop the tick. */
-  private async syncCalendars(now: Date, catchUp: boolean): Promise<void> {
+  private async syncCalendars(
+    now: Date,
+    catchUp: boolean,
+    failures: { count: number },
+  ): Promise<void> {
     // syncDue isolates each subscription; this only guards a listing failure.
     await isolated(
       { queue: 'scheduler', job: 'google-sync', fingerprint: 'calendar-sync|google|phase' },
       undefined,
       () => this.googleSync.syncDue(now, catchUp),
+      failures,
     );
     // A watch renewal failure must not stop reminders or the poll.
     await isolated(
@@ -182,12 +188,14 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       },
       undefined,
       () => this.googleSync.renewWatches(now),
+      failures,
     );
     // iCal rows record their own last_error.
     await isolated(
       { queue: 'scheduler', job: 'ical-sync', fingerprint: 'calendar-sync|ical|phase' },
       undefined,
       () => this.calendars.syncIcalDue(now, catchUp),
+      failures,
     );
   }
 

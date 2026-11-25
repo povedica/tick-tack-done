@@ -65,10 +65,12 @@ export async function isolated<T>(
   job: BackgroundJob,
   fallback: T,
   run: () => Promise<T>,
+  failures?: { count: number },
 ): Promise<T> {
   try {
     return await run();
   } catch (error) {
+    if (failures !== undefined) failures.count += 1;
     reportBackgroundFailure(job, error);
     return fallback;
   }
