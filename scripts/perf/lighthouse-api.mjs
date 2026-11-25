@@ -25,7 +25,7 @@ const summary = {
 function bodyFor(path) {
   if (path === '/auth/session' || path === '/me') return user;
   if (path === '/health') {
-    return { status: 'ok', commit: 'local', version: '0.2.0' };
+    return { status: 'ok', commit: 'local', version: '0.3.0' };
   }
   if (path === '/calendar/summary') return summary;
   if (path === '/calendar/subscriptions') return { items: [], next_cursor: null };

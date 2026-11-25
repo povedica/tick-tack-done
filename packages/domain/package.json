@@ -1,6 +1,6 @@
 {
   "name": "@reflexionia/domain",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "sideEffects": false,
   "main": "./dist/index.js",

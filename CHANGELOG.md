@@ -1,38 +1,32 @@
 # Historial de cambios
 
-## Comprobación del backlog
+Cómo se numera una release: [docs/VERSIONADO.md](docs/VERSIONADO.md).
 
-- Quién no tiene que llevar «Closes #N» sale de
-  `scripts/backlog/exemptions.json`. Dependabot entra con el login
-  `app/dependabot` y `is_bot`. Un token de solo lectura ya no tumba el
-  check al intentar comentar.
+## 0.3.0 (25 de noviembre de 2026)
 
-## Extensión de Raycast
+Release anterior a producción, desde `v0.2.0` (10 de noviembre de 2026).
+Sube el minor porque hay funciones nuevas. La etiqueta `v0.3.0` no forma parte
+de este cambio: la crea Pablo sobre el commit de `main` que se despliegue.
+
+### Novedades
+
+#### Extensión de Raycast ([#201](https://github.com/povedica/tick-tack-done/pull/201))
 
 - Un comando «Nueva tarea TTD» envía el texto a la API sin interpretarlo. El
   token vive en las preferencias de Raycast y no se escribe en el repositorio.
 - Ajustes → Integraciones muestra la tarjeta «Raycast (Mac)» con la descarga
   del código fuente, los tres pasos y el aviso de que es solo para Mac.
 
-## Menú del tablero de proyectos
-
-- El menú «⋯» recupera fondo, sombra y separación, también al abrir el tablero
-  directamente. En el móvil el botón se queda visible. En oscuro, las columnas
-  se distinguen con el borde que ya usa la app.
-
-## Contraste de las etiquetas en el filtro
-
-- El fondo de la etiqueta en el resumen de una vista tiene al menos 3:1 con la
-  superficie, en claro y en oscuro. La etiqueta sigue sin borde.
-- Esa comprobación, y el resto de los e2e de filtros, corre en la integración continua.
-
-## Filtro por persona asignada
+#### Filtro por persona asignada ([#179](https://github.com/povedica/tick-tack-done/pull/179))
 
 - En el editor de filtros, «Asignado» elige a una persona y guarda su id de
   usuario. «Yo» aparece primero. Sin listas compartidas solo se ofrece «Yo».
   Si esa persona deja de estar disponible, la condición se conserva y se avisa.
+- En 0.2.0 ese campo guardaba un nombre o un email, y el filtro comparaba el
+  id: el texto no seleccionaba a nadie. A partir de esta versión la condición
+  guarda el id. Una condición que ya tuviera un id sigue valiendo.
 
-## Correos con el mismo marco
+#### Correos con el mismo marco ([#205](https://github.com/povedica/tick-tack-done/pull/205))
 
 - Todos los correos (resumen, cierre, recordatorio, cuenta atrás, contraseña,
   invitación y avisos de seguridad) salen con la misma cabecera, la tarjeta y
@@ -45,23 +39,22 @@
 - El correo se compone al enviarlo, con los datos de ese momento. Una tarea
   que ya no existe no se manda.
 
-## Permisos del token en tabla
+#### Permisos del token en tabla ([#198](https://github.com/povedica/tick-tack-done/pull/198))
 
 - Al crear un token personal, los permisos se eligen en una tabla siempre visible
   con interruptores de Leer y Escribir, plantillas y confirmación de acceso total.
   Escribir incluye el permiso de lectura, porque la API no lo deduce, y la columna
   avisa de que permite crear, editar y borrar.
 
-## Contratos del navegador
+#### Cuenta atrás ([#163](https://github.com/povedica/tick-tack-done/pull/163))
 
-- Recuperar contraseña vuelve a mandar el POST. El idioma sale de la etiqueta
-  del navegador, sin abrir el catálogo inglés que esa pantalla no tiene cargado.
-- Las hojas de las rutas diferidas se publican con `emitFile`. El chip de
-  enlace recupera los 24 px en escritorio y los 32 px en móvil. El CSS medido
-  del entry más el calendario pasa de 29,0 KB a 36,4 KB gzip; el tope queda
-  en 38 KB. El JS sigue en 247,2 KB, por debajo de 250.
+- Filas legibles en móvil y tarjetas cuadradas en escritorio y tableta, con
+  colores saturados y el menú con el estilo de la app. El alta y la edición
+  tienen bandeja de emojis y calendario de fecha civil, en español y en inglés.
+- El MCP puede actualizar todos los campos editables, restaurar y paginar
+  (RF-2401–2405, RF-2431, RF-2440–2442, RF-2451–2455).
 
-## Vista anual y trimestral desde el resumen (R1)
+#### Calendario: resumen, rango y días locales ([#95](https://github.com/povedica/tick-tack-done/pull/95))
 
 - El año y el trimestre pintan con `GET /api/v1/calendar/summary?granularity=day`.
   Un filtro guardado o una selección de filtros sigue con el índice local.
@@ -76,9 +69,6 @@
   `docs/perf/2026-11-12-vista-anual.md`. El TBT del seed S no entra de forma
   estable en 260 ms y Lighthouse móvil queda por debajo de R3. k6 en local sí
   entra en los p95 de la §6.4.
-
-## Summary y range del calendario (F6, sin activar en la web)
-
 - `GET /api/v1/calendar/summary` y `GET /api/v1/calendar/range` leen `tasks` y
   `external_events`. No hay `calendar_entries`. El calendario público sigue en
   el camino anterior.
@@ -90,24 +80,14 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 - El conteo del año usa un índice de `external_events` sobre el dueño y los
   días locales. No copia filas. Un día con varios calendarios visibles conserva
   el orden de inicio.
-
-## Decisión B0 del calendario (sin read model)
-
 - En el seed efímero ×100, el resumen del año y la primera página de un mes
   sobre `tasks` y `external_events` quedan por debajo de 50 ms (p95) y de
-  200 ms (p99). No se crea `calendar_entries`. El calendario público sigue
-  leyendo el camino anterior. Se reproduce con `bash scripts/perf-b0.sh`.
-
-## Días locales del calendario (F4, sin activar)
-
+  200 ms (p99). No se crea `calendar_entries`. Se reproduce con
+  `bash scripts/perf-b0.sh`.
 - El cambio de zona del perfil encola el recálculo de los eventos con hora.
   La petición no espera a reescribirlos. Las tareas siguen en su zona de captura.
 - Un backfill rellena, en tandas de 500, los días locales de las tareas y de
-  los eventos de día completo que ya existían. El calendario público sigue
-  leyendo el camino anterior.
-
-## Medición del calendario (F1)
-
+  los eventos de día completo que ya existían.
 - Cada respuesta `/api/*` lleva `Server-Timing` (`auth`, `db` con el número de
   consultas, `app`, `total`). Una consulta de más de 50 ms o una petición de
   más de 200 ms queda en el log con `X-Request-Id`, sin datos personales.
@@ -115,26 +95,136 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
   `TOKEN_RATE_LIMIT_TEST` no existe en producción.
 - La línea base se reproduce con `pnpm perf:baseline`.
 
-## Backlog en GitHub Projects
+### Cambios
+
+- El filtro por persona asignada pasa de texto libre a id de usuario. El
+  detalle está en Novedades ([#179](https://github.com/povedica/tick-tack-done/pull/179)).
+- Al crear un token, marcar Escribir envía también el scope de lectura
+  ([#198](https://github.com/povedica/tick-tack-done/pull/198)).
+- Un push a `main` despliega solo staging. Producción sale de un fast-forward
+  a la rama `production`, con preflight y aprobación
+  ([#168](https://github.com/povedica/tick-tack-done/pull/168)).
+
+### Correcciones
+
+#### Menú del tablero de proyectos ([#177](https://github.com/povedica/tick-tack-done/pull/177))
+
+- El menú «⋯» recupera fondo, sombra y separación, también al abrir el tablero
+  directamente. En el móvil el botón se queda visible. En oscuro, las columnas
+  se distinguen con el borde que ya usa la app.
+
+#### Contraste de las etiquetas en el filtro ([#182](https://github.com/povedica/tick-tack-done/pull/182))
+
+- El fondo de la etiqueta en el resumen de una vista tiene al menos 3:1 con la
+  superficie, en claro y en oscuro. La etiqueta sigue sin borde.
+- Esa comprobación, y el resto de los e2e de filtros, corre en la integración continua.
+
+#### Calendario y detalle de tarea ([#154](https://github.com/povedica/tick-tack-done/pull/154))
+
+- La barra del calendario y el detalle de tarea usan los mismos botones, bordes
+  y chips que el resto de la app. ‹, Hoy, ›, + y «Sincronizar ahora» quedan sin
+  caja, y el icono de sincronizar gira mientras dura. El mes de la barra lateral
+  y de los selectores de fecha se escribe abreviado («nov 2026»). En el móvil
+  solo queda el icono de sincronizar.
+
+#### Filtros en móvil y con teclado ([#178](https://github.com/povedica/tick-tack-done/pull/178))
+
+- El foco de los menús del filtro ya no se mueve mientras el portal está oculto,
+  y no vuelve a saltar después de confirmar un borrado. Los objetivos táctiles
+  del editor y del menú lateral caben en el móvil, en claro y en oscuro.
+
+#### Alta de cuenta atrás por MCP ([#204](https://github.com/povedica/tick-tack-done/pull/204))
+
+- `create_countdown` acepta `target_date` en `YYYY-MM-DD`. Antes rechazaba
+  cualquier alta con `date must be YYYY-MM-DD` ([#203](https://github.com/povedica/tick-tack-done/issues/203)).
+
+#### Contratos del navegador ([#95](https://github.com/povedica/tick-tack-done/pull/95))
+
+- Recuperar contraseña vuelve a mandar el POST. El idioma sale de la etiqueta
+  del navegador, sin abrir el catálogo inglés que esa pantalla no tiene cargado.
+- Las hojas de las rutas diferidas se publican con `emitFile`. El chip de
+  enlace recupera los 24 px en escritorio y los 32 px en móvil. El CSS medido
+  del entry más el calendario pasa de 29,0 KB a 36,4 KB gzip; el tope queda
+  en 38 KB. El JS sigue en 247,2 KB, por debajo de 250.
+
+### Seguridad
+
+- Esta release no cierra el aviso de `effect` que llega por Prisma
+  (`GHSA-7589-6fvf-x4pw`). Sigue igual que en `v0.2.0`.
+
+### Mantenimiento
+
+- Quién no tiene que llevar «Closes #N» sale de
+  `scripts/backlog/exemptions.json`. Dependabot entra con el login
+  `app/dependabot` y `is_bot`. Un token de solo lectura ya no tumba el
+  check al intentar comentar
+  ([#190](https://github.com/povedica/tick-tack-done/pull/190)).
+- El harness queda alineado con el tablero de seis columnas y el trabajo en
+  paralelo por Zona ([#155](https://github.com/povedica/tick-tack-done/pull/155)).
+  Cada avance relevante deja un comentario de decisión en la issue
+  ([#157](https://github.com/povedica/tick-tack-done/pull/157)).
+  Una PR de agente tiene que empezar por `Closes #N` de una issue abierta.
+  Un ajuste posterior al cierre abre una issue nueva y no reabre la original
+  ([#172](https://github.com/povedica/tick-tack-done/pull/172)).
+- CI por paths con `ci-ok`, caché de domain y de Playwright, integración en
+  shards y timeouts. Imágenes ligeras con healthcheck, GHCR y caché BuildKit;
+  el VPS hace pull incremental. La configuración sale de 1Password
+  (importación privada, referencias por entorno y runbook). Staging va antes
+  que producción, con backup antes de migrar y rollback de imágenes
+  ([#160](https://github.com/povedica/tick-tack-done/pull/160),
+  [#95](https://github.com/povedica/tick-tack-done/pull/95)).
+  Los pasos manuales M1–M9 y las métricas pendientes siguen documentados, sin
+  cambios de protección de rama ni migraciones Prisma en aquella entrega.
+- Antes de migrar en staging o producción, el despliegue guarda un `pg_dump`
+  local en el VPS, con permisos privados y retención de 30 días conservando
+  las tres últimas. El backup diario externo no cambia
+  ([#171](https://github.com/povedica/tick-tack-done/pull/171)).
+- Dependabot: grupo minor y patch
+  ([#165](https://github.com/povedica/tick-tack-done/pull/165)),
+  Vite 6 → 8 ([#126](https://github.com/povedica/tick-tack-done/pull/126)),
+  `@vitejs/plugin-react` 4 → 6
+  ([#127](https://github.com/povedica/tick-tack-done/pull/127))
+  y el grupo de GitHub Actions
+  ([#164](https://github.com/povedica/tick-tack-done/pull/164)).
+  Son herramientas de build y de CI. Las PRs de Dependabot aún abiertas el
+  25 de noviembre (vitest 4, bullmq 6, web-push 4 y otras) no entran aquí.
+
+### Base de datos y pasos manuales
+
+Entran con el despliegue de esta versión. Prisma aplica tres migraciones. El
+SQL de índices concurrentes no: hay que ejecutarlo aparte, en la base de ese
+entorno, antes de dar por bueno el calendario nuevo.
+
+- `20261029221000_calendar_local_days`: añade `local_start_day` y
+  `local_end_day` a tareas y eventos, más descripción y lugar en
+  `external_events`. El rollback está comentado en `migration.sql` (no hay
+  `down.sql` aparte): quita esas columnas y sus índices.
+- `20261030081000_calendar_versions`: tabla `calendar_versions` por dueño.
+  Rollback comentado: `DROP TABLE "calendar_versions"`.
+- `20261030090000_calendar_summary_index`: índice
+  `external_events_summary_idx`. Rollback comentado: `DROP INDEX`.
+- Paso manual, fuera de Prisma porque `CREATE INDEX CONCURRENTLY` no puede ir
+  en la transacción de una migración:
+  `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/prisma/manual/20261029_calendar_range_indexes.sql`.
+  Vuelta atrás:
+  `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f apps/api/prisma/manual/20261029_calendar_range_indexes.down.sql`.
+
+No hay otro cambio incompatible de API. Los endpoints de resumen y rango son
+nuevos. El calendario público sigue leyendo el camino anterior.
+
+## 0.2.0 (10 de noviembre de 2026)
+
+Las secciones siguientes ya estaban en el archivo al etiquetar `v0.2.0` y no
+llevaban número. Quedan dentro de esta versión para no perderlas.
+
+### Backlog en GitHub Projects
 
 - Plantillas de issues y PR, workflow y scripts de sincronización del backlog.
 - Espejo del backlog, registro de decisiones y protocolo de trabajo.
 - Reglas compartidas en AGENTS.md y skill de backlog para Cursor y Codex, compatibles
   con el campo nativo Status de GitHub. Espejo regenerado desde las issues reales.
 
-## Sin publicar
-
-- MCP `create_countdown` acepta `target_date` en `YYYY-MM-DD`. Antes rechazaba cualquier alta con `date must be YYYY-MM-DD` (#203).
-
-- BKL-003 (#101): verificación de accesibilidad y móvil de filtros en claro y oscuro; objetivos táctiles del editor y del menú lateral, foco de menús y del borrado.
-
-- BKL-059 (#169): copia local persistente antes de migrar en staging y producción, con permisos privados y retención de 30 días conservando las tres últimas; el backup diario externo de RF-1704 mantiene su comportamiento.
-
-- BKL-046: 1Password Environments, runtime env restaurable y plan de imágenes independiente del último push.
-- Harness: una PR de agente empieza por `Closes #N` de una issue abierta. Solo Dependabot queda exento. El check ignora comentarios HTML y líneas en blanco al principio. Un ajuste posterior al cierre abre una issue `ajuste` nueva y no reabre la original (BKL-060, #170).
-- Cuenta atrás: filas legibles en móvil, tarjetas cuadradas en escritorio/tablet, colores saturados y menú con el estilo de la app. Alta y edición con bandeja de emojis y calendario de fecha civil; cadenas en español e inglés. MCP permite actualizar todos los campos editables, restaurar y paginar (BKL-058, #162; RF-2401–2405, RF-2431, RF-2440–2442, RF-2451–2455).
-
-## 0.2.0 (10 de noviembre de 2026)
+### En la aplicación
 
 - La salud de Google Calendar (`ok`, `error`, `reconnect_required`) sale en
   `GET /api/v1/calendar/sync-status`, en el campo `sync` de los eventos y en
@@ -196,7 +286,7 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
   «…». Un id que no existe lleva a los filtros. La captura rellena la etiqueta,
   la lista o el día cuando la condición nombra solo uno.
 
-## Revisión del paquete de listas
+### Revisión del paquete de listas
 
 - Planificar un día completo conserva la estimación de esfuerzo. Antes se
   guardaba como 0 y desaparecía de la carga del día.
@@ -207,7 +297,7 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 - El cliente declara `before_id` y `move_to_end` al actualizar una lista.
 - En el tablero de proyectos, una pulsación larga abre el menú de la tarjeta.
 
-## Algún día más visible en la planificación
+### Algún día más visible en la planificación
 
 - La hoja «¿Cuándo?» muestra «Algún día» como píldora neutra, pareja de la X,
   en escritorio y en móvil. El calendario de la hoja no cambia.
@@ -215,7 +305,7 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
   queda visible junto a Hecha y No lo haré. El menú «⋯» de esa tarjeta solo
   elimina. La tarjeta móvil sigue con sus controles de siempre.
 
-## Carpetas, listas y lista-proyecto
+### Carpetas, listas y lista-proyecto
 
 - Una lista puede marcarse como proyecto (`is_project`) con resultado, estado
   En marcha o Pausado, y fecha de archivo (`closed_at`). Archivado es el mismo
@@ -224,7 +314,7 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 - Carpetas con totales, mover listas entre carpetas, y herramientas MCP de
   carpetas y de estado. El borrado de listas sigue siendo lógico.
 
-## Contexto laboral
+### Contexto laboral
 
 - Ajustes › Jornada guarda días laborables, carpetas, listas y etiquetas de
   trabajo, y puede ocultar lo laboral fuera de horario. «Mostrar trabajo» dura
@@ -232,21 +322,21 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
   laborales se retrasan hasta ese inicio (`work_hours`). El scope nuevo
   `workday:write` obliga a reautorizar los conectores que ya existían.
 
-## Algún día en la hoja «¿Cuándo?»
+### Algún día en la hoja «¿Cuándo?»
 
 - Al planificar, la hoja «¿Cuándo?» ofrece «Algún día» en la cabecera, a la
   izquierda del cierre. Un toque usa la misma decisión que la tecla A: marca la
   tarea como algún día, cierra la hoja y pasa a la siguiente. La tecla A y el
   menú «⋯» siguen igual.
 
-## Integraciones más compactas
+### Integraciones más compactas
 
 - Ajustes → Integraciones pasa a una sola lista: una fila por servicio, interruptores
   etiquetados y las acciones destructivas dentro de «⋯». En el móvil esas acciones
   salen en una hoja inferior. La conexión, los permisos y los textos de tratamiento
   de datos no cambian.
 
-## Corrección del modo de sesión en producción
+### Corrección del modo de sesión en producción
 
 - Las compilaciones de producción activan siempre sesiones por cookie y CSRF,
   también cuando se generan fuera de Docker. Evita 403 al planificar el día,
@@ -254,7 +344,7 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 - Regresión en CI sobre el artefacto de producción: apertura de planificación y
   ubicación exigen el token CSRF y no envían la identidad de desarrollo.
 
-## Refinamientos de Hábitos, Calendario y Planificación
+### Refinamientos de Hábitos, Calendario y Planificación
 
 - RF-1301/1302/1303: editor único de hábitos, pausa y fecha de inicio compatibles
   con el historial; tarjetas compactas, objetivo semanal, detalle y gestión
@@ -272,7 +362,7 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
   regenerados. Las referencias visuales aportadas se conservan sin reformatear;
   los perfiles y evidencias privados siguen excluidos de Git.
 
-## Desarrollo local — copia de tareas
+### Desarrollo local — copia de tareas
 
 - RF-1703/1705: comando `scripts/refresh-local-task-data.py` para refrescar datos
   de tareas desde una cuenta de producción hacia la cuenta demo local. Incluye
@@ -282,7 +372,7 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
   y Docker remoto como destino. No copia cuentas, credenciales, integraciones,
   hábitos, calendarios ni archivos binarios de adjuntos.
 
-## Sin publicar — ajustes visuales PR77
+### Sin publicar — ajustes visuales PR77
 
 - Captura (RF-101/102/107, RF-802): reconocimiento de fechas y etiquetas,
   conservación del texto, título de URL opcional y valores predeterminados de
@@ -322,7 +412,7 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 - Flechas de los selectores de Ajustes con margen derecho y espacio reservado
   para que no se solapen con el texto; colores adaptados al tema.
 
-## Staging — Telegram por usuario y Resend (23 de octubre de 2026)
+### Staging — Telegram por usuario y Resend (23 de octubre de 2026)
 
 - RF-2003: configuración cifrada de un bot exclusivo por usuario en Ajustes →
   Integraciones, webhook propio y aislamiento de chats, respuestas, adjuntos y
@@ -337,7 +427,7 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
   explícita de configuración usa `RUNTIME_ENV_FILE`; el despliegue conserva las
   claves y los datos existentes y actualiza solo las credenciales de integración.
 
-## Sin publicar — PR75
+### Sin publicar — PR75
 
 - Staging aislado con Compose, PostgreSQL/Redis, redes y secretos propios; configuración y retirada a página estática preparadas. Activación pública y aceptación externa pendientes.
 - Política de navegador corregida para las subidas directas a Drive, Google Picker y sus ventanas OAuth; prueba de regresión sobre las cuatro configuraciones.
@@ -353,11 +443,3 @@ private, no-cache` y `Vary: Cookie, Authorization` solo en `/calendar/*`.
 Por petición de Pablo, se retira `docs/` del árbol. Las evidencias históricas siguen enlazadas en la PR; las nuevas ejecuciones generan artefactos ignorados por Git en `test-artifacts/`.
 
 Implementación y pruebas locales: el estado quedó en la PR. Las verificaciones externas pendientes se detallan allí; estos cambios no se han desplegado. Contrato MCP: `docs/mcp/CHANGELOG.md`.
-
-## BKL-046 · CI/CD y 1Password
-
-- CI por paths con `ci-ok`, caché de domain/Playwright, integración en shards y timeouts.
-- Imágenes ligeras con healthcheck, GHCR y caché BuildKit; el VPS hace pull incremental.
-- Configuración centralizada en 1Password; importación privada, referencias por entorno y runbook.
-- Staging previo, aprobación de producción, backup antes de migrar y rollback de imágenes.
-- Pasos manuales M1–M9 y métricas pendientes documentados, sin cambios de protección ni migraciones Prisma.
