@@ -161,7 +161,7 @@ Guardar en la issue #209 el id del evento, el entorno, el `release`, el tag `dep
 - Web:
   - Con token, la imagen se construye con mapas `hidden`.
   - `apps/web/scripts/split-sourcemaps.mjs` los saca a la etapa `sourcemaps` y rompe el build si queda un `.map` o un `sourceMappingURL` servible. nginx también devuelve 404 a los `.map`.
-  - `images.yml` construye la imagen y los mapas en el mismo `docker buildx bake`, así que los `.map` son los de ese build. Si la subida falla, el job avisa y termina en rojo. Si falta `SENTRY_AUTH_TOKEN`, lo dice en el resumen y sigue.
+  - `images.yml` publica la imagen con `build-push-action` y exporta los mapas desde la caché local de ese mismo build. Si el paso de build no sale de la caché, o si la subida falla, el job avisa y termina en rojo. Si falta `SENTRY_AUTH_TOKEN`, lo dice en el resumen y sigue.
 - Tras un deploy sano, `deploy/lib/sentry-release.sh` marca el deploy de cada componente. Sin token no hace nada.
 - La API no sube mapas: arranca con `node --enable-source-maps` y las trazas ya llegan mapeadas.
 
