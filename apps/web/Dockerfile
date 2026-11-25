@@ -26,7 +26,16 @@ ARG VITE_SENTRY_DSN=
 ARG VITE_SENTRY_ENVIRONMENT=
 ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 ENV VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT
-RUN pnpm --filter @reflexionia/domain build && pnpm --filter web build
+# true only when images.yml will upload them; the build fails if a map would be served.
+ARG SENTRY_SOURCEMAPS=false
+ENV SENTRY_SOURCEMAPS=$SENTRY_SOURCEMAPS
+RUN pnpm --filter @reflexionia/domain build && pnpm --filter web build \
+  && node apps/web/scripts/split-sourcemaps.mjs apps/web/dist /sourcemaps
+
+# `--target sourcemaps --output type=local` exports the maps for sentry-cli.
+FROM scratch AS sourcemaps
+COPY --from=build /app/apps/web/dist /
+COPY --from=build /sourcemaps /
 
 FROM nginx:alpine AS runner
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf

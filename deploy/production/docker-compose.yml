@@ -16,6 +16,8 @@ services:
       SCHEDULER_AUTOSTART: 'true'
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=10&pool_timeout=20
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      # Sentry deploy_sha tag (#209). Empty falls back to the image GIT_COMMIT.
+      DEPLOY_SHA: ${DEPLOY_SHA:-}
     read_only: true
     tmpfs:
       - /tmp

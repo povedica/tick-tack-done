@@ -133,6 +133,8 @@ export default defineConfig(({ mode }) => {
     // Keep each precached asset below Workbox's 2 MiB limit as features grow.
     build: {
       manifest: true,
+      // Only images that upload to Sentry emit maps; split-sourcemaps.mjs keeps them out of the image.
+      sourcemap: process.env.SENTRY_SOURCEMAPS === 'true' ? 'hidden' : false,
       rollupOptions: {
         output: {
           chunkFileNames(chunk) {

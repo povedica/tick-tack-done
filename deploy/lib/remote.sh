@@ -43,7 +43,7 @@ if [[ $TARGET != last-good ]]; then
     web_image="ghcr.io/povedica/tick-tack-done-web:$web_sha-$suffix"
   fi
 fi
-command=(env "RUNTIME_ENV_FILE=$RUNTIME_ENV_FILE" "INCOMING_ENV_FILE=$private" "PUBLIC_HEALTH_URL=$PUBLIC_HEALTH_URL" "API_IMAGE=$api_image" "WEB_IMAGE=$web_image" "EDGE_NETWORK=${EDGE_NETWORK:-}" "CADDY_SITES_DIR=${CADDY_SITES_DIR:-}" "EDGE_CADDY_CONTAINER=${EDGE_CADDY_CONTAINER:-}" bash "$release/deploy/$ENVIRONMENT/deploy.sh")
+command=(env "DEPLOY_SHA=${TARGET#last-good}" "RUNTIME_ENV_FILE=$RUNTIME_ENV_FILE" "INCOMING_ENV_FILE=$private" "PUBLIC_HEALTH_URL=$PUBLIC_HEALTH_URL" "API_IMAGE=$api_image" "WEB_IMAGE=$web_image" "EDGE_NETWORK=${EDGE_NETWORK:-}" "CADDY_SITES_DIR=${CADDY_SITES_DIR:-}" "EDGE_CADDY_CONTAINER=${EDGE_CADDY_CONTAINER:-}" bash "$release/deploy/$ENVIRONMENT/deploy.sh")
 printf -v remote_command '%q ' "${command[@]}"
 ssh "${ssh_args[@]}" "$destination" "$remote_command"
 # Update the runbook/cron entrypoint only after the health check succeeded.

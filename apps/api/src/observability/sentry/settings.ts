@@ -23,7 +23,7 @@ export function sentrySettings(env: Env): SentrySettings | null {
   }
   const environment = nonEmpty(env.SENTRY_ENVIRONMENT) ?? 'development';
   const release = nonEmpty(env.SENTRY_RELEASE) ?? `ttd-api@${API_VERSION}+${sha7(env.GIT_COMMIT)}`;
-  return { dsn, environment, release, deploySha: sha7(env.DEPLOY_SHA ?? env.GIT_COMMIT) };
+  return { dsn, environment, release, deploySha: sha7(nonEmpty(env.DEPLOY_SHA) ?? env.GIT_COMMIT) };
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
