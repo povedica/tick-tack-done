@@ -12,7 +12,7 @@ fi
 [[ $TARGET =~ ^[a-f0-9]{40}$ ]] || exit 64
 plan="$RUNNER_TEMP/plan/plan.json"
 [[ -r $plan ]] || { echo 'No deployment plan: no Sentry deploy marker'; exit 0; }
-cli=(npx --yes @sentry/cli@3.8.2)
+cli=("$(bash "$(dirname "${BASH_SOURCE[0]}")/sentry-cli.sh")")
 mark() {
   local project=$1 sha=$2 version release
   [[ $sha =~ ^[a-f0-9]{40}$ ]] || return 64

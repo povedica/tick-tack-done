@@ -44,12 +44,19 @@ it('visibilitychange without a day change does not re-render YearBoard', async (
     expect(client.getQueryState(['me'])?.status).toBe('success');
     expect(document.querySelectorAll('.year-card')).toHaveLength(12);
   });
-  await act(async () => {
-    await new Promise((resolve) => {
-      setTimeout(resolve, 30);
+  // The idle reveal (setTimeout when requestIdleCallback is missing) must finish
+  // before the sample. Counting too early attributes that paint to visibilitychange.
+  let settled = 0;
+  await waitFor(async () => {
+    const seen = renders;
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 40);
+      });
     });
+    expect(renders).toBe(seen);
+    settled = seen;
   });
-  const settled = renders;
   expect(settled).toBeGreaterThan(0);
   await act(async () => {
     document.dispatchEvent(new Event('visibilitychange'));

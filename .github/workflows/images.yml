@@ -209,8 +209,32 @@ jobs:
           cache-to: |
             type=gha,mode=max,scope=web-${{ matrix.suffix }}
             type=local,dest=${{ runner.temp }}/web-build-cache,mode=max
+      - name: Allow the Sentry token only on main or a tag of main
+        id: sentry-ref
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          set -uo pipefail
+          ok=false
+          if [[ $GITHUB_REF == refs/heads/main ]]; then
+            ok=true
+          elif [[ $GITHUB_REF == refs/tags/v* ]]; then
+            git fetch --no-tags origin main >/dev/null 2>&1 || true
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main >/dev/null 2>&1; then
+              git fetch --no-tags --unshallow origin >/dev/null 2>&1 || true
+              git fetch --no-tags origin main >/dev/null 2>&1 || true
+            fi
+            if git merge-base --is-ancestor "$GITHUB_SHA" origin/main >/dev/null 2>&1; then
+              ok=true
+            else
+              echo '::warning::Tag commit is not on main; source maps will not be uploaded'
+            fi
+          else
+            echo '::warning::Source map upload is limited to main and to tags of main'
+          fi
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
       - name: Upload web source maps to Sentry
-        if: steps.existing.outputs.exists != 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository))
+        if: steps.existing.outputs.exists != 'true' && steps.sentry-ref.outputs.ok == 'true'
+        continue-on-error: true
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
@@ -223,17 +247,19 @@ jobs:
           MAPS: ${{ runner.temp }}/web-sourcemaps
           CACHE: ${{ runner.temp }}/web-build-cache
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          warn() {
+            echo "::warning::$1"
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
+          }
           if [[ -z ${SENTRY_AUTH_TOKEN:-} ]]; then
             echo 'SENTRY_AUTH_TOKEN absent: web source maps not uploaded' | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          fail() {
-            echo "::warning::$1"
-            echo "$1" >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          }
-          [[ -d $CACHE ]] || fail 'Web build cache missing; source maps were not taken from the image build'
+          if [[ ! -d ${CACHE:-} ]]; then
+            warn 'Web build cache missing; source maps were not taken from the image build'
+            exit 0
+          fi
           if ! log=$(docker buildx build --file apps/web/Dockerfile --target sourcemaps \
             --build-arg "GIT_COMMIT=$WEB_SHA" --build-arg "BUILD_TIME=$BUILD_TIME" \
             --build-arg "VITE_RECAPTCHA_SITE_KEY=$RECAPTCHA" --build-arg "VITE_SENTRY_DSN=$VITE_SENTRY_DSN" \
@@ -241,18 +267,22 @@ jobs:
             --cache-from "type=local,src=$CACHE" \
             --output "type=local,dest=$MAPS" --progress=plain . 2>&1); then
             printf '%s\n' "$log"
-            fail 'Web source map export failed'
+            warn 'Web source map export failed'
+            exit 0
           fi
           printf '%s\n' "$log"
-          python3 -c 'import sys; log=sys.stdin.read(); i=log.find("split-sourcemaps"); window=log[i:i+500] if i>=0 else ""; sys.exit(0 if i>=0 and "CACHED" in window else 1)' <<<"$log" \
-            || fail 'Source maps were rebuilt instead of reused from the image build'
+          if ! python3 -c 'import sys; log=sys.stdin.read(); i=log.find("split-sourcemaps"); window=log[i:i+500] if i>=0 else ""; sys.exit(0 if i>=0 and "CACHED" in window else 1)' <<<"$log"; then
+            warn 'Source maps were rebuilt instead of reused from the image build'
+            exit 0
+          fi
+          cli=$(bash deploy/lib/sentry-cli.sh) || { warn 'sentry-cli checksum did not match'; exit 0; }
           release="ttd-web@$(jq -r .version apps/web/package.json)+${WEB_SHA:0:7}"
-          npx --yes @sentry/cli@3.8.2 releases new "$release" --org "$SENTRY_ORG" --project ttd-web \
-            || fail 'Web source map upload failed'
+          "$cli" releases new "$release" --org "$SENTRY_ORG" --project ttd-web \
+            || { warn 'Web source map upload failed'; exit 0; }
           # shellcheck disable=SC2088 # '~/' is Sentry's any-host URL prefix, not a path.
-          npx --yes @sentry/cli@3.8.2 sourcemaps upload --org "$SENTRY_ORG" --project ttd-web \
+          "$cli" sourcemaps upload --org "$SENTRY_ORG" --project ttd-web \
             --release "$release" --url-prefix '~/' "$MAPS" \
-            || fail 'Web source map upload failed'
+            || { warn 'Web source map upload failed'; exit 0; }
           rm -rf "$MAPS"
       - name: Smoke published web
         env:

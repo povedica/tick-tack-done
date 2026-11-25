@@ -103,6 +103,12 @@ running_web=$(current_image "$web")
 changed=()
 if $runtime_changed || [[ $API_IMAGE != "$running_api" ]]; then changed+=("$api"); fi
 if $runtime_changed || [[ $WEB_IMAGE != "$running_web" ]]; then changed+=("$web"); fi
+# DEPLOY_SHA is the deployment, one value for both processes. Recreate the API
+# even when only the web image changed, so it does not keep the previous SHA.
+if [[ -n ${DEPLOY_SHA:-} ]]; then
+  [[ " ${changed[*]-} " == *" ${api} "* ]] || changed+=("$api")
+  [[ " ${changed[*]-} " == *" ${web} "* ]] || changed+=("$web")
+fi
 if ! $build && [[ ${#changed[@]} -gt 0 ]]; then compose pull "${changed[@]}"; fi
 image_commit() {
   docker image inspect "$1" --format '{{json .Config.Env}}' | jq -r '.[] | select(startswith("GIT_COMMIT=")) | sub("^GIT_COMMIT="; "")'

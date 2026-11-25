@@ -55,24 +55,26 @@ export function YearBoard({
   const shownKey = shown.join(',');
   const paintToken = `${String(year)}:${shownKey}:${String(focusMonth)}`;
   const immediate = firstPaintMonths(shown, focusMonth);
-  // Without requestIdleCallback the full year is the first paint. A 1ms timeout
-  // races the me-query snapshot and commits one extra render, which the
-  // visibility test then counts as a day change.
-  const idlePaint = typeof requestIdleCallback === 'function';
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   useEffect(() => {
-    if (!idlePaint || immediate.length === shown.length) {
+    if (immediate.length === shown.length) {
       return;
     }
     const reveal = (): void => {
       setRevealedToken(paintToken);
     };
-    const id = requestIdleCallback(reveal, { timeout: 400 });
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(reveal, { timeout: 400 });
+      return () => {
+        cancelIdleCallback(id);
+      };
+    }
+    const timer = setTimeout(reveal, 1);
     return () => {
-      cancelIdleCallback(id);
+      clearTimeout(timer);
     };
-  }, [idlePaint, immediate.length, paintToken, shown.length]);
-  const painted = !idlePaint || revealedToken === paintToken ? shown : immediate;
+  }, [immediate.length, paintToken, shown.length]);
+  const painted = revealedToken === paintToken ? shown : immediate;
   const showWeekNumbers = shown.length === 3;
   const monthName = useMemo(() => dateTimeFormat(locale, { month: 'long' }), [locale]);
   const whenFormat = useMemo(
