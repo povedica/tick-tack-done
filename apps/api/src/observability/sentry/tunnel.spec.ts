@@ -62,10 +62,13 @@ async function fakeSentry(): Promise<{ dsn: string; received: Received[] }> {
   return { dsn: `http://webkey@127.0.0.1:${String(port)}/42`, received };
 }
 
-async function startApp(env: Record<string, string>): Promise<SuperTestApp> {
+async function startApp(
+  env: Record<string, string>,
+  limits?: { readonly global?: number },
+): Promise<SuperTestApp> {
   const moduleRef = await Test.createTestingModule({
     controllers: [SentryTunnelController, OAuthTokenStub],
-    providers: [{ provide: SentryTunnel, useValue: new SentryTunnel(env) }],
+    providers: [{ provide: SentryTunnel, useValue: new SentryTunnel(env, Date.now, limits) }],
   }).compile();
   app = moduleRef.createNestApplication({ logger: false });
   configureApp(app);
@@ -160,6 +163,18 @@ describe('Sentry tunnel (#209)', () => {
     const limited = await post(server, envelope(sentry.dsn)).expect(429);
     expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
     expect(sentry.received).toHaveLength(30);
+  });
+
+  it('rate limits the tunnel globally as well as per IP', async () => {
+    const sentry = await fakeSentry();
+    const server = await startApp(
+      { SENTRY_TUNNEL_ENABLED: 'true', SENTRY_WEB_DSN: sentry.dsn },
+      { global: 2 },
+    );
+    await post(server, envelope(sentry.dsn)).expect(200);
+    await post(server, envelope(sentry.dsn)).expect(200);
+    await post(server, envelope(sentry.dsn)).expect(429);
+    expect(sentry.received).toHaveLength(2);
   });
 
   it('leaves oauthEdgeMiddleware aliases and ChatGPT CORS intact', async () => {

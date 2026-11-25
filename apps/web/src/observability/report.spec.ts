@@ -85,4 +85,12 @@ describe('error reporting shim (#209)', () => {
     expect(client.capture).toHaveBeenCalledWith(expect.any(Error), 'window');
     uninstall();
   });
+
+  it('deploy_sha is the deployment SHA, the same tag the API sends', async () => {
+    vi.stubEnv('VITE_SENTRY_DSN', 'https://webkey@o0.ingest.de.sentry.io/2');
+    (globalThis as { __DEPLOY_SHA__?: string }).__DEPLOY_SHA__ = '0123456789abcdef0123456789abcdef';
+    const { reporterConfig } = await load();
+    expect(reporterConfig()?.deploySha).toBe('0123456');
+    delete (globalThis as { __DEPLOY_SHA__?: string }).__DEPLOY_SHA__;
+  });
 });

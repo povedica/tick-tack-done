@@ -12,9 +12,8 @@ const reported = new WeakSet();
 export function reporterConfig(): ReporterConfig | null {
   const dsn = import.meta.env.VITE_SENTRY_DSN?.trim() ?? '';
   if (dsn.length === 0) return null;
-  const commit = typeof __APP_COMMIT__ === 'string' ? __APP_COMMIT__ : 'unknown';
   const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
-  const sha = /^[a-f0-9]{7,40}$/i.test(commit) ? commit.slice(0, 7) : 'unknown';
+  const sha = deploySha();
   const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT?.trim() ?? '';
   return {
     dsn,
@@ -65,6 +64,24 @@ export function installErrorReporting(): () => void {
   return () => {
     window.removeEventListener('error', onError);
   };
+}
+
+/**
+ * Same value and tag name as the API (`deploy_sha`): the deployment SHA when the
+ * entrypoint published it, otherwise the build commit. `sha7` matches the API.
+ */
+export function deploySha(): string {
+  const runtime = (globalThis as { __DEPLOY_SHA__?: unknown }).__DEPLOY_SHA__;
+  if (typeof runtime === 'string') {
+    const published = sha7(runtime);
+    if (published !== 'unknown') return published;
+  }
+  const commit = typeof __APP_COMMIT__ === 'string' ? __APP_COMMIT__ : undefined;
+  return sha7(commit);
+}
+
+function sha7(value: string | undefined): string {
+  return value !== undefined && /^[a-f0-9]{7,40}$/i.test(value) ? value.slice(0, 7) : 'unknown';
 }
 
 function worthReporting(error: unknown): boolean {

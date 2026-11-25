@@ -1,4 +1,5 @@
 import type { Breadcrumb, ErrorEvent, Event, Exception, StackFrame } from '@sentry/react';
+import { routeTemplate } from '../route-templates';
 
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -37,11 +38,14 @@ export function safePath(raw: string, origin = currentOrigin()): string {
   if (url.origin !== origin) {
     return '[external]';
   }
-  return url.pathname
-    .replace(TOKEN_PATHS, '/$1/:token')
-    .replace(UUID, ':id')
-    .replace(NUMERIC, '/:n')
-    .replace(EMAIL, '[email]');
+  return (
+    routeTemplate(url.pathname) ??
+    url.pathname
+      .replace(TOKEN_PATHS, '/$1/:token')
+      .replace(UUID, ':id')
+      .replace(NUMERIC, '/:n')
+      .replace(EMAIL, '[email]')
+  );
 }
 
 /** Same-origin bundle URLs keep their path for source maps. Anything else is dropped. */

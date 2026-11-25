@@ -8,6 +8,8 @@ export const TUNNEL_PATH = '/api/v1/sentry-tunnel';
 export const TUNNEL_MAX_BYTES = 64 * 1024;
 const RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 60_000;
+/** Shared ceiling so many clients cannot multiply the per-IP allowance. */
+export const TUNNEL_GLOBAL_LIMIT = 300;
 
 type Env = Readonly<Record<string, string | undefined>>;
 
@@ -34,10 +36,20 @@ type Outcome =
 export class SentryTunnel {
   private readonly settings: TunnelSettings | null;
   private readonly limiter: SlidingWindowRateLimit;
+  private readonly globalLimiter: SlidingWindowRateLimit;
 
-  constructor(env: Env = process.env, now: () => number = Date.now) {
+  constructor(
+    env: Env = process.env,
+    now: () => number = Date.now,
+    limits?: { readonly perIp?: number; readonly global?: number },
+  ) {
     this.settings = tunnelSettings(env);
-    this.limiter = new SlidingWindowRateLimit(RATE_LIMIT, RATE_WINDOW_MS, now);
+    this.limiter = new SlidingWindowRateLimit(limits?.perIp ?? RATE_LIMIT, RATE_WINDOW_MS, now);
+    this.globalLimiter = new SlidingWindowRateLimit(
+      limits?.global ?? TUNNEL_GLOBAL_LIMIT,
+      RATE_WINDOW_MS,
+      now,
+    );
   }
 
   async handle(req: Request, res: Response): Promise<void> {
@@ -66,11 +78,16 @@ export class SentryTunnel {
       req.resume();
       return { kind: 'drop' };
     }
-    const decision = this.limiter.consume(req.ip ?? 'unknown');
-    if (!decision.allowed) {
+    const ip = req.ip ?? 'unknown';
+    const globalDecision = this.globalLimiter.peek('tunnel');
+    const ipDecision = this.limiter.peek(ip);
+    if (!globalDecision.allowed || !ipDecision.allowed) {
       req.resume();
+      const decision = globalDecision.allowed ? ipDecision : globalDecision;
       return { kind: 'reject', status: 429, retryAfter: decision.retryAfter };
     }
+    this.globalLimiter.consume('tunnel');
+    this.limiter.consume(ip);
     const declared = Number(req.header('content-length') ?? 'NaN');
     if (Number.isFinite(declared) && declared > TUNNEL_MAX_BYTES) {
       req.resume();

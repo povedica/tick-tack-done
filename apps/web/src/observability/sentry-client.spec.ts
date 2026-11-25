@@ -126,6 +126,23 @@ describe('web Sentry client (#209)', () => {
     expect(crumbs[1]?.message).toBe('/public/lists/:token -> /search');
   });
 
+  it('masks /s/:token in the route tag and in breadcrumbs', async () => {
+    window.history.replaceState(null, '', `/s/${TRAP.pat}`);
+    const { reporter, raw } = start();
+    addBreadcrumb({
+      category: 'navigation',
+      data: { from: `/s/${TRAP.pat}`, to: '/today' },
+    });
+    reporter.capture(new Error('public list failed'), 'react');
+    await settle();
+    const serialized = raw.join('\n');
+    for (const marker of FORBIDDEN) expect(serialized).not.toContain(marker);
+    const [event] = events(raw);
+    expect(event?.tags).toMatchObject({ route: '/s/:token' });
+    const crumbs = event?.breadcrumbs as { message: string }[];
+    expect(crumbs.map((crumb) => crumb.message)).toContain('/s/:token -> /today');
+  });
+
   it('throttle: 3 per fingerprint and 10 per session', async () => {
     const { reporter, raw } = start();
     for (let index = 0; index < 5; index += 1) reporter.capture(new Error('same bug'), 'action');
