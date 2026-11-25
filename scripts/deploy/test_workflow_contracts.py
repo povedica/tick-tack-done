@@ -30,13 +30,20 @@ class WorkflowContracts(unittest.TestCase):
         self.assertIn("outputs.environment == 'production'", production)
 
     def test_production_push_does_not_build_or_run_ci_or_security(self):
-        for name in ('images.yml', 'ci.yml', 'security.yml'):
+        for name in ('ci.yml', 'security.yml'):
             with self.subTest(workflow=name):
                 triggers = workflow(name).split('\njobs:', 1)[0]
                 push = re.search(r'^  push:\n((?:    .*\n)+)', triggers,
                                  re.MULTILINE).group(1)
                 self.assertRegex(push, r'branches: \[main\]')
                 self.assertNotIn('production', push)
+        images = workflow('images.yml').split('\njobs:', 1)[0]
+        self.assertNotIn('production', images)
+        push = re.search(r'^  push:\n((?:    .*\n)+)', images, re.MULTILINE).group(1)
+        self.assertNotIn('branches:', push)
+        self.assertIn("tags: ['v*']", push)
+        self.assertIn('workflows: [CI]', images)
+        self.assertIn('types: [completed]', images)
 
     def test_deployment_cannot_build_or_publish_images(self):
         deploy = workflow('_deploy.yml')
@@ -69,27 +76,18 @@ class WorkflowContracts(unittest.TestCase):
                     else:
                         self.assertNotIn(key, result.stdout + result.stderr)
 
-    def test_images_accepts_dispatch_on_main_but_ci_still_requires_push(self):
+    def test_images_preflight_uses_the_plan_sha_for_workflow_run(self):
         deploy = workflow('_deploy.yml')
-        ci_query, image_queries = deploy.split('          if [[ -z "$IMAGE_RUN" ]]', 1)
-        self.assertIn('.head_branch == "main" and .event == "push"', ci_query)
-        queries = re.findall(r"--jq '([^']+)'", image_queries)
-        lookup = queries[0]
-        validation = re.search(r"jq -e --arg sha \"\$TARGET\" '([^']+)'", image_queries).group(1)
-        for event in ('push', 'workflow_dispatch', 'pull_request'):
-            for branch in ('main', 'production'):
-                for conclusion in ('success', 'failure'):
-                    with self.subTest(event=event, branch=branch, conclusion=conclusion):
-                        run = dict(id=123, head_sha='a' * 40, head_branch=branch,
-                                   event=event, conclusion=conclusion)
-                        expected = branch == 'main' and event in ('push', 'workflow_dispatch') and conclusion == 'success'
-                        # Lookup endpoint is already filtered by status=success.
-                        found = subprocess.check_output(['jq', '-r', lookup], text=True,
-                                                       input=json.dumps({'workflow_runs': [run] if conclusion == 'success' else []})).strip()
-                        checked = subprocess.run(['jq', '-e', '--arg', 'sha', 'a' * 40, validation],
-                                                 input=json.dumps(run), text=True, capture_output=True)
-                        self.assertEqual(found == '123', expected)
-                        self.assertEqual(checked.returncode == 0, expected)
+        for command in ('staging-ci', 'production-ci', 'find-images', 'verify-images'):
+            self.assertIn(f'release_preflight.py {command}', deploy)
+        self.assertIn("[[ \"$ENVIRONMENT\" == production ]]", deploy)
+        self.assertNotIn('.event == "push" or .event == "workflow_dispatch"', deploy)
+        images = workflow('images.yml')
+        self.assertIn('env.SOURCE_SHA', images)
+        self.assertIn("jq -n --arg sha \"$SOURCE_SHA\"", images)
+        caller = workflow('deploy.yml')
+        self.assertIn("jq -er '.sha'", caller)
+        self.assertIn('workflow_run.head_sha', caller)
 
 
 class PreMigrationBackupContracts(unittest.TestCase):

@@ -62,8 +62,16 @@ jobs:
           EVENT: ${{ github.event_name }}
           TARGET: ${{ github.event.workflow_run.head_sha || (github.event_name == 'push' && github.sha) || inputs.sha }}
           ENVIRONMENT: ${{ github.event_name == 'workflow_run' && 'staging' || (github.event_name == 'push' && 'production') || inputs.environment }}
+          IMAGE_RUN: ${{ github.event.workflow_run.id }}
         run: |
           fail() { echo "::error::$*"; exit 1; }
+          # Images triggered by CI's workflow_run records the default-branch tip as
+          # its own head_sha. The commit CI tested is plan.sha.
+          if [[ "$EVENT" == workflow_run ]]; then
+            mkdir -p "$RUNNER_TEMP/plan"
+            gh run download "$IMAGE_RUN" --repo "$GITHUB_REPOSITORY" --name deployment-plan --dir "$RUNNER_TEMP/plan"
+            TARGET=$(jq -er '.sha' "$RUNNER_TEMP/plan/plan.json")
+          fi
           if [[ "$EVENT" == workflow_dispatch ]]; then
             branch=main; [[ "$ENVIRONMENT" != production ]] || branch=production
             [[ "$GITHUB_REF" == "refs/heads/$branch" ]] || fail "Dispatch for $ENVIRONMENT must run from $branch"
