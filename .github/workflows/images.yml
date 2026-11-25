@@ -191,60 +191,24 @@ jobs:
             echo "::error::Missing $variable: configure it in Environment staging or as a repository variable before publishing the $SUFFIX web image."
             exit 1
           fi
-      - name: Build and publish the web image
+      - uses: docker/build-push-action@v7
         if: steps.existing.outputs.exists != 'true'
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          GIT_COMMIT: ${{ needs.changes.outputs.web_sha }}
-          BUILD_TIME: ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
-          VITE_RECAPTCHA_SITE_KEY: ${{ vars[matrix.suffix == 'prod' && 'VITE_RECAPTCHA_PRODUCTION_SITE_KEY' || 'VITE_RECAPTCHA_SITE_KEY'] }}
-          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
-          VITE_SENTRY_ENVIRONMENT: ${{ matrix.suffix == 'prod' && 'production' || 'staging' }}
-          SENTRY_SOURCEMAPS: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
-          CACHE_SCOPE: web-${{ matrix.suffix }}
-          MAPS: ${{ runner.temp }}/web-sourcemaps
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          tags = [line for line in os.environ["TAGS"].splitlines() if line]
-          args = {
-              "GIT_COMMIT": os.environ["GIT_COMMIT"],
-              "BUILD_TIME": os.environ.get("BUILD_TIME", ""),
-              "VITE_RECAPTCHA_SITE_KEY": os.environ.get("VITE_RECAPTCHA_SITE_KEY", ""),
-              "VITE_SENTRY_DSN": os.environ.get("VITE_SENTRY_DSN", ""),
-              "VITE_SENTRY_ENVIRONMENT": os.environ.get("VITE_SENTRY_ENVIRONMENT", ""),
-              "SENTRY_SOURCEMAPS": os.environ["SENTRY_SOURCEMAPS"],
-          }
-          scope = os.environ["CACHE_SCOPE"]
-          bake = {
-              "group": {"default": {"targets": ["runner", "sourcemaps"]}},
-              "target": {
-                  "runner": {
-                      "context": ".",
-                      "dockerfile": "apps/web/Dockerfile",
-                      "target": "runner",
-                      "tags": tags,
-                      "output": ["type=image,push=true"],
-                      "cache-from": [f"type=gha,scope={scope}"],
-                      "cache-to": [f"type=gha,mode=max,scope={scope}"],
-                      "args": args,
-                  },
-                  "sourcemaps": {
-                      "context": ".",
-                      "dockerfile": "apps/web/Dockerfile",
-                      "target": "sourcemaps",
-                      "output": [f"type=local,dest={os.environ['MAPS']}"],
-                      "args": args,
-                  },
-              },
-          }
-          path = os.path.join(os.environ["RUNNER_TEMP"], "web-bake.json")
-          with open(path, "w", encoding="utf-8") as handle:
-              json.dump(bake, handle)
-          PY
-          # One BuildKit graph: the pushed image and the maps share the build stage.
-          docker buildx bake --file "$RUNNER_TEMP/web-bake.json"
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            GIT_COMMIT=${{ needs.changes.outputs.web_sha }}
+            BUILD_TIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VITE_RECAPTCHA_SITE_KEY=${{ vars[matrix.suffix == 'prod' && 'VITE_RECAPTCHA_PRODUCTION_SITE_KEY' || 'VITE_RECAPTCHA_SITE_KEY'] }}
+            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
+            VITE_SENTRY_ENVIRONMENT=${{ matrix.suffix == 'prod' && 'production' || 'staging' }}
+            SENTRY_SOURCEMAPS=${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+          cache-from: type=gha,scope=web-${{ matrix.suffix }}
+          cache-to: |
+            type=gha,mode=max,scope=web-${{ matrix.suffix }}
+            type=local,dest=${{ runner.temp }}/web-build-cache,mode=max
       - name: Upload web source maps to Sentry
         if: steps.existing.outputs.exists != 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository))
         env:
@@ -252,7 +216,12 @@ jobs:
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_URL: ${{ vars.SENTRY_URL || 'https://de.sentry.io/' }}
           WEB_SHA: ${{ needs.changes.outputs.web_sha }}
+          BUILD_TIME: ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          RECAPTCHA: ${{ vars[matrix.suffix == 'prod' && 'VITE_RECAPTCHA_PRODUCTION_SITE_KEY' || 'VITE_RECAPTCHA_SITE_KEY'] }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: ${{ matrix.suffix == 'prod' && 'production' || 'staging' }}
           MAPS: ${{ runner.temp }}/web-sourcemaps
+          CACHE: ${{ runner.temp }}/web-build-cache
         run: |
           set -euo pipefail
           if [[ -z ${SENTRY_AUTH_TOKEN:-} ]]; then
@@ -260,16 +229,30 @@ jobs:
             exit 0
           fi
           fail() {
-            echo '::warning::Web source map upload failed'
-            echo 'Web source map upload failed.' >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::$1"
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           }
-          trap fail ERR
+          [[ -d $CACHE ]] || fail 'Web build cache missing; source maps were not taken from the image build'
+          if ! log=$(docker buildx build --file apps/web/Dockerfile --target sourcemaps \
+            --build-arg "GIT_COMMIT=$WEB_SHA" --build-arg "BUILD_TIME=$BUILD_TIME" \
+            --build-arg "VITE_RECAPTCHA_SITE_KEY=$RECAPTCHA" --build-arg "VITE_SENTRY_DSN=$VITE_SENTRY_DSN" \
+            --build-arg "VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT" --build-arg SENTRY_SOURCEMAPS=true \
+            --cache-from "type=local,src=$CACHE" \
+            --output "type=local,dest=$MAPS" --progress=plain . 2>&1); then
+            printf '%s\n' "$log"
+            fail 'Web source map export failed'
+          fi
+          printf '%s\n' "$log"
+          python3 -c 'import sys; log=sys.stdin.read(); i=log.find("split-sourcemaps"); window=log[i:i+500] if i>=0 else ""; sys.exit(0 if i>=0 and "CACHED" in window else 1)' <<<"$log" \
+            || fail 'Source maps were rebuilt instead of reused from the image build'
           release="ttd-web@$(jq -r .version apps/web/package.json)+${WEB_SHA:0:7}"
-          npx --yes @sentry/cli@3.8.2 releases new "$release" --org "$SENTRY_ORG" --project ttd-web
+          npx --yes @sentry/cli@3.8.2 releases new "$release" --org "$SENTRY_ORG" --project ttd-web \
+            || fail 'Web source map upload failed'
           # shellcheck disable=SC2088 # '~/' is Sentry's any-host URL prefix, not a path.
           npx --yes @sentry/cli@3.8.2 sourcemaps upload --org "$SENTRY_ORG" --project ttd-web \
-            --release "$release" --url-prefix '~/' "$MAPS"
+            --release "$release" --url-prefix '~/' "$MAPS" \
+            || fail 'Web source map upload failed'
           rm -rf "$MAPS"
       - name: Smoke published web
         env:
