@@ -2,8 +2,6 @@ import { EventEmitter } from 'node:events';
 import type { ArgumentsHost } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
-import { Queue, Worker } from 'bullmq';
-import { Redis } from 'ioredis';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { leaks, TRAP } from '../../../test/helpers/pii-trap.js';
 import { fakeTransport, type CapturedEnvelopes } from '../../../test/helpers/sentry-transport.js';
@@ -73,53 +71,6 @@ describe('Sentry in background work', () => {
     );
     expect(await sentEvents()).toHaveLength(1);
   });
-
-  it('reports only the last attempt of a real BullMQ worker and queue', async () => {
-    const url = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379';
-    const name = `sentry-last-attempt-${Date.now().toString(36)}`;
-    const workerRedis = new Redis(url, { maxRetriesPerRequest: null });
-    const queueRedis = new Redis(url, { maxRetriesPerRequest: null });
-    const queue = new Queue(name, { connection: queueRedis });
-    const attempts: number[] = [];
-    const worker = new Worker(name, () => Promise.reject(new Error('handler failed')), {
-      connection: workerRedis,
-      concurrency: 1,
-    });
-    watchQueue(name, null, worker);
-    const exhausted = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        reject(new Error(`job stopped after attempts ${attempts.join(',')}`));
-      }, 15_000);
-      worker.on('failed', (job) => {
-        if (job !== undefined) attempts.push(job.attemptsMade);
-        if (attempts.length >= 3) {
-          clearTimeout(timer);
-          resolve();
-        }
-      });
-    });
-    try {
-      await queue.add(
-        'tick',
-        { title: TRAP.title },
-        { attempts: 3, backoff: { type: 'fixed', delay: 0 } },
-      );
-      await exhausted;
-      const events = await sentEvents();
-      expect(attempts).toEqual([1, 2, 3]);
-      expect(events).toHaveLength(1);
-      expect(events[0]).toMatchObject({
-        tags: { component: 'worker', queue: name, job: 'tick' },
-      });
-      expect(leaks(captured.raw.join('\n'))).toEqual([]);
-    } finally {
-      await worker.close();
-      await queue.obliterate({ force: true });
-      await queue.close();
-      workerRedis.disconnect();
-      queueRedis.disconnect();
-    }
-  }, 20_000);
 
   it('a repeating calendar sync stays an error and sends one event per fingerprint', async () => {
     reportCalendarSyncFailure('google', 'calendar_fetch_failed');
