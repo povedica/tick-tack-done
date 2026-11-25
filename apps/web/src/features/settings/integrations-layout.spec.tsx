@@ -125,6 +125,10 @@ it('renders one row per service with labeled switches and a stopped mail chip', 
   expect(within(telegram).getByRole('switch', { name: /Avisos/ })).toBeTruthy();
   expect(within(mail).getByText('Parada')).toBeTruthy();
   expect(within(mail).getByRole('button', { name: 'Generar dirección' })).toBeTruthy();
+  const raycast = screen.getByRole('article', { name: 'Raycast (Mac)' });
+  expect(
+    within(raycast).getByRole('link', { name: 'Descargar extensión' }).getAttribute('href'),
+  ).toBe('/downloads/ttd-raycast.zip');
   expect(within(mail).queryByRole('button', { name: 'Más acciones' })).toBeNull();
 });
 

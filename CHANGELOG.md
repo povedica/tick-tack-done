@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## Extensión de Raycast
+
+- Un comando «Nueva tarea TTD» envía el texto a la API sin interpretarlo. El
+  token vive en las preferencias de Raycast y no se escribe en el repositorio.
+- Ajustes → Integraciones muestra la tarjeta «Raycast (Mac)» con la descarga
+  del código fuente, los tres pasos y el aviso de que es solo para Mac.
+
 ## Menú del tablero de proyectos
 
 - El menú «⋯» recupera fondo, sombra y separación, también al abrir el tablero
