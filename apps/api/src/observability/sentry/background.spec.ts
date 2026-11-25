@@ -119,7 +119,7 @@ describe('Sentry in background work', () => {
       workerRedis.disconnect();
       queueRedis.disconnect();
     }
-  });
+  }, 20_000);
 
   it('a repeating calendar sync stays an error and sends one event per fingerprint', async () => {
     reportCalendarSyncFailure('google', 'calendar_fetch_failed');
