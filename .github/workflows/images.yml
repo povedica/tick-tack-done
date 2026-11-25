@@ -58,6 +58,7 @@ jobs:
               - *common
               - 'apps/web/**'
               - 'packages/sdk/**'
+              - 'integrations/raycast/**'
       - name: Require main CI before making deployable images available
         if: github.event_name == 'push'
         env:

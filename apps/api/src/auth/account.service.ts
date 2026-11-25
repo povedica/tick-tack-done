@@ -10,6 +10,8 @@ import { EventRecorder } from '../events/event-recorder.js';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { renderPasswordChanged } from '../mail/templates/password-reset.js';
+import { renderAccountDeletion } from '../mail/templates/security-notice.js';
+import { mailLocale } from '../mail/templates/html.js';
 import { sendEmail } from '../mail/send-email.js';
 import { sendSecurityNotice } from '../security/security-mail.js';
 import { TotpService } from './totp.controller.js';
@@ -133,7 +135,7 @@ export class AccountService {
     }
     const row = await this.prisma.user.findFirst({
       where: { id: user.id, deletedAt: null },
-      select: { passwordHash: true, email: true },
+      select: { passwordHash: true, email: true, locale: true },
     });
     if (row?.passwordHash == null) {
       throw new DomainException(
@@ -154,11 +156,8 @@ export class AccountService {
       ...(dto.totp_code === undefined ? {} : { totp_code: dto.totp_code }),
       ...(dto.recovery_code === undefined ? {} : { recovery_code: dto.recovery_code }),
     });
-    await sendSecurityNotice(
-      row.email,
-      'Account deletion',
-      'Your account is being deleted. If this was not you, the deletion has already been confirmed with your password.',
-    );
+    const deletion = renderAccountDeletion({ locale: mailLocale(row.locale) });
+    await sendSecurityNotice(row.email, deletion.subject, deletion.text, deletion.html);
     await this.prisma.$transaction(async (tx) => {
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.accountDeleted,

@@ -33,6 +33,7 @@ for (const theme of ['light', 'dark'] as const) {
         await page.getByRole('option', { name: 'Etiqueta' }).click();
         await dialog.getByRole('button', { name: 'Añadir etiqueta…' }).click();
         await page.getByRole('checkbox', { name: 'casa' }).check();
+        await page.getByRole('checkbox', { name: 'claro', exact: true }).check();
         await page.keyboard.press('Escape');
         await dialog.getByRole('button', { name: 'Añadir condición' }).click();
         await page.getByRole('option', { name: 'Fecha' }).click();
@@ -81,6 +82,16 @@ for (const theme of ['light', 'dark'] as const) {
         });
         expect(Number.parseFloat(tagStyle.border)).toBe(0);
         expect(tagStyle.background).not.toBe('rgba(0, 0, 0, 0)');
+        const light = page.locator('.filter-view-rules .ui-tag', { hasText: /^claro$/ });
+        await expect(light).toBeVisible();
+        for (const chip of await page.locator('.filter-view-rules .ui-tag').all()) {
+          const name = (await chip.innerText()).trim();
+          const ratio = await chip.evaluate(chipSurfaceContrast);
+          console.log(
+            `chip-contrast ${theme} ${String(viewport.width)} ${name} ${ratio.toFixed(2)}`,
+          );
+          expect(ratio, `${name} on ${theme}`).toBeGreaterThanOrEqual(3);
+        }
         await page.screenshot({
           path: `e2e/__screenshots__/filters-view-chips-${theme}-${String(viewport.width)}.png`,
         });
@@ -460,6 +471,46 @@ async function expectContrast(locator: Locator): Promise<void> {
   expect(await locator.evaluate(renderedContrast)).toBeGreaterThanOrEqual(4.5);
 }
 
+/** WCAG 1.4.11: composited chip fill against the surface behind the chip. */
+function chipSurfaceContrast(node: Element): number {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 1;
+  const ctx = canvas.getContext('2d');
+  if (ctx === null) {
+    return 0;
+  }
+  const rgba = (color: string): number[] => {
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, 1, 1);
+    return [...ctx.getImageData(0, 0, 1, 1).data];
+  };
+  const blend = (color: number[], bg: number[]): number[] =>
+    color.slice(0, 3).map((channel, index) => {
+      const alpha = (color[3] ?? 0) / 255;
+      return channel * alpha + (bg[index] ?? 0) * (1 - alpha);
+    });
+  const layers: number[][] = [];
+  for (let current: Element | null = node.parentElement; current; current = current.parentElement) {
+    layers.unshift(rgba(getComputedStyle(current).backgroundColor));
+  }
+  let surface = [255, 255, 255];
+  for (const layer of layers) {
+    surface = blend(layer, surface);
+  }
+  const chip = blend(rgba(getComputedStyle(node).backgroundColor), surface);
+  const luminance = (color: number[]): number =>
+    color
+      .map((value) => {
+        const channel = value / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      })
+      .reduce((total, value, index) => total + value * [0.2126, 0.7152, 0.0722][index]!, 0);
+  const chipLum = luminance(chip);
+  const surfaceLum = luminance(surface);
+  return (Math.max(chipLum, surfaceLum) + 0.05) / (Math.min(chipLum, surfaceLum) + 0.05);
+}
+
 async function boot(page: Page, count = 0): Promise<void> {
   const filters: Array<Record<string, unknown>> = Array.from({ length: count }, (_, index) => ({
     id: `seed-${String(index + 1)}`,
@@ -500,7 +551,10 @@ async function boot(page: Page, count = 0): Promise<void> {
     }
     if (path === '/tags' && method === 'GET') {
       body = {
-        items: [{ id: 'tag-casa', name: 'casa', color: '#1F9D55' }],
+        items: [
+          { id: 'tag-casa', name: 'casa', color: '#1F9D55' },
+          { id: 'tag-claro', name: 'claro', color: '#FFF4CC' },
+        ],
         next_cursor: null,
       };
     }
@@ -555,7 +609,10 @@ async function boot(page: Page, count = 0): Promise<void> {
         mode: data.mode,
         rules: data.rules,
         task_count: 1,
-        tag_labels: { 'tag-casa': { name: 'casa', color: '#1F9D55', deleted: false } },
+        tag_labels: {
+          'tag-casa': { name: 'casa', color: '#1F9D55', deleted: false },
+          'tag-claro': { name: 'claro', color: '#FFF4CC', deleted: false },
+        },
       };
       filters.push(created);
       body = created;
@@ -722,8 +779,58 @@ async function expectMenuKeyboard(page: Page, trigger: Locator): Promise<void> {
 
 async function expectNamedControls(root: Locator): Promise<void> {
   const controls = root.locator('button, input, [role="radiogroup"], [role="group"]');
-  for (const control of await controls.all()) {
-    if (await control.isVisible()) await expect(control).toHaveAccessibleName(/\S/);
+  // Re-query each attempt. A one-shot isVisible() check races a remount: the
+  // hidden file input and the disabled composer button can report an empty
+  // accessible name for a frame even when aria-label is already set.
+  await expect
+    .poll(async () => {
+      const missing: string[] = [];
+      for (const control of await controls.all()) {
+        if (await isNotExposed(control)) continue;
+        const name = await readAccessibleName(control);
+        if (name === null || !/\S/.test(name)) missing.push(await describeControl(control));
+      }
+      return missing;
+    })
+    .toEqual([]);
+}
+
+async function isNotExposed(control: Locator): Promise<boolean> {
+  try {
+    if (!(await control.isVisible())) return true;
+    return await control.evaluate((node) => {
+      if (!(node instanceof Element)) return true;
+      if (node.closest('[hidden], [aria-hidden="true"]') !== null) return true;
+      if (node.getAttribute('type') === 'hidden') return true;
+      const style = getComputedStyle(node);
+      return style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0';
+    });
+  } catch {
+    return true;
+  }
+}
+
+async function readAccessibleName(control: Locator): Promise<string | null> {
+  try {
+    const snapshot = await control.ariaSnapshot({ timeout: 1_000 });
+    const line = snapshot.split('\n')[0] ?? '';
+    const match = /"((?:\\"|[^"])*)"/.exec(line);
+    return match?.[1]?.replaceAll('\\"', '"') ?? '';
+  } catch {
+    return null;
+  }
+}
+
+async function describeControl(control: Locator): Promise<string> {
+  try {
+    return await control.evaluate((node) => {
+      if (!(node instanceof Element)) return node.nodeName;
+      const type = node.getAttribute('type');
+      const label = node.getAttribute('aria-label');
+      return `${node.tagName.toLowerCase()}${type === null ? '' : `[type=${type}]`} aria-label=${label ?? ''}`;
+    });
+  } catch {
+    return 'detached control';
   }
 }
 

@@ -20,3 +20,6 @@ apps/*/e2e
 **/*.spec.ts
 **/*.e2e-spec.ts
 **/*.tsbuildinfo
+
+# The Raycast README is packed into the web image. Other Markdown stays out.
+!integrations/raycast/README.md
