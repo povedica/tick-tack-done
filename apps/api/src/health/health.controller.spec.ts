@@ -30,9 +30,9 @@ describe('HealthController', () => {
     expect(response.body).toMatchObject({
       status: 'ok',
       commit: 'unknown',
-      version: '0.2.0',
+      version: '0.3.0',
       built_at: 'unknown',
-      mcp_version: '0.2.0+unknown',
+      mcp_version: '0.3.0+unknown',
     });
     expect(response.headers['x-request-id']).toEqual(expect.any(String));
   });

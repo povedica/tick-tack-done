@@ -47,6 +47,11 @@ scripts/          backups (RF-1704), utilidades
 | `pnpm db:migrate` / `db:deploy` / `db:seed`    | Prisma                                           |
 | `pnpm backup` · `pnpm backup:verify`           | backup diario y prueba de restauración (RF-1704) |
 
+## Versión
+
+El número de versión y la forma de escribir el CHANGELOG están en
+[docs/VERSIONADO.md](docs/VERSIONADO.md). El historial está en [CHANGELOG.md](CHANGELOG.md).
+
 ## Despliegue
 
 Docker Compose + Caddy (HTTPS automático) en un VPS con Docker,
