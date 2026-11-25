@@ -11,6 +11,7 @@ import {
 import type { BrowserOptions } from '@sentry/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createReporter } from './sentry-client';
+import { scrubText } from './scrub';
 
 const TRAP = {
   email: 'trampa.usuario@example.test',
@@ -98,11 +99,11 @@ describe('web Sentry client (#209)', () => {
     const listName = 'Groceries';
     addBreadcrumb({
       category: 'navigation',
-      message: `Failed to load "/s/${share}" for list "${listName}" /s/${share}/${segment} pace m/s/2 file /assets/s/x.js`,
+      message: `Failed to load "/s/${share}" for list "${listName}" /s/${share}/${segment} todo.reflexionia.com/s/${share}/${segment} pace m/s/2 file /assets/s/x.js`,
       data: { from: `/public/lists/${TRAP.pat}`, to: `/search?q=${TRAP.email}` },
     });
     const error = new Error(
-      `Task "${TRAP.title}" failed for ${TRAP.email} with Bearer ${TRAP.pat} ${TRAP.oauth} ${TRAP.session}. Failed to load "/s/${share}" for list "${listName}" /s/${share}/${segment} pace m/s/2 file /assets/s/x.js`,
+      `Task "${TRAP.title}" failed for ${TRAP.email} with Bearer ${TRAP.pat} ${TRAP.oauth} ${TRAP.session}. Failed to load "/s/${share}" for list "${listName}" /s/${share}/${segment} todo.reflexionia.com/s/${share}/${segment} pace m/s/2 file /assets/s/x.js`,
     );
     const id = reporter.capture(error, 'react');
     await settle();
@@ -113,6 +114,7 @@ describe('web Sentry client (#209)', () => {
       expect(serialized).not.toContain(marker);
     }
     expect(serialized).toContain('/s/:token/*');
+    expect(serialized).toContain('todo.reflexionia.com/s/:token/*');
     expect(serialized).toContain('m/s/2');
     expect(serialized).toContain('/assets/s/x.js');
     const [event] = events(raw);
@@ -134,6 +136,7 @@ describe('web Sentry client (#209)', () => {
     expect(crumbs[0]?.message).toBe('POST /api/v1/tasks 500');
     expect(crumbs[1]?.message).toContain('/public/lists/:token -> /search');
     expect(crumbs[1]?.message).toContain('/s/:token/*');
+    expect(crumbs[1]?.message).toContain('todo.reflexionia.com/s/:token/*');
     expect(crumbs[1]?.message).toContain('m/s/2');
   });
 
@@ -272,5 +275,13 @@ describe('web Sentry client (#209)', () => {
     );
     await settle();
     expect(events(raw)).toHaveLength(0);
+  });
+
+  it('email scrubbing of 40000 characters without @ stays under 50ms', () => {
+    const text = 'a'.repeat(40_000);
+    const started = performance.now();
+    const clean = scrubText(text, 40_000);
+    expect(performance.now() - started).toBeLessThan(50);
+    expect(clean.startsWith('aaa')).toBe(true);
   });
 });

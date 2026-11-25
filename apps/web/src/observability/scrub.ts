@@ -2,18 +2,25 @@ import type { Breadcrumb, ErrorEvent, Event, Exception, StackFrame } from '@sent
 import { routeTemplate } from '../route-templates';
 
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
-const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const EMAIL = /[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]{1,253}\.[A-Z]{2,24}/gi;
 const TOKEN = /\brfx_[a-z]+_[A-Za-z0-9_-]+/g;
 const BEARER = /\bBearer\s+[^\s,;]+/gi;
 const SESSION = /__Host-rfx_session=[^\s;,]+/g;
 // Single quotes stay: engines quote property names that way ("reading 'title'").
 const QUOTED = /"[^"\n]*"|«[^»\n]*»|“[^”\n]*”/g;
 // The token stops at a quote or a space. Anything after /s/<token>/ collapses,
-// so the next segment never leaves the browser. A letter before /s/ keeps
-// units and asset paths (`m/s/2`, `/assets/s/x.js`) intact.
+// so the next segment never leaves the browser. A schemeless host
+// (`todo.reflexionia.com/s/…`) counts; a letter before /s/ does not
+// (`m/s/2`, `/assets/s/x.js`).
 const SHARE_PATH =
-  /(?<![A-Za-z0-9])((?:https?:\/\/[^\s/"']+)?)\/s\/[A-Za-z0-9_-]+((?:\/[^/?#\s"'«»“”]+)*)/gi;
+  /(?<![A-Za-z0-9])((?:https?:\/\/[^\s/"']+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){1,8}[a-z]{2,24})?)\/s\/[A-Za-z0-9_-]+((?:\/[^/?#\s"'«»“”]+)*)/gi;
 const OTHER_TOKEN_PATHS = /\/(feeds|public\/lists)\/[^/?#\s"'«»“”]+/gi;
+
+/** No `@` means there is no address. Skipping the pattern avoids a quadratic scan. */
+function maskEmail(text: string): string {
+  if (!text.includes('@')) return text;
+  return text.replace(EMAIL, '[email]');
+}
 
 /** Masks secret path segments. `/s/<token>/…` becomes `/s/:token` or `/s/:token/*`. */
 function maskTokenPaths(text: string): string {
@@ -34,13 +41,13 @@ const KEPT_CRUMBS = new Set(['navigation', 'fetch', 'xhr']);
 
 /** Removes literals, secrets and identifiers from free text a user may have typed. */
 export function scrubText(text: string, max = 300): string {
-  const clean = maskTokenPaths(text)
-    .replace(QUOTED, '"…"')
-    .replace(SESSION, '[token]')
-    .replace(BEARER, 'Bearer [token]')
-    .replace(TOKEN, '[token]')
-    .replace(EMAIL, '[email]')
-    .replace(UUID, ':id');
+  const clean = maskEmail(
+    maskTokenPaths(text)
+      .replace(QUOTED, '"…"')
+      .replace(SESSION, '[token]')
+      .replace(BEARER, 'Bearer [token]')
+      .replace(TOKEN, '[token]'),
+  ).replace(UUID, ':id');
   return clean.length > max ? `${clean.slice(0, max)}…` : clean;
 }
 

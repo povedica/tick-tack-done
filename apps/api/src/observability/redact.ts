@@ -6,7 +6,7 @@
 export const MAX_MESSAGE_LENGTH = 300;
 const MAX_STACK_FRAMES = 25;
 
-const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+const EMAIL = /[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}/g;
 const RFX_TOKEN = /rfx_[a-z]+_[A-Za-z0-9_-]+/g;
 const BEARER = /\bBearer\s+[^\s"',;]+/gi;
 const SESSION_COOKIE = /__Host-rfx_session(=[^\s;"',]*)?/g;
@@ -26,17 +26,23 @@ export function safePath(raw: string): string {
   return maskTokenPaths(path).replace(UUID, ':id');
 }
 
+/** No `@` means there is no address. Skipping the pattern avoids a quadratic scan. */
+function maskEmail(text: string): string {
+  if (!text.includes('@')) return text;
+  return text.replace(EMAIL, '[email]');
+}
+
 /** Quoted literals in an error message are interpolated values (a title, a note): never kept. */
 const QUOTED = /"[^"\n]*"|«[^»\n]*»|“[^”\n]*”/g;
 
 export function scrubText(text: string, max = MAX_MESSAGE_LENGTH): string {
-  const scrubbed = maskTokenPaths(text)
-    .replace(QUOTED, '"…"')
-    .replace(SESSION_COOKIE, '[token]')
-    .replace(BEARER, 'Bearer [token]')
-    .replace(RFX_TOKEN, '[token]')
-    .replace(EMAIL, '[email]')
-    .replace(UUID, ':id');
+  const scrubbed = maskEmail(
+    maskTokenPaths(text)
+      .replace(QUOTED, '"…"')
+      .replace(SESSION_COOKIE, '[token]')
+      .replace(BEARER, 'Bearer [token]')
+      .replace(RFX_TOKEN, '[token]'),
+  ).replace(UUID, ':id');
   return scrubbed.length > max ? `${scrubbed.slice(0, max - 1)}…` : scrubbed;
 }
 
