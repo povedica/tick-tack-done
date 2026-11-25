@@ -2,7 +2,7 @@
 
 exports[`daily digest mail > renders sections, chips, a capped remainder and counters 1`] = `
 "<!DOCTYPE html>
-<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,7 +10,7 @@ exports[`daily digest mail > renders sections, chips, a capped remainder and cou
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Planifica tu día: 21 para hoy, 1 vencida</title>
-<!--[if mso]><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
 <style>
   :root { color-scheme: light dark; supported-color-schemes: light dark; }
   body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
@@ -248,7 +248,7 @@ exports[`daily digest mail > renders sections, chips, a capped remainder and cou
 </tr>
 <tr><td class="border" colspan="2" style="border-top:1px solid #e6e9f2;padding:12px 0 0 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:20px;"><a href="https://todo.reflexionia.com/today" class="accink" style="color:#3e60cd;font-weight:600;text-decoration:none;">y 2 más en Hoy &rarr;</a></td></tr>
 </table>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-wrap" style="margin-top:24px;"><tr><td class="btn" align="center" bgcolor="#3e60cd" style="background-color:#3e60cd;border-radius:10px;"><!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="https://todo.reflexionia.com/today" style="height:44px;v-text-anchor:middle;width:160px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">Abrir Hoy</center></v:roundrect><![endif]--><!--[if !mso]><!-- --><a href="https://todo.reflexionia.com/today" style="display:inline-block;padding:12px 24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Abrir Hoy</a><!--<![endif]--></td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-wrap" style="margin-top:24px;"><tr><td class="btn" align="center" bgcolor="#3e60cd" style="background-color:#3e60cd;border-radius:10px;"><!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" href="https://todo.reflexionia.com/today" style="height:44px;v-text-anchor:middle;width:160px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">Abrir Hoy</center></v:roundrect><![endif]--><!--[if !mso]><!-- --><a href="https://todo.reflexionia.com/today" style="display:inline-block;padding:12px 24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Abrir Hoy</a><!--<![endif]--></td></tr></table>
 </td></tr>
 <tr><td class="px" style="padding:20px 8px 8px 8px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
 <p class="ink2" style="margin:0 0 8px 0;color:#6b6b6b;">Recibes este correo porque tienes activado el resumen diario a las 07:00.</p>
@@ -273,28 +273,28 @@ Tienes 21 tareas para hoy y 1 vencida.
 Hoy: 4 tareas (~2 h) + 30 min de agenda, de 8 h de jornada.
 
 Vencidas (1)
-- Ayer · Revisar presupuesto · Prioridad alta · Trabajo · review
+- Ayer · Revisar presupuesto · Prioridad alta · Trabajo · review https://todo.reflexionia.com/task/t_overdue
 
 Hoy (21)
-- Todo el día · Cumpleaños · Personal · familia
-- 09:30 · Daily <equipo> #extra · Trabajo · reunión
-- 10:00 – 11:30 · Preparar demo · Prioridad baja · Trabajo · foco
-- 16:00 · Tarea 0
-- 16:00 · Tarea 1
-- 16:00 · Tarea 2
-- 16:00 · Tarea 3
-- 16:00 · Tarea 4
-- 16:00 · Tarea 5
-- 16:00 · Tarea 6
-- 16:00 · Tarea 7
-- 16:00 · Tarea 8
-- 16:00 · Tarea 9
-- 16:00 · Tarea 10
-- 16:00 · Tarea 11
-- 16:00 · Tarea 12
-- 16:00 · Tarea 13
-- 16:00 · Tarea 14
-- 16:00 · Tarea 15
+- Todo el día · Cumpleaños · Personal · familia https://todo.reflexionia.com/task/t_day
+- 09:30 · Daily <equipo> #extra · Trabajo · reunión https://todo.reflexionia.com/task/t_time
+- 10:00 – 11:30 · Preparar demo · Prioridad baja · Trabajo · foco https://todo.reflexionia.com/task/t_range
+- 16:00 · Tarea 0 https://todo.reflexionia.com/task/t_more_0
+- 16:00 · Tarea 1 https://todo.reflexionia.com/task/t_more_1
+- 16:00 · Tarea 2 https://todo.reflexionia.com/task/t_more_2
+- 16:00 · Tarea 3 https://todo.reflexionia.com/task/t_more_3
+- 16:00 · Tarea 4 https://todo.reflexionia.com/task/t_more_4
+- 16:00 · Tarea 5 https://todo.reflexionia.com/task/t_more_5
+- 16:00 · Tarea 6 https://todo.reflexionia.com/task/t_more_6
+- 16:00 · Tarea 7 https://todo.reflexionia.com/task/t_more_7
+- 16:00 · Tarea 8 https://todo.reflexionia.com/task/t_more_8
+- 16:00 · Tarea 9 https://todo.reflexionia.com/task/t_more_9
+- 16:00 · Tarea 10 https://todo.reflexionia.com/task/t_more_10
+- 16:00 · Tarea 11 https://todo.reflexionia.com/task/t_more_11
+- 16:00 · Tarea 12 https://todo.reflexionia.com/task/t_more_12
+- 16:00 · Tarea 13 https://todo.reflexionia.com/task/t_more_13
+- 16:00 · Tarea 14 https://todo.reflexionia.com/task/t_more_14
+- 16:00 · Tarea 15 https://todo.reflexionia.com/task/t_more_15
 
 y 2 más en Hoy: https://todo.reflexionia.com/today
 

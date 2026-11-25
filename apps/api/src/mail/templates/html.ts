@@ -12,6 +12,15 @@ export function mailLocale(value: string | null | undefined): MailLocale {
   return value?.toLowerCase().startsWith('en') === true ? 'en' : 'es';
 }
 
+/** Blank titles become a readable fallback so subjects and links keep their text. */
+export function displayTitle(title: string, locale: MailLocale): string {
+  const trimmed = title.trim();
+  if (trimmed.length > 0) {
+    return trimmed;
+  }
+  return locale === 'en' ? 'Untitled' : 'Sin título';
+}
+
 export function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -29,7 +38,7 @@ export function emailButton(url: string, label: string): string {
   return [
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-wrap" style="margin-top:24px;"><tr>',
     `<td class="btn" align="center" bgcolor="#3e60cd" style="background-color:#3e60cd;border-radius:10px;">`,
-    `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:44px;v-text-anchor:middle;width:${String(width)}px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">${safeLabel}</center></v:roundrect><![endif]-->`,
+    `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" href="${href}" style="height:44px;v-text-anchor:middle;width:${String(width)}px;" arcsize="20%" fillcolor="#3e60cd" stroke="f"><center style="color:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:15px;font-weight:bold;">${safeLabel}</center></v:roundrect><![endif]-->`,
     `<!--[if !mso]><!-- --><a href="${href}" style="display:inline-block;padding:12px 24px;font-family:${MAIL_FONT};font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">${safeLabel}</a><!--<![endif]-->`,
     '</td></tr></table>',
   ].join('');

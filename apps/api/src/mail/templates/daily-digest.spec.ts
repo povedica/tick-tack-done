@@ -86,6 +86,9 @@ describe('daily digest mail', () => {
     expect(mail.html).toContain('v:roundrect');
     expect(mail.html).toContain('a las 07:00');
     expect(mail.text).toContain('y 2 más en Hoy');
+    expect(mail.text).toContain(`${origin}/today`);
+    expect(mail.text).toContain(`${origin}/task/t_overdue`);
+    expect(mail.text).toContain(`${origin}/task/t_day`);
     expect(mail.text).toContain('Gestionar notificaciones');
     expect(mail.text).not.toContain('<html');
     expect(rendered.pushTitle).toBe('Planifica tu día');
@@ -127,5 +130,36 @@ describe('daily digest mail', () => {
     expect(mail.html).toContain('Open Today');
     expect(mail.text).toContain('Manage notifications');
     expect(mail.text).toContain('Yesterday');
+  });
+
+  it('shows day and month once an overdue task is older than six days', () => {
+    const { mail } = renderDailyDigest({
+      locale: 'es',
+      fireAt,
+      timeZone: zone,
+      origin,
+      tasks: [
+        {
+          id: 'old',
+          title: '#casa',
+          dueDate: '2026-11-10T08:00:00.000Z',
+          isAllDay: false,
+          timeZone: zone,
+          tags: [{ name: 'casa' }],
+        },
+        {
+          id: 'blank',
+          title: '   ',
+          dueDate: '2026-11-24T08:00:00.000Z',
+          isAllDay: false,
+          timeZone: zone,
+        },
+      ],
+    });
+    expect(mail.html).toContain('10 nov');
+    expect(mail.html).toContain('>#casa<');
+    expect(mail.html).toContain('Sin título');
+    expect(mail.text).toContain(`${origin}/task/old`);
+    expect(mail.text).toContain(`${origin}/task/blank`);
   });
 });

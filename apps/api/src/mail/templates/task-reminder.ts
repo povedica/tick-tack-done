@@ -1,6 +1,7 @@
 import type { Priority } from '@reflexionia/domain';
-import { titleWithoutKnownTags } from '@reflexionia/domain';
+import { titleForEmail } from '@reflexionia/domain';
 import {
+  displayTitle,
   emailButton,
   escapeHtml,
   MAIL_FONT,
@@ -36,7 +37,7 @@ export function renderTaskReminder(input: TaskReminderInput): RenderedMail {
   const tags = (input.tags ?? [])
     .map((tag) => ({ name: tag.name.trim() }))
     .filter((tag) => tag.name.length > 0);
-  const title = titleWithoutKnownTags(input.title, tags);
+  const title = displayTitle(titleForEmail(input.title, tags), locale);
   const priority = input.priority ?? 'none';
   const listName = input.listName?.trim() ? input.listName.trim() : null;
   const when = whenLabel(input, zone, locale);

@@ -108,6 +108,7 @@ export {
   DIGEST_TASK_LIMIT,
   buildDailyDigest,
   formatDailyDigest,
+  titleForEmail,
   titleWithoutKnownTags,
 } from './reminders/digest';
 export type { DailyDigestModel, DigestItem, DigestTag, DigestTask } from './reminders/digest';

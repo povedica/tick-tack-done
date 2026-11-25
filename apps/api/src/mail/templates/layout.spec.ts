@@ -23,6 +23,7 @@ describe('email layout', () => {
     expect(laid.html).toContain('>TickTackDone</td>');
     expect(laid.html).not.toContain('>ttd<');
     expect(laid.html).toContain('role="presentation"');
+    expect(laid.html).toContain('<o:PixelsPerInch>96</o:PixelsPerInch>');
     expect(laid.html).toContain('prefers-color-scheme: dark');
     expect(laid.html).toContain('[data-ogsc]');
     expect(laid.html).toContain(`${origin}/settings/notifications`);
@@ -41,6 +42,8 @@ describe('email layout', () => {
     expect(button).toContain('bgcolor="#3e60cd"');
     expect(button).toContain('fillcolor="#3e60cd"');
     expect(button).toContain('v:roundrect');
+    expect(button).toContain('xmlns:v="urn:schemas-microsoft-com:vml"');
+    expect(button).toContain('xmlns:o="urn:schemas-microsoft-com:office:office"');
     expect(button).toContain('<!--[if !mso]><!-- -->');
     expect(button).not.toContain('#4772FA');
   });

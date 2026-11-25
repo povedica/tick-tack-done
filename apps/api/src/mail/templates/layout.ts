@@ -61,7 +61,7 @@ export function renderEmailLayout(input: EmailLayoutInput): { html: string; text
   const open = input.locale === 'en' ? 'Open TickTackDone' : 'Abrir TickTackDone';
   const icon = `${origin}/apple-touch-icon.png`;
   const html = `<!DOCTYPE html>
-<html lang="${input.locale}" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="${input.locale}" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -69,7 +69,7 @@ export function renderEmailLayout(input: EmailLayoutInput): { html: string; text
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>${escapeHtml(input.documentTitle)}</title>
-<!--[if mso]><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><style>table,td,a,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
 <style>${DARK_CSS}</style>
 </head>
 <body class="bg" style="margin:0;padding:0;background-color:#f2f5fe;">

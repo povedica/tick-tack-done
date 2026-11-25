@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildDailyDigest, formatDailyDigest, titleWithoutKnownTags } from './digest';
+import {
+  buildDailyDigest,
+  formatDailyDigest,
+  titleForEmail,
+  titleWithoutKnownTags,
+} from './digest';
 
 const zone = 'Europe/Madrid';
 const morning = '2026-10-19T05:00:00.000Z';
@@ -56,6 +61,8 @@ describe('daily digest', () => {
       'Visitar #casamiento',
     );
     expect(titleWithoutKnownTags('Nota #c++', [{ name: 'c++' }])).toBe('Nota');
+    expect(titleForEmail('#casa', [{ name: 'casa' }])).toBe('#casa');
+    expect(titleForEmail('   ', [{ name: 'casa' }])).toBe('');
   });
 
   it('caps the email model at 20 and counts the rest', () => {
@@ -74,6 +81,10 @@ describe('daily digest', () => {
     expect(model.overdue).toHaveLength(0);
     expect(model.todayCount).toBe(21);
     expect(model.omitted).toBe(1);
+    expect(
+      buildDailyDigest({ now: morning, fireAt: morning, tasks: tasks.slice(0, 20), extra: 5 })
+        .omitted,
+    ).toBe(5);
     expect(model.today[0]?.title).toBe('Hoy 0');
     expect(formatDailyDigest({ now: morning, fireAt: morning, tasks })).toContain('Hoy 20');
   });

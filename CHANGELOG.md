@@ -9,7 +9,9 @@
   TickTackDone. El botón es azul oscuro para que se lea en Outlook.
 - El resumen diario lista hasta 20 tareas, con hora, lista, prioridad y
   etiquetas, y enlaza el resto a Hoy. El asunto cuenta las de hoy y las
-  vencidas.
+  vencidas. El texto plano lleva el enlace de cada tarea.
+- El correo se compone al enviarlo, con los datos de ese momento. Una tarea
+  que ya no existe no se manda.
 
 ## Permisos del token en tabla
 

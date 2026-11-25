@@ -40,6 +40,24 @@ describe('email bodies', () => {
     expect(mail.html).toContain('Ver tarea');
     expect(mail.html).toContain(`${origin}/task/t_demo09`);
     expect(mail.html).not.toContain('Posponer');
+    const blank = renderTaskReminder({
+      locale: 'es',
+      id: 't_blank',
+      title: '#casa',
+      tags: [{ name: 'casa' }],
+      now: '2026-11-25T06:00:00.000Z',
+      origin,
+    });
+    expect(blank.subject).toBe('Recordatorio: #casa');
+    const empty = renderTaskReminder({
+      locale: 'en',
+      id: 't_empty',
+      title: '   ',
+      now: '2026-11-25T06:00:00.000Z',
+      origin,
+    });
+    expect(empty.subject).toBe('Reminder: Untitled');
+    expect(empty.html).toContain('>Untitled<');
     expect(mail.html).toContain('bgcolor="#3e60cd"');
     expect(mail.text).toContain('Preguntar por el presupuesto');
     expect(mail.text).toContain('Gestionar notificaciones');
@@ -89,6 +107,24 @@ describe('email bodies', () => {
     expect(today.html).toContain('Es hoy.');
     expect(today.html).toContain(`${origin}/countdowns`);
     expect(later.subject).toBe('Trip: 3 days left');
+    const one = renderCountdownReminder({
+      locale: 'es',
+      title: 'Viaje',
+      kind: 'upcoming',
+      days: 1,
+      origin,
+    });
+    const oneEn = renderCountdownReminder({
+      locale: 'en',
+      title: 'Trip',
+      kind: 'upcoming',
+      days: 1,
+      origin,
+    });
+    expect(one.subject).toBe('Viaje: queda 1 día');
+    expect(one.html).toContain('Queda 1 día.');
+    expect(oneEn.subject).toBe('Trip: 1 day left');
+    expect(oneEn.html).toContain('1 day left.');
     expect(later.text).toContain('View countdown');
     expect(today.html).toMatchSnapshot();
   });

@@ -82,6 +82,8 @@ export function buildDailyDigest(input: {
   readonly now: string;
   readonly fireAt: string;
   readonly limit?: number | undefined;
+  /** Rows matched by the query but not included in `tasks` (the fetch is capped). */
+  readonly extra?: number | undefined;
 }): DailyDigestModel {
   const overdue: DigestItem[] = [];
   const today: DigestItem[] = [];
@@ -112,7 +114,12 @@ export function buildDailyDigest(input: {
   return {
     overdue: shownOverdue,
     today: shownToday,
-    omitted: overdue.length + today.length - shownOverdue.length - shownToday.length,
+    omitted:
+      overdue.length +
+      today.length -
+      shownOverdue.length -
+      shownToday.length +
+      Math.max(0, input.extra ?? 0),
     overdueCount: overdue.length,
     todayCount: today.length,
   };
@@ -122,6 +129,18 @@ export function buildDailyDigest(input: {
  * Drops `#tag` tokens whose name is already a TaskTag. Unknown hashtags stay in the title.
  * Matching is case-insensitive and does not eat a longer token (`#casa` keeps `#casamiento`).
  */
+/**
+ * Title shown in mail. Known tags are removed. If that leaves nothing, the original
+ * title is kept so a link is never empty. A blank source stays blank for the caller.
+ */
+export function titleForEmail(title: string, tags: readonly DigestTag[]): string {
+  const stripped = titleWithoutKnownTags(title, tags).trim();
+  if (stripped.length > 0) {
+    return stripped;
+  }
+  return title.trim();
+}
+
 export function titleWithoutKnownTags(title: string, tags: readonly DigestTag[]): string {
   const names = tags
     .map((tag) => tag.name.trim())
@@ -141,7 +160,7 @@ function toItem(task: DigestTask): DigestItem {
     .filter((tag) => tag.name.length > 0);
   return {
     id: task.id ?? null,
-    title: titleWithoutKnownTags(task.title, tags),
+    title: titleForEmail(task.title, tags),
     sourceTitle: task.title,
     dueDate: task.dueDate,
     startDate: task.startDate ?? null,

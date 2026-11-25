@@ -1,10 +1,18 @@
 import {
   buildDailyDigest,
+  civilDateKey,
   formatDailyDigest,
   type DigestItem,
   type DigestTask,
 } from '@reflexionia/domain';
-import { emailButton, escapeHtml, MAIL_FONT, type MailLocale, type RenderedMail } from './html.js';
+import {
+  displayTitle,
+  emailButton,
+  escapeHtml,
+  MAIL_FONT,
+  type MailLocale,
+  type RenderedMail,
+} from './html.js';
 import { mailOrigin, renderEmailLayout } from './layout.js';
 import { priorityBarColor, priorityMark } from './priority.js';
 import {
@@ -12,6 +20,7 @@ import {
   isLocalYesterday,
   isSameLocalDay,
   longDate,
+  monthDay,
   reminderClock,
   shortWeekday,
 } from './when.js';
@@ -24,6 +33,7 @@ export interface DailyDigestMailInput {
   readonly loadLine?: string | null | undefined;
   readonly reminderTime?: string | null | undefined;
   readonly origin?: string | undefined;
+  readonly extra?: number | undefined;
 }
 
 export interface DailyDigestRender {
@@ -39,12 +49,15 @@ export function renderDailyDigest(input: DailyDigestMailInput): DailyDigestRende
     tasks: input.tasks,
     now: input.fireAt,
     fireAt: input.fireAt,
+    ...(input.extra === undefined ? {} : { extra: input.extra }),
   });
-  const shown = [...model.overdue, ...model.today];
+  const locale = input.locale;
+  const overdue = model.overdue.map((item) => labelItem(item, locale));
+  const today = model.today.map((item) => labelItem(item, locale));
   const pushCore = formatDailyDigest({
     now: input.fireAt,
     fireAt: input.fireAt,
-    tasks: shown.map((item) => ({
+    tasks: [...model.overdue, ...model.today].map((item) => ({
       title: item.sourceTitle,
       dueDate: item.dueDate,
       startDate: item.startDate,
@@ -59,8 +72,8 @@ export function renderDailyDigest(input: DailyDigestMailInput): DailyDigestRende
   const dateLabel = longDate(input.fireAt, input.timeZone, input.locale) ?? '';
   const preheader = digestPreheader(
     input.locale,
-    model.overdue,
-    model.today,
+    overdue,
+    today,
     input.fireAt,
     model.overdueCount + model.todayCount,
   );
@@ -72,11 +85,12 @@ export function renderDailyDigest(input: DailyDigestMailInput): DailyDigestRende
     todayCount: model.todayCount,
     overdueCount: model.overdueCount,
     loadLine,
-    overdue: model.overdue,
-    today: model.today,
+    overdue,
+    today,
     omitted: model.omitted,
     fireAt: input.fireAt,
     todayUrl,
+    origin,
   });
   const bodyHtml = digestHtml({
     locale: input.locale,
@@ -85,8 +99,8 @@ export function renderDailyDigest(input: DailyDigestMailInput): DailyDigestRende
     todayCount: model.todayCount,
     overdueCount: model.overdueCount,
     loadLine,
-    overdue: model.overdue,
-    today: model.today,
+    overdue,
+    today,
     omitted: model.omitted,
     fireAt: input.fireAt,
     origin,
@@ -174,6 +188,7 @@ function digestText(input: {
   omitted: number;
   fireAt: string;
   todayUrl: string;
+  origin: string;
 }): string {
   const lines: string[] = [];
   if (input.dateLabel.length > 0) {
@@ -192,14 +207,16 @@ function digestText(input: {
       lines.push('', sectionText('overdue', input.locale, input.overdueCount));
       for (const item of input.overdue) {
         lines.push(
-          `- ${overdueWhen(item, input.fireAt, input.locale)} · ${itemLine(item, input.locale)}`,
+          `- ${overdueWhen(item, input.fireAt, input.locale)} · ${itemLine(item, input.locale, input.origin)}`,
         );
       }
     }
     if (input.today.length > 0) {
       lines.push('', sectionText('today', input.locale, input.todayCount));
       for (const item of input.today) {
-        lines.push(`- ${todayWhen(item, input.locale)} · ${itemLine(item, input.locale)}`);
+        lines.push(
+          `- ${todayWhen(item, input.locale)} · ${itemLine(item, input.locale, input.origin)}`,
+        );
       }
     }
     if (input.omitted > 0) {
@@ -384,7 +401,12 @@ function chipLine(tags: DigestItem['tags']): string {
   return `<div style="line-height:18px;">${chips}</div>`;
 }
 
-function itemLine(item: DigestItem, locale: MailLocale): string {
+function labelItem(item: DigestItem, locale: MailLocale): DigestItem {
+  const fromSource = item.title.trim().length > 0 ? item.title : item.sourceTitle;
+  return { ...item, title: displayTitle(fromSource, locale) };
+}
+
+function itemLine(item: DigestItem, locale: MailLocale, origin: string): string {
   const bits = [item.title];
   const mark = priorityMark(item.priority, locale);
   if (mark !== null) {
@@ -396,10 +418,29 @@ function itemLine(item: DigestItem, locale: MailLocale): string {
   if (item.tags.length > 0) {
     bits.push(item.tags.map((tag) => tag.name).join(', '));
   }
-  return bits.join(' · ');
+  const line = bits.join(' · ');
+  if (item.id === null || item.id.length === 0) {
+    return line;
+  }
+  return `${line} ${origin}/task/${item.id}`;
+}
+
+function ageInDays(dueIso: string, fireAt: string, timeZone: string): number | null {
+  const due = civilDateKey(dueIso, timeZone);
+  const fire = civilDateKey(fireAt, timeZone);
+  if (due === null || fire === null) {
+    return null;
+  }
+  const dueMs = Date.parse(`${due}T00:00:00.000Z`);
+  const fireMs = Date.parse(`${fire}T00:00:00.000Z`);
+  return Math.round((fireMs - dueMs) / 86_400_000);
 }
 
 function overdueWhen(item: DigestItem, fireAt: string, locale: MailLocale): string {
+  const age = ageInDays(item.dueDate, fireAt, item.timeZone);
+  if (age !== null && age > 6) {
+    return monthDay(item.dueDate, item.timeZone, locale) ?? '';
+  }
   if (isSameLocalDay(item.dueDate, fireAt, item.timeZone)) {
     return clockLabel(item.dueDate, item.timeZone) ?? (locale === 'en' ? 'Today' : 'Hoy');
   }

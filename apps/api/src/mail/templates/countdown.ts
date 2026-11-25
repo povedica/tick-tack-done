@@ -30,8 +30,12 @@ export function renderCountdownReminder(input: {
         ? `${input.title}: it's today`
         : `${input.title}: es hoy`
       : english
-        ? `${input.title}: ${String(input.days)} days left`
-        : `${input.title}: quedan ${String(input.days)} días`;
+        ? input.days === 1
+          ? `${input.title}: 1 day left`
+          : `${input.title}: ${String(input.days)} days left`
+        : input.days === 1
+          ? `${input.title}: queda 1 día`
+          : `${input.title}: quedan ${String(input.days)} días`;
   const eyebrow = english ? 'Countdown' : 'Cuenta atrás';
   const button = english ? 'View countdown' : 'Ver cuenta atrás';
   const bodyText = [eyebrow, input.title, '', detail, '', `${button}: ${url}`].join('\n');
