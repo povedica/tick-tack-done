@@ -5,6 +5,7 @@ import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { reportBackgroundFailure } from '../../observability/background-failure.js';
 import { patEventPrefixes, syncAndFilters } from '../sync/sync-visibility.js';
 
 /** RF-13013. SSE of bus events. The offline queue and delta sync stay. */
@@ -64,7 +65,11 @@ export class RealtimeController {
       return;
     }
     const timer = setInterval(() => {
-      void write();
+      void write().catch((error: unknown) => {
+        clearInterval(timer);
+        reportBackgroundFailure({ queue: 'realtime', job: 'stream' }, error);
+        res.end();
+      });
     }, 2000);
     req.on('close', () => {
       clearInterval(timer);

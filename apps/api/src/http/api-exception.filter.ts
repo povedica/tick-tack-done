@@ -11,6 +11,7 @@ import { MulterError } from 'multer';
 import { oauthChallenge } from '../auth/oauth-discovery.controller.js';
 import { isOauthProtocolPath, oauthErrorBody } from '../auth/oauth-error.js';
 import { describeError, maskTokenPaths, safePath, safeStack } from '../observability/redact.js';
+import { reportServerError, type ServerErrorContext } from '../observability/sentry/report.js';
 
 interface ApiErrorBody {
   error: {
@@ -89,6 +90,16 @@ function requestPath(host: ArgumentsHost): string {
 function requestId(response: Response): string | null {
   const value = response.getHeader('X-Request-Id');
   return typeof value === 'string' ? value : null;
+}
+
+function serverContext(host: ArgumentsHost, path: string, response: Response): ServerErrorContext {
+  const request = host.switchToHttp().getRequest<Request & { user?: { id?: unknown } }>();
+  const id = request.user?.id;
+  return {
+    route: `${request.method} ${path}`,
+    requestId: requestId(response),
+    userId: typeof id === 'string' ? id : null,
+  };
 }
 
 function transportStatus(error: unknown): number | null {
@@ -175,6 +186,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
       }
       const parts = errorParts(exception);
       this.sendApiError(response, path, exception.getStatus(), parts);
+      if (exception.getStatus() >= 500) {
+        reportServerError(exception, serverContext(host, path, response));
+      }
       return;
     }
     this.logger.error(
@@ -191,6 +205,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       message: 'Internal server error',
       details: null,
     });
+    reportServerError(exception, serverContext(host, path, response));
   }
 
   private sendApiError(
