@@ -202,8 +202,39 @@ jobs:
             GIT_COMMIT=${{ needs.changes.outputs.web_sha }}
             BUILD_TIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             VITE_RECAPTCHA_SITE_KEY=${{ vars[matrix.suffix == 'prod' && 'VITE_RECAPTCHA_PRODUCTION_SITE_KEY' || 'VITE_RECAPTCHA_SITE_KEY'] }}
+            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
+            VITE_SENTRY_ENVIRONMENT=${{ matrix.suffix == 'prod' && 'production' || 'staging' }}
+            SENTRY_SOURCEMAPS=${{ secrets.SENTRY_AUTH_TOKEN != '' }}
           cache-from: type=gha,scope=web-${{ matrix.suffix }}
           cache-to: type=gha,mode=max,scope=web-${{ matrix.suffix }}
+      # #209: isolated from the image steps. Same build args, so the builder cache returns the
+      # exact files baked into the image; the image itself never contains *.map.
+      - name: Upload web source maps to Sentry
+        if: steps.existing.outputs.exists != 'true'
+        continue-on-error: true
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_URL: ${{ vars.SENTRY_URL || 'https://de.sentry.io/' }}
+          WEB_SHA: ${{ needs.changes.outputs.web_sha }}
+          BUILD_TIME: ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          RECAPTCHA: ${{ vars[matrix.suffix == 'prod' && 'VITE_RECAPTCHA_PRODUCTION_SITE_KEY' || 'VITE_RECAPTCHA_SITE_KEY'] }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: ${{ matrix.suffix == 'prod' && 'production' || 'staging' }}
+        run: |
+          if [[ -z $SENTRY_AUTH_TOKEN ]]; then echo 'SENTRY_AUTH_TOKEN absent: web source maps not uploaded'; exit 0; fi
+          out="$RUNNER_TEMP/web-sourcemaps"
+          docker buildx build --file apps/web/Dockerfile --target sourcemaps \
+            --build-arg "GIT_COMMIT=$WEB_SHA" --build-arg "BUILD_TIME=$BUILD_TIME" \
+            --build-arg "VITE_RECAPTCHA_SITE_KEY=$RECAPTCHA" --build-arg "VITE_SENTRY_DSN=$VITE_SENTRY_DSN" \
+            --build-arg "VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT" --build-arg SENTRY_SOURCEMAPS=true \
+            --output "type=local,dest=$out" .
+          release="ttd-web@$(jq -r .version apps/web/package.json)+${WEB_SHA:0:7}"
+          npx --yes @sentry/cli@3.8.2 releases new "$release" --org "$SENTRY_ORG" --project ttd-web
+          # shellcheck disable=SC2088 # '~/' is Sentry's any-host URL prefix, not a path.
+          npx --yes @sentry/cli@3.8.2 sourcemaps upload --org "$SENTRY_ORG" --project ttd-web \
+            --release "$release" --url-prefix '~/' "$out"
+          rm -rf "$out"
       - name: Smoke published web
         env:
           IMAGE: ghcr.io/povedica/tick-tack-done-web:${{ needs.changes.outputs.web_sha }}-${{ matrix.suffix }}
