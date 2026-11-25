@@ -22,7 +22,7 @@ describe('realtime SSE', () => {
     const findMany = vi.fn().mockResolvedValueOnce([]).mockRejectedValueOnce(new Error('db down'));
     const controller = new RealtimeController({ outboxEvent: { findMany } } as never);
     const req = new EventEmitter();
-    const res = { flushHeaders(): void {}, write: vi.fn(), end: vi.fn() };
+    const res = { flushHeaders: vi.fn(), write: vi.fn(), end: vi.fn() };
 
     await controller.stream(user, undefined, undefined, req as never, res as never);
     expect(findMany).toHaveBeenCalledTimes(1);
