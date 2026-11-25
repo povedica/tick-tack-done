@@ -93,19 +93,28 @@ describe('web Sentry client (#209)', () => {
         request_body: TRAP.rawText,
       },
     });
+    const share = 'TRAMPAshare';
+    const segment = 'TRAMPAseg';
+    const listName = 'Groceries';
     addBreadcrumb({
       category: 'navigation',
+      message: `Failed to load "/s/${share}" for list "${listName}" /s/${share}/${segment} pace m/s/2 file /assets/s/x.js`,
       data: { from: `/public/lists/${TRAP.pat}`, to: `/search?q=${TRAP.email}` },
     });
     const error = new Error(
-      `Task "${TRAP.title}" failed for ${TRAP.email} with Bearer ${TRAP.pat} ${TRAP.oauth} ${TRAP.session}`,
+      `Task "${TRAP.title}" failed for ${TRAP.email} with Bearer ${TRAP.pat} ${TRAP.oauth} ${TRAP.session}. Failed to load "/s/${share}" for list "${listName}" /s/${share}/${segment} pace m/s/2 file /assets/s/x.js`,
     );
     const id = reporter.capture(error, 'react');
     await settle();
 
     expect(id).toMatch(/^[0-9a-f]{32}$/);
     const serialized = raw.join('\n');
-    for (const marker of FORBIDDEN) expect(serialized).not.toContain(marker);
+    for (const marker of [...FORBIDDEN, share, segment, listName]) {
+      expect(serialized).not.toContain(marker);
+    }
+    expect(serialized).toContain('/s/:token/*');
+    expect(serialized).toContain('m/s/2');
+    expect(serialized).toContain('/assets/s/x.js');
     const [event] = events(raw);
     expect(event).toBeDefined();
     expect(event?.release).toBe('ttd-web@0.3.0+abcdef1');
@@ -123,7 +132,9 @@ describe('web Sentry client (#209)', () => {
     const crumbs = event?.breadcrumbs as { category: string; message: string }[];
     expect(crumbs.map((crumb) => crumb.category)).toEqual(['fetch', 'navigation']);
     expect(crumbs[0]?.message).toBe('POST /api/v1/tasks 500');
-    expect(crumbs[1]?.message).toBe('/public/lists/:token -> /search');
+    expect(crumbs[1]?.message).toContain('/public/lists/:token -> /search');
+    expect(crumbs[1]?.message).toContain('/s/:token/*');
+    expect(crumbs[1]?.message).toContain('m/s/2');
   });
 
   it('masks /s/:token in the route tag and in breadcrumbs', async () => {
@@ -150,26 +161,29 @@ describe('web Sentry client (#209)', () => {
     await settle();
     const extra = events(raw).at(-1);
     expect(raw.join('\n')).not.toContain('TRAMPA');
-    expect(extra?.tags).toMatchObject({ route: '/s/:token/x' });
+    expect(extra?.tags).toMatchObject({ route: '/s/:token/*' });
     const extraCrumbs = extra?.breadcrumbs as { message: string }[];
-    expect(extraCrumbs.map((crumb) => crumb.message)).toContain('/s/:token/x -> /today');
+    expect(extraCrumbs.map((crumb) => crumb.message)).toContain('/s/:token/* -> /today');
   });
 
   it('masks /s/<token>/<segment> so the token is absent from the event', async () => {
     const token = 'TRAMPASEGMENT';
-    window.history.replaceState(null, '', `/s/${token}/items`);
+    const segment = 'TRAMPAseg';
+    window.history.replaceState(null, '', `/s/${token}/${segment}`);
     const { reporter, raw } = start();
     addBreadcrumb({
       category: 'navigation',
-      data: { from: `/s/${token}/items`, to: '/today' },
+      data: { from: `/s/${token}/${segment}`, to: '/today' },
     });
     reporter.capture(new Error('segment'), 'react');
     await settle();
-    expect(raw.join('\n')).not.toContain(token);
+    const serialized = raw.join('\n');
+    expect(serialized).not.toContain(token);
+    expect(serialized).not.toContain(segment);
     const [event] = events(raw);
-    expect(event?.tags).toMatchObject({ route: '/s/:token/items' });
+    expect(event?.tags).toMatchObject({ route: '/s/:token/*' });
     const crumbs = event?.breadcrumbs as { message: string }[];
-    expect(crumbs.map((crumb) => crumb.message)).toContain('/s/:token/items -> /today');
+    expect(crumbs.map((crumb) => crumb.message)).toContain('/s/:token/* -> /today');
   });
 
   it('masks /S/<token> regardless of case', async () => {
@@ -184,9 +198,9 @@ describe('web Sentry client (#209)', () => {
     await settle();
     expect(raw.join('\n')).not.toContain(token);
     const [event] = events(raw);
-    expect(event?.tags).toMatchObject({ route: '/s/:token/items' });
+    expect(event?.tags).toMatchObject({ route: '/s/:token/*' });
     const crumbs = event?.breadcrumbs as { message: string }[];
-    expect(crumbs.map((crumb) => crumb.message)).toContain('/s/:token -> /s/:token/items');
+    expect(crumbs.map((crumb) => crumb.message)).toContain('/s/:token -> /s/:token/*');
   });
 
   it('masks a token URL inside the message, a breadcrumb and extra', async () => {
@@ -205,9 +219,9 @@ describe('web Sentry client (#209)', () => {
     expect(serialized).not.toContain(token);
     const [event] = events(raw);
     const value = (event?.exception as { values: { value: string }[] }).values[0]?.value;
-    expect(value).toContain('/s/:token/items');
+    expect(value).toContain('/s/:token/*');
     const crumbs = event?.breadcrumbs as { message: string }[];
-    expect(crumbs.some((crumb) => crumb.message.includes('/s/:token/items'))).toBe(true);
+    expect(crumbs.some((crumb) => crumb.message.includes('/s/:token/*'))).toBe(true);
     expect(event?.extra).toBeUndefined();
   });
 

@@ -8,13 +8,23 @@ const BEARER = /\bBearer\s+[^\s,;]+/gi;
 const SESSION = /__Host-rfx_session=[^\s;,]+/g;
 // Single quotes stay: engines quote property names that way ("reading 'title'").
 const QUOTED = /"[^"\n]*"|«[^»\n]*»|“[^”\n]*”/g;
-// Fallback for paths the router template does not match, including /s/<token>/<segment>.
-// Case-insensitive: /S/<token> is the same public link.
-const TOKEN_PATHS = /\/(feeds|public\/lists|s)\/[^/?#\s]+/gi;
+// The token stops at a quote or a space. Anything after /s/<token>/ collapses,
+// so the next segment never leaves the browser. A letter before /s/ keeps
+// units and asset paths (`m/s/2`, `/assets/s/x.js`) intact.
+const SHARE_PATH =
+  /(?<![A-Za-z0-9])((?:https?:\/\/[^\s/"']+)?)\/s\/[A-Za-z0-9_-]+((?:\/[^/?#\s"'«»“”]+)*)/gi;
+const OTHER_TOKEN_PATHS = /\/(feeds|public\/lists)\/[^/?#\s"'«»“”]+/gi;
 
-/** Masks one secret segment. A following segment stays, without the token. */
+/** Masks secret path segments. `/s/<token>/…` becomes `/s/:token` or `/s/:token/*`. */
 function maskTokenPaths(text: string): string {
-  return text.replace(TOKEN_PATHS, (_match, kind: string) => `/${kind.toLowerCase()}/:token`);
+  const shares = text.replace(
+    SHARE_PATH,
+    (_match, origin: string, rest: string) => `${origin}/s/:token${rest.length > 0 ? '/*' : ''}`,
+  );
+  return shares.replace(
+    OTHER_TOKEN_PATHS,
+    (_match, kind: string) => `/${kind.toLowerCase()}/:token`,
+  );
 }
 const NUMERIC = /\/\d{2,}(?=\/|$)/g;
 
