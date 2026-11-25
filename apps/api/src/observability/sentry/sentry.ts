@@ -83,10 +83,9 @@ export function initSentry(
     initialScope: { tags: { deploy_sha: resolved.deploySha } },
     beforeSend: (event: ErrorEvent, hint: EventHint) => {
       const clean = scrubEvent(event, hint);
-      if (isSummary(hint)) {
-        return clean;
-      }
-      return limiter.admit(fingerprintOf(clean)) ? clean : null;
+      // The «suprimidos N» summary is an event too: it spends the same hourly and daily caps.
+      const key = isSummary(hint) ? SUMMARY : fingerprintOf(clean);
+      return limiter.admit(key) ? clean : null;
     },
     beforeBreadcrumb: () => null,
     ...(options.transport === undefined ? {} : { transport: options.transport }),

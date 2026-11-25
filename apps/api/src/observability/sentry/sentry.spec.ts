@@ -213,4 +213,34 @@ describe('Sentry in the API', () => {
     await Sentry.flush(2_000);
     expect(captured.events()).toHaveLength(10);
   });
+
+  it('the suppressed summary spends a cap slot and is dropped when the cap is full', async () => {
+    const { transport, captured } = fakeTransport();
+    initSentry(
+      { ...ENABLED, SENTRY_ENVIRONMENT: 'production' },
+      { transport, processHandlers: false },
+    );
+    for (let index = 0; index < 11; index += 1) {
+      Sentry.captureException(new Error('repeated failure'));
+    }
+    for (let index = 0; index < 49; index += 1) {
+      Sentry.captureException(new Error(`other ${String(index)}`));
+    }
+    // 10 + 49 admitted, 1 suppressed, one hourly slot left. The summary takes it.
+    flushThrottleSummary();
+    Sentry.captureException(new Error('after the summary'));
+    await Sentry.flush(2_000);
+    const events = captured.events();
+    expect(events.filter((event) => event.exception !== undefined)).toHaveLength(59);
+    expect(events.filter((event) => event.message !== undefined)).toEqual([
+      expect.objectContaining({
+        message: 'Sentry: suprimidos 1 eventos por el throttling',
+        level: 'warning',
+      }),
+    ]);
+
+    flushThrottleSummary();
+    await Sentry.flush(2_000);
+    expect(captured.events().filter((event) => event.message !== undefined)).toHaveLength(1);
+  });
 });
