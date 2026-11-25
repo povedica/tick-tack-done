@@ -118,7 +118,7 @@ Revertir las PRs es seguro: no hay migraciones.
 ## Cron monitor y uptime
 
 - `scheduler-tick` se crea solo con el primer check-in, por `monitorConfig`: un check-in cada 5 ticks, margen de 5 min, `maxRuntime` de 10 min, UTC.
-- Un tick `ok` sigue saliendo cada 5 ticks. Un tick fallido envía `error` en ese momento y hace flush: no espera a la cuenta de 5. Con `SENTRY_CRON_EVERY_TICKS=0` no hay check-in.
+- Un tick `ok` sigue saliendo cada 5 ticks. Si alguna fase falla, al final del tick se envía `error` y se hace flush, aunque el resto de las fases haya seguido; un rechazo del tick entero también. No espera a la cuenta de 5. Con `SENTRY_CRON_EVERY_TICKS=0` no hay check-in.
 - El **uptime monitor** de `/api/v1/health` lo crea Pablo en la UI: el plan incluye 1.
 
 ## Smoke
