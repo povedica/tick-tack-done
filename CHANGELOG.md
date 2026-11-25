@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## Filtro por persona asignada
+
+- En el editor de filtros, «Asignado» elige a una persona y guarda su id de
+  usuario. «Yo» aparece primero. Sin listas compartidas solo se ofrece «Yo».
+  Si esa persona deja de estar disponible, la condición se conserva y se avisa.
+
 ## Correos con el mismo marco
 
 - Todos los correos (resumen, cierre, recordatorio, cuenta atrás, contraseña,
