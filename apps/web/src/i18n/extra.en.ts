@@ -1321,6 +1321,10 @@ export const extraEn = {
 
   privacyCalendarTitle: 'Google Calendar',
   privacyDriveTitle: 'Google Drive',
+  // PENDING: legal text not yet reviewed by Pablo (#209).
+  privacyErrorsTitle: 'Error diagnostics',
+  privacyErrors:
+    'To diagnose failures we use Sentry, by Functional Software, Inc., as a data processor, with data hosted in its European Union region. When the app or the server fails, a technical report is sent: error type, code stack trace, normalized route, version and an internal, pseudonymous identifier of your account. Your email, your IP address, the content of your tasks and your credentials are never sent. Reports are kept for 30 days.',
   loginSecondFactor: 'This account asks for a second factor.',
   loginChangeCredentials: 'Change email or password',
   sharePending: 'Pending',
