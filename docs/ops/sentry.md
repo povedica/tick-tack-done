@@ -189,7 +189,7 @@ Hacerla en staging, con el `release` desplegado, y guardar el id del evento. No 
 - [ ] Crear las alertas por email: error nuevo en producción y regresión. La alerta por frecuencia, solo si está en el plan gratuito.
 - [ ] Crear el uptime monitor de `/api/v1/health`.
 - [ ] Activar los inbound filters (extensiones, localhost, navegadores antiguos, crawlers) y spike protection si aparece en Settings.
-- [ ] Revisar el texto legal de la política de privacidad (marcado PENDIENTE) antes del merge.
+- [x] Revisar el texto legal de la política de privacidad antes del merge. Pablo lo aceptó el 26/11/2026.
 - [ ] Hacer el primer deploy en staging y el smoke info en producción, y guardar las evidencias de la sección «Validación y evidencias».
 - [ ] Revisar _Stats_ cada semana.
 - [ ] No configurar nada que solo exista en Business o trial.

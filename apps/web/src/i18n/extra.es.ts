@@ -192,7 +192,6 @@ export const extraEs = {
   privacyTitle: 'Política de privacidad',
   privacyCalendarTitle: 'Calendario de Google',
   privacyDriveTitle: 'Google Drive',
-  // PENDIENTE: texto legal sin revisar por Pablo (#209).
   privacyErrorsTitle: 'Diagnóstico de errores',
   privacyErrors:
     'Para diagnosticar fallos usamos Sentry, de Functional Software, Inc., como encargado del tratamiento, con los datos alojados en su región de la Unión Europea. Cuando la aplicación o el servidor fallan se envía un informe técnico: tipo de error, traza del código, ruta normalizada, versión y un identificador interno y seudónimo de tu cuenta. Nunca se envían tu email, tu dirección IP, el contenido de tus tareas ni tus credenciales. Los informes se conservan 30 días.',
