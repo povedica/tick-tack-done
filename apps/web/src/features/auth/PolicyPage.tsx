@@ -29,6 +29,10 @@ export function PolicyPage({ terms = false }: { terms?: boolean }) {
               <p>{m.privacyDrive}</p>
             </section>
             <p>{m.privacyLimitedUse}</p>
+            <section>
+              <h2>{m.privacyErrorsTitle}</h2>
+              <p>{m.privacyErrors}</p>
+            </section>
             <p>{m.privacyRetention}</p>
           </>
         )}
